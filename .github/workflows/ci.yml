@@ -4,7 +4,7 @@
 #
 # Release binaries will need an older build environment than these runners:
 # eCorpus runs them in node:22-slim (Debian bookworm, glibc 2.36), and binaries
-# built on ubuntu-24.04 (glibc 2.39) won't load there. Build releases in a
+# built on these runners, with a newer glibc, won't load there. Build releases in a
 # debian:bookworm container, and add arm64 then.
 name: CI
 
@@ -12,10 +12,13 @@ on:
   push:
   pull_request:
 
+# Each job normally takes about two minutes. The timeouts stop a stalled
+# download or a hung test well before GitHub's 6-hour default.
 jobs:
   gcc:
     name: GCC build and tests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: Configure
@@ -31,7 +34,8 @@ jobs:
 
   sanitizers:
     name: AddressSanitizer and UndefinedBehaviorSanitizer
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
     env:
       ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
       UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
@@ -46,14 +50,15 @@ jobs:
 
   tidy:
     name: clang-tidy
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - name: Install clang-tidy 19
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-tidy-19
+      # clang-tidy 20 comes with the runner image. Installing a version from
+      # the Ubuntu archive downloads over 100 MB of LLVM packages, which can
+      # take 30 minutes on a slow mirror. 18, on ubuntu-24.04, raised
+      # unchecked-optional-access false positives that 19 and later don't.
       - name: Configure
-        run: cmake -S . -B build -DMESHTINKER_RUN_CLANG_TIDY=/usr/bin/run-clang-tidy-19
+        run: cmake -S . -B build -DMESHTINKER_RUN_CLANG_TIDY=/usr/bin/run-clang-tidy-20
       - name: clang-tidy, findings as errors
         run: cmake --build build --target tidy

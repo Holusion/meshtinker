@@ -69,7 +69,7 @@ C++17, built with CMake from the repository root. The build scaffolding comes fr
   cmake --build build/asan && ctest --test-dir build/asan
   ```
 
-- clang-tidy is not part of the pre-commit checks. It runs in CI, and locally through the `tidy` build target, which lints project sources (not `vendor/`) with `.clang-tidy`. The configuration comes from cluster_lod: bug-prone, performance and a few narrowing checks, and no style-only checks. Run it when a change does offset or size arithmetic. Its widening checks catch 32-bit products that overflow before they become 64-bit offsets, which tests with small files never trigger.
+- clang-tidy is not part of the pre-commit checks. It runs in CI, and locally through the `tidy` build target, which lints project sources (not `vendor/`) with `.clang-tidy`. The configuration comes from cluster_lod: bug-prone, performance and a few narrowing checks, and no style-only checks. Run it when a change does offset or size arithmetic. Its widening checks catch 32-bit products that overflow before they become 64-bit offsets, which tests with small files never trigger. CI uses the clang-tidy 20 that comes with its ubuntu-26.04 runner image, one version ahead of the 19 used locally: it has a few more `bugprone` checks, so CI can report findings that a local run doesn't.
 
   ```sh
   cmake --build build --target tidy

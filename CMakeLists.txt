@@ -142,7 +142,7 @@ install(TARGETS meshtinker RUNTIME DESTINATION bin)
 
 # `cmake --build build --target tidy` lints project sources with .clang-tidy.
 # Findings are errors. Not part of the default build.
-find_program(MESHTINKER_RUN_CLANG_TIDY NAMES run-clang-tidy run-clang-tidy-19)
+find_program(MESHTINKER_RUN_CLANG_TIDY NAMES run-clang-tidy run-clang-tidy-19 run-clang-tidy-20)
 if(MESHTINKER_RUN_CLANG_TIDY)
     add_custom_target(tidy
         COMMAND "${MESHTINKER_RUN_CLANG_TIDY}" -quiet -p "${CMAKE_BINARY_DIR}"
