@@ -5,6 +5,7 @@
 #include "meshtinker/common/references.hpp"
 #include "meshtinker/gltf/geometry.hpp"
 #include "meshtinker/gltf/graph.hpp"
+#include "meshtinker/gltf/transform.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -17,8 +18,19 @@
 namespace meshtinker::analysis {
 namespace {
 
+using gltf::cornerCount;
+using gltf::findAttribute;
+using gltf::identity;
+using gltf::instanceMatrix;
+using gltf::Instancing;
+using gltf::instancing;
 using gltf::Json;
 using gltf::Kind;
+using gltf::localMatrix;
+using gltf::Matrix;
+using gltf::multiply;
+using gltf::triangleCorners;
+using gltf::triangleCount;
 
 // Extensions whose meaning the figures account for, or that don't change them.
 bool isUnderstoodExtension(const std::string& name) {
@@ -96,170 +108,9 @@ bool usesMeshopt(const cgltf_primitive& primitive) {
     return false;
 }
 
-const cgltf_accessor* findAttribute(const cgltf_primitive& primitive, cgltf_attribute_type type, int set) {
-    for (std::size_t a = 0; a < primitive.attributes_count; ++a) {
-        if (primitive.attributes[a].type == type && primitive.attributes[a].index == set) {
-            return primitive.attributes[a].data;
-        }
-    }
-    return nullptr;
-}
-
-// Corners the primitive draws: its indices, or its vertices without them.
-std::uint64_t cornerCount(const cgltf_primitive& primitive) {
-    if (primitive.indices != nullptr) {
-        return primitive.indices->count;
-    }
-    const cgltf_accessor* position = findAttribute(primitive, cgltf_attribute_type_position, 0);
-    return position == nullptr ? 0 : position->count;
-}
-
-// Triangles: lists n / 3, strips and fans n − 2, points and lines none.
-std::uint64_t triangleCount(cgltf_primitive_type type, std::uint64_t corners) {
-    switch (type) {
-    case cgltf_primitive_type_triangles:
-        return corners / 3;
-    case cgltf_primitive_type_triangle_strip:
-    case cgltf_primitive_type_triangle_fan:
-        return corners >= 3 ? corners - 2 : 0;
-    default:
-        return 0;
-    }
-}
-
-// The corners of triangle `t`.
-std::array<std::uint64_t, 3> triangleCorners(cgltf_primitive_type type, std::uint64_t t) {
-    switch (type) {
-    case cgltf_primitive_type_triangle_strip:
-        return {t, t + 1, t + 2};
-    case cgltf_primitive_type_triangle_fan:
-        return {0, t + 1, t + 2};
-    default:
-        return {3 * t, 3 * t + 1, 3 * t + 2};
-    }
-}
-
 std::size_t indexOf(const cgltf_data& data, const cgltf_mesh* mesh) {
     return static_cast<std::size_t>(mesh - data.meshes);
 }
-
-// A 4x4 column-major matrix in double precision.
-using Matrix = std::array<double, 16>;
-
-Matrix multiply(const Matrix& a, const Matrix& b) {
-    Matrix result{};
-    for (std::size_t column = 0; column < 4; ++column) {
-        for (std::size_t row = 0; row < 4; ++row) {
-            double sum = 0;
-            for (std::size_t k = 0; k < 4; ++k) {
-                sum += a[k * 4 + row] * b[column * 4 + k];
-            }
-            result[column * 4 + row] = sum;
-        }
-    }
-    return result;
-}
-
-// T * R * S, as the glTF spec defines it, from a translation, a unit
-// quaternion (x, y, z, w) and a scale.
-Matrix trsMatrix(const double t[3], const double q[4], const double scale[3]) {
-    Matrix m{};
-    const double tx = t[0], ty = t[1], tz = t[2];
-    const double qx = q[0], qy = q[1], qz = q[2], qw = q[3];
-    const double sx = scale[0], sy = scale[1], sz = scale[2];
-    m[0] = (1 - 2 * (qy * qy + qz * qz)) * sx;
-    m[1] = (2 * (qx * qy + qz * qw)) * sx;
-    m[2] = (2 * (qx * qz - qy * qw)) * sx;
-    m[4] = (2 * (qx * qy - qz * qw)) * sy;
-    m[5] = (1 - 2 * (qx * qx + qz * qz)) * sy;
-    m[6] = (2 * (qy * qz + qx * qw)) * sy;
-    m[8] = (2 * (qx * qz + qy * qw)) * sz;
-    m[9] = (2 * (qy * qz - qx * qw)) * sz;
-    m[10] = (1 - 2 * (qx * qx + qy * qy)) * sz;
-    m[12] = tx;
-    m[13] = ty;
-    m[14] = tz;
-    m[15] = 1;
-    return m;
-}
-
-Matrix localMatrix(const cgltf_node& node) {
-    if (node.has_matrix) {
-        Matrix m{};
-        for (std::size_t i = 0; i < 16; ++i) {
-            m[i] = node.matrix[i];
-        }
-        return m;
-    }
-    double t[3] = {0, 0, 0};
-    double q[4] = {0, 0, 0, 1};
-    double scale[3] = {1, 1, 1};
-    for (std::size_t i = 0; i < 4; ++i) {
-        if (i < 3 && node.has_translation) {
-            t[i] = node.translation[i];
-        }
-        if (node.has_rotation) {
-            q[i] = node.rotation[i];
-        }
-        if (i < 3 && node.has_scale) {
-            scale[i] = node.scale[i];
-        }
-    }
-    return trsMatrix(t, q, scale);
-}
-
-// The EXT_mesh_gpu_instancing attributes of a node, and how many instances they give.
-struct Instancing {
-    const cgltf_accessor* translation = nullptr;
-    const cgltf_accessor* rotation = nullptr;
-    const cgltf_accessor* scale = nullptr;
-    std::size_t count = 1;
-};
-
-Instancing instancing(const cgltf_node& node) {
-    Instancing result;
-    if (!node.has_mesh_gpu_instancing) {
-        return result;
-    }
-    for (std::size_t a = 0; a < node.mesh_gpu_instancing.attributes_count; ++a) {
-        const cgltf_attribute& attribute = node.mesh_gpu_instancing.attributes[a];
-        const std::string name = attribute.name == nullptr ? "" : attribute.name;
-        if (name == "TRANSLATION") {
-            result.translation = attribute.data;
-        } else if (name == "ROTATION") {
-            result.rotation = attribute.data;
-        } else if (name == "SCALE") {
-            result.scale = attribute.data;
-        }
-    }
-    // Every attribute has one element per instance; the extension requires them equal.
-    for (const cgltf_accessor* accessor : {result.translation, result.rotation, result.scale}) {
-        if (accessor != nullptr) {
-            result.count = accessor->count;
-        }
-    }
-    return result;
-}
-
-// Instance `i`'s matrix: T * R * S from the instancing attributes.
-Matrix instanceMatrix(const Instancing& instances, std::size_t i) {
-    double t[3] = {0, 0, 0};
-    double q[4] = {0, 0, 0, 1};
-    double scale[3] = {1, 1, 1};
-    float values[4] = {0, 0, 0, 0};
-    if (instances.translation != nullptr && cgltf_accessor_read_float(instances.translation, i, values, 3)) {
-        t[0] = values[0], t[1] = values[1], t[2] = values[2];
-    }
-    if (instances.rotation != nullptr && cgltf_accessor_read_float(instances.rotation, i, values, 4)) {
-        q[0] = values[0], q[1] = values[1], q[2] = values[2], q[3] = values[3];
-    }
-    if (instances.scale != nullptr && cgltf_accessor_read_float(instances.scale, i, values, 3)) {
-        scale[0] = values[0], scale[1] = values[1], scale[2] = values[2];
-    }
-    return trsMatrix(t, q, scale);
-}
-
-constexpr Matrix identity{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
 // KHR_texture_transform, the UVs a renderer actually samples with:
 // T · R · S · uv, from the extension's reference shader, as objtools applies it.
