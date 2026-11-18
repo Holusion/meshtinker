@@ -115,14 +115,14 @@ std::array<double, 3> apply(const Matrix& m, const std::array<double, 3>& p) {
 
 std::optional<Matrix> invertAffine(const Matrix& m) {
     // The linear part's cofactors, by row and column of the 3x3 block.
-    const auto at = [&](int row, int column) { return m[static_cast<std::size_t>(column * 4 + row)]; };
+    const auto at = [&](std::size_t row, std::size_t column) { return m[column * 4 + row]; };
     const double c00 = at(1, 1) * at(2, 2) - at(1, 2) * at(2, 1);
     const double c01 = at(1, 2) * at(2, 0) - at(1, 0) * at(2, 2);
     const double c02 = at(1, 0) * at(2, 1) - at(1, 1) * at(2, 0);
     const double determinant = at(0, 0) * c00 + at(0, 1) * c01 + at(0, 2) * c02;
     // Relative to the columns' lengths, so that a uniformly tiny scale isn't flattening.
     double scale = 1;
-    for (int column = 0; column < 3; ++column) {
+    for (std::size_t column = 0; column < 3; ++column) {
         scale *= std::sqrt(at(0, column) * at(0, column) + at(1, column) * at(1, column) + at(2, column) * at(2, column));
     }
     if (!(scale > 0) || !(std::abs(determinant) > 1e-12 * scale)) {
@@ -130,7 +130,7 @@ std::optional<Matrix> invertAffine(const Matrix& m) {
     }
     const double d = 1 / determinant;
     Matrix inverse{};
-    const auto set = [&](int row, int column, double value) { inverse[static_cast<std::size_t>(column * 4 + row)] = value; };
+    const auto set = [&](std::size_t row, std::size_t column, double value) { inverse[column * 4 + row] = value; };
     set(0, 0, c00 * d);
     set(1, 0, c01 * d);
     set(2, 0, c02 * d);
@@ -140,9 +140,8 @@ std::optional<Matrix> invertAffine(const Matrix& m) {
     set(0, 2, (at(0, 1) * at(1, 2) - at(0, 2) * at(1, 1)) * d);
     set(1, 2, (at(0, 2) * at(1, 0) - at(0, 0) * at(1, 2)) * d);
     set(2, 2, (at(0, 0) * at(1, 1) - at(0, 1) * at(1, 0)) * d);
-    for (int row = 0; row < 3; ++row) {
-        set(row, 3, -(inverse[static_cast<std::size_t>(row)] * m[12] + inverse[static_cast<std::size_t>(4 + row)] * m[13] +
-                      inverse[static_cast<std::size_t>(8 + row)] * m[14]));
+    for (std::size_t row = 0; row < 3; ++row) {
+        set(row, 3, -(inverse[row] * m[12] + inverse[4 + row] * m[13] + inverse[8 + row] * m[14]));
     }
     set(3, 3, 1);
     return inverse;

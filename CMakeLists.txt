@@ -130,6 +130,9 @@ endfunction()
 
 meshtinker_add_command(inspect)
 meshtinker_add_command(import)
+meshtinker_add_command(placeholder)
+find_package(Threads REQUIRED)
+target_link_libraries(meshtinker-placeholder-lib PRIVATE Threads::Threads)
 
 # The wrapper is named `meshtinker`, not `meshtinker-meshtinker`.
 add_executable(meshtinker src/commands/meshtinker/main.cpp)
@@ -197,6 +200,8 @@ if(BUILD_TESTING)
     meshtinker_add_test(gltf-normalized gltf/normalized_test.cpp)
     meshtinker_add_test(analysis-coverage analysis/coverage_test.cpp)
     meshtinker_add_test(analysis-fixtures analysis/fixtures_test.cpp)
+    meshtinker_add_test(placeholder placeholder/placeholder_test.cpp meshtinker-placeholder-lib)
+    target_include_directories(test-placeholder PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     meshtinker_add_script_test(wrapper commands/wrapper_test.cmake)
     meshtinker_add_test(cli-readme-help cli/readme_help_test.cpp)
     meshtinker_add_test(cli-command cli/command_test.cpp)
