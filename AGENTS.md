@@ -2,7 +2,7 @@
 
 `meshtinker` is a set of command-line tools that analyse and optimize glTF 2.0 assets, often photogrammetry scans with large geometry and textures, while using little memory. Every tool runs under one `meshtinker` entry point. Many tools are expected, some of them competing experimental algorithms for the same task.
 
-The README holds the command reference. `docs/` holds behaviour and design notes, starting with [the normalized profile](docs/normalized-profile.md) that `import` writes and that every command except `inspect` expects as input.
+The README holds the command reference. `docs/` holds behaviour and design notes, starting with [the normalized profile](docs/normalized-profile.md) that `import` writes, and that every other command except `inspect` reads any input as, in memory, and writes ([how](docs/normalized-profile.md#how-commands-get-normalized-input)).
 
 # Constraints
 
@@ -32,7 +32,7 @@ Platform priority is Linux, then WSL and macOS. Don't make Windows harder than i
 C++17, built with CMake from the repository root. The build scaffolding comes from `../cluster_lod/packages/tools`.
 
 - `include/meshtinker/<namespace>/`, `src/<namespace>/` and `test/<namespace>/` match C++ namespaces under `meshtinker`.
-- Shared namespaces build into the `meshtinker-core` static library: `common` (files, mappings, workspaces, outputs, exit codes, diagnostics), `gltf` (document reading and writing, image headers, the index graph, scene selection and layout, geometry decoding), `cli` (option and help helpers shared by every subcommand), `analysis` (the inspection report and the pipeline `inspect` and `import` share, texture coverage).
+- Shared namespaces build into the `meshtinker-core` static library: `common` (files, mappings, workspaces, outputs, exit codes, diagnostics), `gltf` (document reading and writing, image headers, the index graph, scene selection and layout, geometry decoding, node transforms), `cli` (option and help helpers shared by every subcommand), `analysis` (the inspection report and the pipeline `inspect` and `import` share, texture coverage).
 - Each subcommand lives in `src/commands/<name>/` (namespace `meshtinker::<name>`), with its `main.cpp`, and builds into `meshtinker-<name>`. The wrapper lives in `src/commands/meshtinker/`.
 - Shared namespaces never depend on subcommand namespaces. Code moves to a shared namespace once a second subcommand needs it.
 - `vendor/` holds third-party code (cgltf, CLI11, Draco's decoder, meshoptimizer, nlohmann/json, stb), each with its license and version in `vendor/README.md`. It builds as a separate target without project warnings.

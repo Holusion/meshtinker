@@ -24,8 +24,9 @@ Usage: meshtinker <command> [args...]
        meshtinker --version
 
 Commands:
-  import    Rewrite a glTF or GLB file in the normalized profile
-  inspect   Report statistics about a glTF or GLB file
+  import        Rewrite a glTF or GLB file in the normalized profile
+  inspect       Report statistics about a glTF or GLB file
+  placeholder   Build a low-poly stand-in for a glTF or GLB model
 
 Commands are the meshtinker-<command> executables next to meshtinker, then on PATH.
 ```
@@ -88,7 +89,7 @@ OPTIONS:
 
 ### import
 
-Rewrites a `.gltf` or `.glb` file in the [normalized profile](docs/normalized-profile.md), which every command except `inspect` expects as input:
+Rewrites a `.gltf` or `.glb` file in the [normalized profile](docs/normalized-profile.md). Every other command except `inspect` normalizes its input the same way in memory and writes the profile, so running `import` first is optional; it makes later commands read their input front to back. Importing an imported file writes identical files. The profile is:
 
 - one `.gltf`, one `.bin` and the images as separate files;
 - only the default scene and what it uses;
@@ -117,6 +118,44 @@ POSITIONALS:
 OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### placeholder
+
+Builds a low-poly, untextured stand-in for a model, to display while the model is processed. It overlays what the default scene shows at rest, and its size depends on `--resolution` and the model's shape, not on the face count: a few hundred to a few thousand faces at the default resolution of 16, and about 58,000 at 128 for a 44-million-face scan. That scan takes a few seconds, with a heap under 20 MB.
+
+The placeholder is deliberately approximate. It may cut slightly into the model, and bevels sharp edges by about one cell. Enclosed interior geometry is left out, holes stay open down to a few cells, and open surfaces become thin sheets. Small parts far from the model, such as scan noise, are left out with a warning (`small-parts-left-out`), and so are points and lines. A part that fits inside a single cell disappears, so a scene of objects far apart may need a higher `--resolution`. [docs/placeholder.md](docs/placeholder.md) explains how it is built and where it sits.
+
+It writes `<output>.gltf` and `<output>.bin`, in the normalized profile. The report gives the source's face count, the grid (`resolution`, `cells`, `cellSize`, refit `passes`, `droppedParts`) and the output's vertices, faces and files.
+
+```console
+$ meshtinker placeholder --help
+Build a low-poly stand-in for a glTF or GLB model
+
+Voxelizes the faces the default scene shows at rest, then writes the outer
+surface of the occupied cells as one untextured mesh, placed to overlay the
+model. Its size depends on the resolution and the model's shape, not on its face
+count.
+
+
+meshtinker placeholder [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
+                                overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --resolution N        Cells along the model's longest axis, 2 to 128 (default 16)
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

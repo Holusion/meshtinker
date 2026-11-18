@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <numeric>
 #include <set>
+#include <utility>
 
 namespace meshtinker::gltf {
 namespace {
@@ -215,6 +216,14 @@ Layout normalizedLayout(const Document& document, const Selection& selection, co
         }
     }
     return layout;
+}
+
+Document readNormalized(const std::filesystem::path& path, const ReadOptions& options,
+                        common::Diagnostics& diagnostics) {
+    Document source = Document::read(path, options);
+    const Selection selection = selectScene(source);
+    const Layout layout = normalizedLayout(source, selection, diagnostics);
+    return Document::normalized(std::move(source), layout);
 }
 
 } // namespace meshtinker::gltf

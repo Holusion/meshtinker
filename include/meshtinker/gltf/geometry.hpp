@@ -3,6 +3,7 @@
 #include "meshtinker/common/workspace.hpp"
 #include "meshtinker/gltf/document.hpp"
 
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <set>
@@ -12,6 +13,19 @@
 #include <vector>
 
 namespace meshtinker::gltf {
+
+// Attribute `type` of set `set` (TEXCOORD_<set>, for instance), or null.
+const cgltf_accessor* findAttribute(const cgltf_primitive& primitive, cgltf_attribute_type type, int set);
+
+// Corners the primitive draws: its indices, or its vertices without them.
+std::uint64_t cornerCount(const cgltf_primitive& primitive);
+
+// Triangles: lists n / 3, strips and fans n − 2, points and lines none.
+std::uint64_t triangleCount(cgltf_primitive_type type, std::uint64_t corners);
+
+// The corners of triangle `t`, as positions in the index list (or vertex list
+// without indices).
+std::array<std::uint64_t, 3> triangleCorners(cgltf_primitive_type type, std::uint64_t t);
 
 // Why an accessor can't be read.
 enum class Readability : std::uint8_t {

@@ -609,6 +609,30 @@ fixtures.invalid = (dir) => {
   });
 };
 
+fixtures.skinned = (dir) => {
+  // A Z-up skeleton under a root that turns it Y-up, as Blender exports it (BrainStem): a renderer places the skinned
+  // quad by its joint's world matrix times its inverse bind matrix, which carries the root's rotation.
+  const b = new Builder();
+  const q = quad(b);
+  const joints = b.accessor(b.view(Uint8Array.from(Array(16).fill(0)), { target: ARRAY_BUFFER }), UBYTE, 'VEC4', 4);
+  const weights = b.accessor(b.view(Float32Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]), { target: ARRAY_BUFFER }), FLOAT, 'VEC4', 4);
+  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const inverseBindMatrices = b.accessor(b.view(Float32Array.from(identity)), FLOAT, 'MAT4', 1);
+  const root = b.add('nodes', { name: 'Root', rotation: [-Math.SQRT1_2, 0, 0, Math.SQRT1_2] });
+  const joint = b.add('nodes', { name: 'Joint' });
+  const skin = b.add('skins', { joints: [joint], inverseBindMatrices });
+  const { node } = b.meshNode([{ attributes: { ...q.attributes, JOINTS_0: joints, WEIGHTS_0: weights }, indices: q.indices }], { skin }, 'Skinned');
+  b.json.nodes[root].children = [node, joint];
+  b.json.scene = b.scene([root]);
+  b.write(path.join(dir, 'skinned.gltf'));
+  writeExpected(dir, {
+    description: 'A skinned quad in the XY plane, its joint and its mesh node under a root rotated -90° about X: drawn in the XZ plane.',
+    geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, -1], max: [1, 0, 0], tolerance: 1e-6 },
+    notes: ['The joint has no transform and an identity inverse bind matrix, so the quad is drawn through the root\'s rotation, which the mesh node\'s world matrix also gives.',
+      'placeholder: a skinned node is never the frame, so the placeholder is built in world coordinates, in the XZ plane.'],
+  });
+};
+
 /** Deterministic PRNG (mulberry32), so generated models are identical on every run. */
 function prng(seed) {
   return () => {
@@ -885,6 +909,64 @@ fixtures['unknown-required'] = (dir) => {
     description: 'An unknown extension listed in extensionsRequired.',
     geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, 0], max: [1, 1, 0] },
     notes: ['Whether inspect and import accept this is not decided yet; they must agree.'],
+  });
+};
+
+/** An axis-aligned cube of side `size` around `center`, each side an n×n grid of quads, wound to face outward. */
+function cubeSurface(n, center, size) {
+  const positions = [];
+  const indices = [];
+  const h = size / 2;
+  // Each side: the axis it faces, its sign, and two in-plane axes (u, v) with u × v along the outward normal.
+  for (const [axis, sign] of [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]]) {
+    const [u, v] = sign > 0 ? [(axis + 1) % 3, (axis + 2) % 3] : [(axis + 2) % 3, (axis + 1) % 3];
+    const base = positions.length / 3;
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        const p = [0, 0, 0];
+        p[axis] = center[axis] + sign * h;
+        p[u] = center[u] - h + (size * i) / n;
+        p[v] = center[v] - h + (size * j) / n;
+        positions.push(...p);
+      }
+    }
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const a = base + j * (n + 1) + i;
+        indices.push(a, a + 1, a + n + 2, a, a + n + 2, a + n + 1);
+      }
+    }
+  }
+  return { positions, indices };
+}
+
+fixtures.cube = (dir) => {
+  const b = new Builder();
+  const outer = cubeSurface(8, [0, 0, 0], 2);
+  const inner = cubeSurface(2, [0.2, 0, 0], 0.5);
+  const primitive = (s) => ({ attributes: { POSITION: b.floats(s.positions, 'VEC3') }, indices: b.indices(s.indices) });
+  const { node } = b.meshNode([primitive(outer), primitive(inner)], {}, 'Cube');
+  b.json.scene = b.scene([node]);
+  b.write(path.join(dir, 'cube.gltf'));
+  writeExpected(dir, {
+    description: 'A closed 2×2×2 cube around the origin, each side an 8×8 grid wound outward, hiding a 0.5 cube inside it as a second primitive.',
+    geometry: { primitives: 2, vertices: 6 * 81 + 6 * 9, faces: 6 * 128 + 6 * 8 }, bounds: { min: [-1, -1, -1], max: [1, 1, 1] },
+    notes: ['placeholder: closed, facing outward, within a cell of the outer cube, and nothing from the inner cube.'],
+  });
+};
+
+fixtures.floater = (dir) => {
+  const b = new Builder();
+  const main = cubeSurface(4, [0, 0, 0], 2);
+  const floater = cubeSurface(1, [40, 0, 0], 0.05);
+  const { node } = b.meshNode([{ attributes: { POSITION: b.floats(main.positions, 'VEC3') }, indices: b.indices(main.indices) },
+    { attributes: { POSITION: b.floats(floater.positions, 'VEC3') }, indices: b.indices(floater.indices) }], {}, 'Floater');
+  b.json.scene = b.scene([node]);
+  b.write(path.join(dir, 'floater.gltf'));
+  writeExpected(dir, {
+    description: 'A 2×2×2 cube around the origin and a 0.05 cube 40 units away, as scan noise far off.',
+    geometry: { primitives: 2, vertices: 6 * 25 + 6 * 4, faces: 6 * 32 + 6 * 2 }, bounds: { min: [-1, -1, -1], max: [40.025, 1, 1], tolerance: 1e-5 },
+    notes: ['40.025 is not a float32: bounds within 1e-5.', 'placeholder: the floater is left out (small-parts-left-out) and the grid refitted to the cube, within a cell of it.'],
   });
 };
 

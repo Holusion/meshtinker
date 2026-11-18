@@ -1,0 +1,25 @@
+{
+  "description": "A 2×2×2 cube around the origin and a 0.05 cube 40 units away, as scan noise far off.",
+  "geometry": {
+    "primitives": 2,
+    "vertices": 174,
+    "faces": 204
+  },
+  "bounds": {
+    "min": [
+      -1,
+      -1,
+      -1
+    ],
+    "max": [
+      40.025,
+      1,
+      1
+    ],
+    "tolerance": 0.00001
+  },
+  "notes": [
+    "40.025 is not a float32: bounds within 1e-5.",
+    "placeholder: the floater is left out (small-parts-left-out) and the grid refitted to the cube, within a cell of it."
+  ]
+}

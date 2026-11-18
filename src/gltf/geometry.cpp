@@ -301,4 +301,44 @@ Readability GeometryReader::prepareView(const cgltf_buffer_view* view) {
     return status;
 }
 
+const cgltf_accessor* findAttribute(const cgltf_primitive& primitive, cgltf_attribute_type type, int set) {
+    for (std::size_t a = 0; a < primitive.attributes_count; ++a) {
+        if (primitive.attributes[a].type == type && primitive.attributes[a].index == set) {
+            return primitive.attributes[a].data;
+        }
+    }
+    return nullptr;
+}
+
+std::uint64_t cornerCount(const cgltf_primitive& primitive) {
+    if (primitive.indices != nullptr) {
+        return primitive.indices->count;
+    }
+    const cgltf_accessor* position = findAttribute(primitive, cgltf_attribute_type_position, 0);
+    return position == nullptr ? 0 : position->count;
+}
+
+std::uint64_t triangleCount(cgltf_primitive_type type, std::uint64_t corners) {
+    switch (type) {
+    case cgltf_primitive_type_triangles:
+        return corners / 3;
+    case cgltf_primitive_type_triangle_strip:
+    case cgltf_primitive_type_triangle_fan:
+        return corners >= 3 ? corners - 2 : 0;
+    default:
+        return 0;
+    }
+}
+
+std::array<std::uint64_t, 3> triangleCorners(cgltf_primitive_type type, std::uint64_t t) {
+    switch (type) {
+    case cgltf_primitive_type_triangle_strip:
+        return {t, t + 1, t + 2};
+    case cgltf_primitive_type_triangle_fan:
+        return {0, t + 1, t + 2};
+    default:
+        return {3 * t, 3 * t + 1, 3 * t + 2};
+    }
+}
+
 } // namespace meshtinker::gltf

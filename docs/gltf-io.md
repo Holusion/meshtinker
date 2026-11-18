@@ -38,6 +38,12 @@ All rejections are `common::Failure`s with exit code 1 and a stable `code`. Open
   - the `.bin` order of the views (primitive order);
   - the source → output index maps that `import` uses to renumber its report.
   An extension `isIndexAwareExtension` doesn't know may hold indices that go stale when anything is renumbered: `import` warns `extension-indices-not-renumbered`, once per such extension. `gltf::identityLayout` keeps everything as it is, for tests.
+- **The normalized document.** `gltf::readNormalized` is how commands after `import` read their input ([normalized-profile.md](normalized-profile.md#how-commands-get-normalized-input)). It reads the file, selects the scene, builds the normalized layout, and parses the layout's JSON as a second `Document` (`Document::normalized`) that takes over the input's mappings and decoded data URIs. The input's own parse is then freed, so only the layout's indices remain. Nothing is copied:
+  - buffers are the input's, renumbered with the layout but not merged, and carry no `uri`: their bytes are set from the mappings, as `Document::read` does;
+  - an image from a buffer view or a data URI has neither `uri` nor `bufferView` in the JSON, and `image(i)` holds its bytes;
+  - `path()`, `container()` and `files()` are the input's.
+
+  Its JSON, indices, buffer view bytes, accessor data and images match what `import` writes; only `buffers`, view offsets and image sources differ (`test/gltf/normalized_test.cpp`, over every fixture). The same test checks that importing an imported file writes identical files.
 
 ## Writing
 

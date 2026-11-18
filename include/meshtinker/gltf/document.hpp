@@ -18,6 +18,8 @@ namespace meshtinker::gltf {
 // The glTF JSON, with object keys kept in their source order.
 using Json = nlohmann::ordered_json;
 
+struct Layout;
+
 enum class Container : std::uint8_t { gltf, glb };
 
 enum class FileRole : std::uint8_t { gltf, glb, buffer, image };
@@ -72,6 +74,14 @@ struct ReadOptions {
 class Document {
 public:
     static Document read(const std::filesystem::path& path, const ReadOptions& options = {});
+
+    // The document `layout` describes, over `source`'s data, which it takes
+    // over: its JSON and cgltf view use the layout's indices only, and nothing
+    // is copied. Buffers carry no `uri` (their bytes are the source's), and an
+    // image read from a buffer view or a data URI has neither `uri` nor
+    // `bufferView`: image(i) holds its bytes. path(), container() and files()
+    // stay the source's. See readNormalized (layout.hpp).
+    static Document normalized(Document&& source, const Layout& layout);
 
     Document(Document&& other) noexcept;
     Document& operator=(Document&& other) noexcept;

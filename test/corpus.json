@@ -42,6 +42,9 @@
     { "id": "fixture/spec-gloss", "source": "fixture", "path": "spec-gloss/spec-gloss.gltf", "covers": ["spec-gloss", "png", "occupancy"] },
     { "id": "fixture/invalid", "source": "fixture", "path": "invalid/invalid.gltf", "covers": ["invalid", "skin"] },
     { "id": "fixture/scan", "source": "fixture", "path": "scan/scan.glb", "covers": ["photogrammetry", "glb", "glb-images", "jpeg", "node-transforms"] },
+    { "id": "fixture/cube", "source": "fixture", "path": "cube/cube.gltf", "covers": ["closed-surface", "hidden-interior"] },
+    { "id": "fixture/floater", "source": "fixture", "path": "floater/floater.gltf", "covers": ["floaters"] },
+    { "id": "fixture/skinned", "source": "fixture", "path": "skinned/skinned.gltf", "covers": ["skins", "node-transforms"] },
 
     { "id": "khronos/BoxTextured", "source": "khronos", "path": "BoxTextured/glTF/BoxTextured.gltf", "covers": ["gltf", "png"] },
     { "id": "khronos/BoxTextured-glb", "source": "khronos", "path": "BoxTextured/glTF-Binary/BoxTextured.glb", "covers": ["glb", "glb-images", "png"] },

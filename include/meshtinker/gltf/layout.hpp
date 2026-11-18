@@ -5,6 +5,7 @@
 #include "meshtinker/gltf/selection.hpp"
 
 #include <cstddef>
+#include <filesystem>
 #include <vector>
 
 namespace meshtinker::gltf {
@@ -41,5 +42,13 @@ Layout identityLayout(const Document& document);
 // isIndexAwareExtension doesn't know, its indices may be stale: one
 // `extension-indices-not-renumbered` warning per such extension.
 Layout normalizedLayout(const Document& document, const Selection& selection, common::Diagnostics& diagnostics);
+
+// Reads `path` as every command after `import` reads its input
+// (docs/normalized-profile.md, "How commands get normalized input"): the
+// normalized layout of the file, as a Document (Document::normalized). Its
+// indices are those of the file `import` writes; its buffers and byte offsets
+// are the input's. Warns as normalizedLayout does.
+Document readNormalized(const std::filesystem::path& path, const ReadOptions& options,
+                        common::Diagnostics& diagnostics);
 
 } // namespace meshtinker::gltf
