@@ -3,6 +3,8 @@
 #include "meshtinker/common/failure.hpp"
 #include "meshtinker/common/mapped_file.hpp"
 #include "meshtinker/common/references.hpp"
+#include "meshtinker/gltf/graph.hpp"
+#include "meshtinker/gltf/layout.hpp"
 #include "meshtinker/gltf/uri.hpp"
 
 #include <map>
@@ -98,6 +100,9 @@ struct Document::State {
     std::vector<std::vector<std::uint8_t>> decoded;
     std::vector<ImageData> images;
     Json json;
+    // The JSON text cgltf parsed, for a normalized document: cgltf keeps
+    // pointers into it (extras offsets).
+    std::string parsed_text;
     std::unique_ptr<cgltf_data, DataDeleter> data;
 
     // Maps the file `reference` leads to, once, and returns its index in files.
@@ -256,6 +261,77 @@ Document Document::read(const fs::path& path, const ReadOptions& options) {
         throw rejected("invalid-gltf", "'" + name + "' is not valid glTF: an index, count or range is out of bounds");
     }
     state->loadImages(references, by_path);
+    return Document(std::move(state));
+}
+
+Document Document::normalized(Document&& source_document, const Layout& layout) {
+    const std::unique_ptr<State> source = std::move(source_document.state_);
+    const cgltf_data& source_data = *source->data;
+    const std::string name = fileName(source->path);
+
+    Json json = layout.json;
+    // The layout leaves buffer views naming source buffers, for the writer.
+    const std::vector<std::size_t>& buffer_remap = layout.remap[static_cast<std::size_t>(Kind::buffer)];
+    std::vector<std::size_t> buffer_sources;
+    for (std::size_t i = 0; i < buffer_remap.size(); ++i) {
+        if (buffer_remap[i] != Layout::dropped) {
+            buffer_sources.push_back(i);
+        }
+    }
+    if (json.contains("bufferViews")) {
+        for (Json& view : json["bufferViews"]) {
+            forEachReference(Kind::buffer_view, view, [&](Kind target, Json& value) {
+                if (target == Kind::buffer && value.is_number_unsigned() &&
+                    value.get<std::size_t>() < buffer_remap.size()) {
+                    value = buffer_remap[value.get<std::size_t>()];
+                }
+            });
+        }
+    }
+    if (json.contains("buffers")) {
+        for (Json& buffer : json["buffers"]) {
+            buffer.erase("uri");
+        }
+    }
+    std::vector<ImageData> images;
+    images.reserve(layout.image_sources.size());
+    for (std::size_t i = 0; i < layout.image_sources.size(); ++i) {
+        const ImageData& image = source->images[layout.image_sources[i]];
+        if (image.origin != ImageOrigin::file) {
+            json["images"][i].erase("uri");
+            json["images"][i].erase("bufferView");
+        }
+        images.push_back(image);
+    }
+
+    auto state = std::make_unique<State>();
+    state->path = source->path;
+    state->container = source->container;
+    state->files = std::move(source->files);
+    state->mappings = std::move(source->mappings);
+    state->decoded = std::move(source->decoded);
+    state->images = std::move(images);
+    state->parsed_text = json.dump();
+    state->json = std::move(json);
+
+    cgltf_options parse_options{};
+    cgltf_data* raw = nullptr;
+    const cgltf_result parsed =
+        cgltf_parse(&parse_options, state->parsed_text.data(), state->parsed_text.size(), &raw);
+    state->data.reset(raw);
+    if (parsed != cgltf_result_success) {
+        throw common::Failure(common::ExitCode::internal, "internal-error",
+                              "cannot read the normalized layout of '" + name + "': " + resultName(parsed));
+    }
+    cgltf_data& model = *state->data;
+    for (std::size_t i = 0; i < model.buffers_count; ++i) {
+        model.buffers[i].data = source_data.buffers[buffer_sources[i]].data;
+        model.buffers[i].data_free_method = cgltf_data_free_method_none;
+    }
+    if (cgltf_validate(&model) != cgltf_result_success) {
+        throw common::Failure(common::ExitCode::internal, "internal-error",
+                              "the normalized layout of '" + name + "' is not valid glTF");
+    }
     return Document(std::move(state));
 }
 
