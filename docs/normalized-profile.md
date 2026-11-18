@@ -1,8 +1,20 @@
 # Normalized profile
 
-`meshtinker import` writes this profile, and every command except `inspect` expects it as input. It starts from mesh2gltf's [Canonical glTF profile](https://github.com/Holusion/mesh2gltf/wiki/Canonical-glTF-profile), whose source is at `../mesh2gltf.wiki/Canonical-glTF-profile.md`. It keeps only the rules that make later processing simpler. Everything else in the input is passed through unchanged.
+`meshtinker import` writes this profile, and every other command except `inspect` works on it and writes it. It starts from mesh2gltf's [Canonical glTF profile](https://github.com/Holusion/mesh2gltf/wiki/Canonical-glTF-profile), whose source is at `../mesh2gltf.wiki/Canonical-glTF-profile.md`. It keeps only the rules that make later processing simpler. Everything else in the input is passed through unchanged.
 
 `import` implements it. Index renumbering, the buffer layout and image naming are described in [gltf-io.md](gltf-io.md).
+
+## How commands get normalized input
+
+Every command accepts any glTF or GLB file and normalizes it in memory as it reads it. It doesn't reject input outside the profile, and it doesn't call `import`.
+
+- **A normalized document, read in place.** The reader selects the scene and builds the layout (`gltf::selectScene`, `gltf::normalizedLayout`), then parses the layout's JSON as a second `Document` over the same mappings. The input's own parse is then dropped. A command sees only this document, so input indices can't leak into its code. Nothing is copied: the one copy is the command's own output, written in the profile, which is the normalization's write step.
+- **Indices mean the normalized model.** Diagnostics and reports number objects as `meshtinker import` would write them. That file always exists or can be made, and when the input was imported first its indices are the input's own.
+- **`import` is a fixed point.** Importing an imported file writes identical files, so that a command's indices name the same objects whether or not `import` ran first.
+- **Running `import` first is recommended.** Normalizing in memory renumbers but doesn't move data: on input outside the profile, buffer views are read in their source order rather than front to back. Presets run `import` first.
+- **Experimental commands normalize their own way.** A variant built from another branch reads with its own version of the profile. Nothing checks a marker or a `generator` value, so commands built on different profile versions chain safely.
+
+Detecting imported files by a marker (`asset.generator` or `asset.extras`) was rejected: it changes `asset`, which `import` passes through, and it says nothing true about a file another tool has edited since. Calling `import` from the wrapper or as a separate process was rejected too: the wrapper doesn't know each command's arguments and can't clean up after `exec`, and a spawned process would split one run's diagnostics and exit codes in two.
 
 ## Enforced
 
@@ -50,4 +62,3 @@ Left out because no command needs them yet. Each would apply only to uncompresse
 - **Interleaved or separate vertex views**: readers go through accessors, which handle both.
 - **Primitives owning their buffer views**: this duplicates data the input shared, for no reader's benefit yet.
 - **`POSITION` `min` and `max` always present and exact**: `inspect` computes exact bounds from the data, and nothing reads `min` and `max`.
-- **A profile marker**, such as `asset.extras.meshtinker.profile`: no command checks its input yet. Adding one changes `asset.extras`, which `compare.mjs` reports as a difference.

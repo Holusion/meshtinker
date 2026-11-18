@@ -88,7 +88,7 @@ OPTIONS:
 
 ### import
 
-Rewrites a `.gltf` or `.glb` file in the [normalized profile](docs/normalized-profile.md), which every command except `inspect` expects as input:
+Rewrites a `.gltf` or `.glb` file in the [normalized profile](docs/normalized-profile.md). Every other command except `inspect` normalizes its input the same way in memory and writes the profile, so running `import` first is optional; it makes later commands read their input front to back. Importing an imported file writes identical files. The profile is:
 
 - one `.gltf`, one `.bin` and the images as separate files;
 - only the default scene and what it uses;

@@ -2,7 +2,7 @@
 
 `meshtinker` is a set of command-line tools that analyse and optimize glTF 2.0 assets, often photogrammetry scans with large geometry and textures, while using little memory. Every tool runs under one `meshtinker` entry point. Many tools are expected, some of them competing experimental algorithms for the same task.
 
-The README holds the command reference. `docs/` holds behaviour and design notes, starting with [the normalized profile](docs/normalized-profile.md) that `import` writes and that every command except `inspect` expects as input.
+The README holds the command reference. `docs/` holds behaviour and design notes, starting with [the normalized profile](docs/normalized-profile.md) that `import` writes, and that every other command except `inspect` reads any input as, in memory, and writes ([how](docs/normalized-profile.md#how-commands-get-normalized-input)).
 
 # Constraints
 
