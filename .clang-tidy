@@ -1,0 +1,30 @@
+# Checks for likely bugs and needless costs in project code, from cluster_lod.
+# Style-only checks stay off; add one when the codebase agrees on it, and fix
+# its findings first.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  cppcoreguidelines-narrowing-conversions,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-special-member-functions,
+  misc-definitions-in-headers,
+  misc-misplaced-const,
+  misc-redundant-expression,
+  misc-unused-alias-decls,
+  misc-unused-parameters,
+  misc-unused-using-decls,
+  modernize-use-nullptr,
+  modernize-use-override,
+  readability-container-size-empty,
+  readability-inconsistent-declaration-parameter-name,
+  readability-redundant-control-flow,
+  readability-redundant-declaration,
+  readability-redundant-smartptr-get,
+  readability-redundant-string-cstr
+CheckOptions:
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+# Project headers only. The `tidy` target passes an exact -header-filter; this
+# one serves editors and direct clang-tidy runs.
+HeaderFilterRegex: '/(include/meshtinker|src|test)/'

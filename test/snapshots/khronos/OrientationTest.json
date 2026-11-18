@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 38920,
+    "files": [
+      {
+        "role": "glb",
+        "name": "OrientationTest.glb",
+        "byteSize": 38920
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "ArrowZ2",
+    "bounds": {
+      "min": [
+        -5.33065128326416,
+        -5.330651164054871,
+        -5.33065128326416
+      ],
+      "max": [
+        5.33065128326416,
+        5.3306513130664825,
+        5.33065128326416
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 13,
+    "primitives": 13,
+    "vertices": 1048,
+    "faces": 524,
+    "primitivesByEncoding": {
+      "plain": 13,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

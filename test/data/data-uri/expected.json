@@ -1,0 +1,29 @@
+{
+  "description": "Buffer and image embedded as base64 data URIs.",
+  "geometry": {
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      1,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "checker",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "description": "A sparse POSITION accessor over a buffer view (vertex 2 moved to (2,2,0)), and one with no buffer view (zeros plus sparse values).",
+  "geometry": {
+    "primitives": 2,
+    "vertices": 7,
+    "faces": 3
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      5,
+      2,
+      0
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "description": "Unknown (non-required) extensions and extras on the root, asset, scene, node, mesh, primitive, material, accessor and buffer view.",
+  "geometry": {
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      1,
+      1,
+      0
+    ]
+  },
+  "notes": [
+    "All of it must survive import, except possibly the buffer view extras: import rewrites buffer views.",
+    "MESHTINKER_test_reference holds an accessor index; an import that renumbers accessors has to decide what to do with it."
+  ]
+}

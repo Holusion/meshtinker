@@ -1,0 +1,92 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 13468,
+    "files": [
+      {
+        "role": "glb",
+        "name": "TextureLinearInterpolationTest.glb",
+        "byteSize": 13468
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -3,
+        -2,
+        -0.9999999403953552
+      ],
+      "max": [
+        3,
+        3,
+        0.9999999403953552
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 3,
+    "primitives": 3,
+    "vertices": 209,
+    "faces": 642,
+    "primitivesByEncoding": {
+      "plain": 3,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 2,
+      "height": 1,
+      "byteSize": 72,
+      "uses": [
+        {
+          "material": 1,
+          "slot": "emissiveTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 256,
+      "byteSize": 2717,
+      "uses": [
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 1
+        },
+        {
+          "material": 2,
+          "slot": "emissiveTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 131074,
+    "occupancy": 1
+  },
+  "diagnostics": []
+}

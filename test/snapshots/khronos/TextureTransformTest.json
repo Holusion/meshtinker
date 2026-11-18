@@ -1,0 +1,190 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 30548,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "TextureTransformTest.gltf",
+        "byteSize": 9179
+      },
+      {
+        "role": "buffer",
+        "name": "TextureTransformTest.bin",
+        "byteSize": 136
+      },
+      {
+        "role": "image",
+        "name": "UV.png",
+        "byteSize": 12345
+      },
+      {
+        "role": "image",
+        "name": "Arrow.png",
+        "byteSize": 867
+      },
+      {
+        "role": "image",
+        "name": "Correct.png",
+        "byteSize": 2457
+      },
+      {
+        "role": "image",
+        "name": "NotSupported.png",
+        "byteSize": 3291
+      },
+      {
+        "role": "image",
+        "name": "Error.png",
+        "byteSize": 2273
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_texture_transform"
+    ],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": "Offset U",
+    "bounds": {
+      "min": [
+        -1.600000023841858,
+        -1.1412674933671951,
+        0
+      ],
+      "max": [
+        1.600000023841858,
+        1.050000011920929,
+        0.009999999776482582
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 9,
+    "primitives": 9,
+    "vertices": 4,
+    "faces": 18,
+    "primitivesByEncoding": {
+      "plain": 9,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": "UV.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 256,
+      "byteSize": 12345,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 1,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.7538909912109375
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": "Arrow.png",
+      "mimeType": "image/png",
+      "width": 128,
+      "height": 128,
+      "byteSize": 867,
+      "uses": [
+        {
+          "material": 3,
+          "slot": "baseColorTexture",
+          "texture": 1
+        },
+        {
+          "material": 4,
+          "slot": "baseColorTexture",
+          "texture": 1
+        },
+        {
+          "material": 5,
+          "slot": "baseColorTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 2,
+      "name": null,
+      "file": "Correct.png",
+      "mimeType": "image/png",
+      "width": 128,
+      "height": 128,
+      "byteSize": 2457,
+      "uses": [
+        {
+          "material": 6,
+          "slot": "baseColorTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 3,
+      "name": null,
+      "file": "NotSupported.png",
+      "mimeType": "image/png",
+      "width": 128,
+      "height": 128,
+      "byteSize": 3291,
+      "uses": [
+        {
+          "material": 7,
+          "slot": "baseColorTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 4,
+      "name": null,
+      "file": "Error.png",
+      "mimeType": "image/png",
+      "width": 128,
+      "height": 128,
+      "byteSize": 2273,
+      "uses": [
+        {
+          "material": 8,
+          "slot": "baseColorTexture",
+          "texture": 4
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 131072,
+    "occupancy": 0.8769454956054688
+  },
+  "diagnostics": []
+}

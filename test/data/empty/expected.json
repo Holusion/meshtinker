@@ -1,0 +1,10 @@
+{
+  "description": "A scene with one node and no geometry.",
+  "geometry": {
+    "meshes": 0,
+    "primitives": 0,
+    "vertices": 0,
+    "faces": 0
+  },
+  "bounds": null
+}

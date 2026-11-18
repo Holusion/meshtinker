@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 6752,
+    "files": [
+      {
+        "role": "glb",
+        "name": "AnimatedMorphCube.glb",
+        "byteSize": 6752
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": "AnimatedMorphCube",
+    "bounds": {
+      "min": [
+        -1.0000002817201947,
+        -1.0000000777786135,
+        -1.0000001462356314
+      ],
+      "max": [
+        1.0000003748524458,
+        1.0000000777786386,
+        1.0000002993973143
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

@@ -1,0 +1,27 @@
+{
+  "description": "Mesh \"Square\" used by two nodes (one under a 90° Y rotation with a negative scale); mesh \"Split\" has two primitives sharing a POSITION accessor.",
+  "geometry": {
+    "meshes": 2,
+    "primitives": 3,
+    "vertices": 8,
+    "faces": 4
+  },
+  "bounds": {
+    "min": [
+      0,
+      -5,
+      0
+    ],
+    "max": [
+      11,
+      2,
+      1
+    ],
+    "tolerance": 0.000001
+  },
+  "firstNamedRootNode": "Translated",
+  "notes": [
+    "Each mesh counts once, and the shared POSITION accessor counts once: 4 + 4 vertices.",
+    "Bounds: Translated gives x 10..11, y 0..1; Rotated(NegativeScale) maps x -1..0 to z 0..1 and y to 0..2; SplitNode gives y -5..-4."
+  ]
+}

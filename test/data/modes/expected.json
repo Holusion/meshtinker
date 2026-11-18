@@ -1,0 +1,23 @@
+{
+  "description": "One primitive per mode: points, lines, line loop, line strip, non-indexed triangles, indexed strip, non-indexed fan.",
+  "geometry": {
+    "primitives": 7,
+    "vertices": 32,
+    "faces": 8
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      5,
+      13,
+      0
+    ]
+  },
+  "notes": [
+    "Faces: triangles 6/3 = 2, strip 5 − 2 = 3, fan 5 − 2 = 3; points and lines none."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "description": "A quad with a required KHR_materials_pbrSpecularGlossiness material: diffuse and specular-glossiness textures, no metallic-roughness.",
+  "geometry": {
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      1,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "diffuse",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "specgloss",
+      "mimeType": "image/png",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    }
+  ]
+}

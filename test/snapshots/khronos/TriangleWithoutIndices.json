@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 783,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "TriangleWithoutIndices.gltf",
+        "byteSize": 747
+      },
+      {
+        "role": "buffer",
+        "name": "TriangleWithoutIndices.bin",
+        "byteSize": 36
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 3,
+    "faces": 1,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

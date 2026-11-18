@@ -1,0 +1,4 @@
+{
+  "description": "The buffer URI is an absolute path that does not exist; a file of the same name sits next to the model.",
+  "expect": "rejected: absolute paths are refused (AGENTS.md)"
+}

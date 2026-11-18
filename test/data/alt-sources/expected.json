@@ -1,0 +1,54 @@
+{
+  "description": "A PNG texture with a WebP alternative of a different size, a KTX2-only texture and a WebP-only texture.",
+  "geometry": {
+    "primitives": 3,
+    "vertices": 12,
+    "faces": 6
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      5,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "fallback",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "used": true
+    },
+    {
+      "name": "alternative",
+      "mimeType": "image/webp",
+      "width": 32,
+      "height": 32,
+      "used": false,
+      "why": "the core source wins, with a texture-alternative-source diagnostic"
+    },
+    {
+      "name": "ktx-only",
+      "mimeType": "image/ktx2",
+      "width": 64,
+      "height": 64,
+      "used": true
+    },
+    {
+      "name": "webp-only",
+      "mimeType": "image/webp",
+      "width": 8,
+      "height": 8,
+      "used": true
+    }
+  ],
+  "diagnostics": [
+    "texture-alternative-source"
+  ]
+}

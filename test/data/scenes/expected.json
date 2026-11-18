@@ -1,0 +1,28 @@
+{
+  "description": "Two scenes, the default being the second; plus a mesh and a node no scene uses.",
+  "scene": {
+    "index": 1,
+    "name": "Second"
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      5,
+      0,
+      0
+    ],
+    "max": [
+      6,
+      1,
+      0
+    ]
+  },
+  "notes": [
+    "Only the default scene counts."
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "description": "One quad drawn three times with EXT_mesh_gpu_instancing, under a node translated by z = 1.",
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      -1,
+      -3,
+      1
+    ],
+    "max": [
+      7,
+      2,
+      1
+    ],
+    "tolerance": 0.000001
+  },
+  "notes": [
+    "Instances: as is, x 0..1 y 0..1; translated by x = 5 and scaled by 2, x 5..7 y 0..2; rotated 90° about z (x, y → −y, x), then translated by y = −3, x −1..0 y −3..−2. All at z = 1.",
+    "The mesh counts once, however many instances draw it."
+  ]
+}

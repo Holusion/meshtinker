@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 2017,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "MultipleScenes.gltf",
+        "byteSize": 1913
+      },
+      {
+        "role": "buffer",
+        "name": "MultipleScenes_triangle.bin",
+        "byteSize": 44
+      },
+      {
+        "role": "buffer",
+        "name": "MultipleScenes_square.bin",
+        "byteSize": 60
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 1,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

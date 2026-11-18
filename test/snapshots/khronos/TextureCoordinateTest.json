@@ -1,0 +1,85 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 14232,
+    "files": [
+      {
+        "role": "glb",
+        "name": "TextureCoordinateTest.glb",
+        "byteSize": 14232
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "BackPlane",
+    "bounds": {
+      "min": [
+        -1.2000001668930054,
+        -1.2000001668930054,
+        -0.05259115248918533
+      ],
+      "max": [
+        1.2000001668930054,
+        1.2000001668930054,
+        5.255118367131217e-7
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 5,
+    "primitives": 5,
+    "vertices": 20,
+    "faces": 10,
+    "primitivesByEncoding": {
+      "plain": 5,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 7284,
+      "uses": [
+        {
+          "material": 1,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 3,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 4,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.64752197265625
+    }
+  ],
+  "texels": {
+    "total": 262144,
+    "occupancy": 0.64752197265625
+  },
+  "diagnostics": []
+}

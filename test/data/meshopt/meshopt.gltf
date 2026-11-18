@@ -1,0 +1,112 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "meshtinker test fixtures"
+  },
+  "bufferViews": [
+    {
+      "buffer": 1,
+      "byteOffset": 0,
+      "byteLength": 72,
+      "byteStride": 12,
+      "target": 34962,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 0,
+          "byteLength": 72,
+          "byteStride": 12,
+          "mode": "ATTRIBUTES",
+          "count": 6
+        }
+      }
+    },
+    {
+      "buffer": 1,
+      "byteOffset": 72,
+      "byteLength": 24,
+      "target": 34963,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "buffer": 0,
+          "byteOffset": 72,
+          "byteLength": 22,
+          "byteStride": 2,
+          "mode": "TRIANGLES",
+          "count": 12
+        }
+      }
+    }
+  ],
+  "accessors": [
+    {
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        2,
+        1,
+        0
+      ],
+      "bufferView": 0
+    },
+    {
+      "componentType": 5123,
+      "count": 12,
+      "type": "SCALAR",
+      "bufferView": 1
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Meshopt",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Meshopt",
+      "mesh": 0
+    }
+  ],
+  "extensionsUsed": [
+    "EXT_meshopt_compression"
+  ],
+  "extensionsRequired": [
+    "EXT_meshopt_compression"
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "buffers": [
+    {
+      "byteLength": 94,
+      "uri": "meshopt.bin"
+    },
+    {
+      "byteLength": 96,
+      "extensions": {
+        "EXT_meshopt_compression": {
+          "fallback": true
+        }
+      }
+    }
+  ]
+}

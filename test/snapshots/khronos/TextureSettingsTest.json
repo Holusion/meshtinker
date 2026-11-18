@@ -1,0 +1,134 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 42840,
+    "files": [
+      {
+        "role": "glb",
+        "name": "TextureSettingsTest.glb",
+        "byteSize": 42840
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -5.1616740226745605,
+        -5.618556022644043,
+        -0.1500004082918167
+      ],
+      "max": [
+        5.1616740226745605,
+        4.4535369873046875,
+        0.10000029951334
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 10,
+    "primitives": 10,
+    "vertices": 144,
+    "faces": 72,
+    "primitivesByEncoding": {
+      "plain": 10,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 9878,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 2
+        },
+        {
+          "material": 3,
+          "slot": "baseColorTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 0.07384490966796875
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 9775,
+      "uses": [
+        {
+          "material": 1,
+          "slot": "baseColorTexture",
+          "texture": 1
+        },
+        {
+          "material": 5,
+          "slot": "baseColorTexture",
+          "texture": 4
+        },
+        {
+          "material": 6,
+          "slot": "baseColorTexture",
+          "texture": 5
+        },
+        {
+          "material": 7,
+          "slot": "baseColorTexture",
+          "texture": 6
+        },
+        {
+          "material": 8,
+          "slot": "baseColorTexture",
+          "texture": 7
+        }
+      ],
+      "occupancy": 0.14001083374023438
+    },
+    {
+      "index": 2,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 256,
+      "byteSize": 7376,
+      "uses": [
+        {
+          "material": 9,
+          "slot": "baseColorTexture",
+          "texture": 8
+        }
+      ],
+      "occupancy": 0.63006591796875
+    }
+  ],
+  "texels": {
+    "total": 589824,
+    "occupancy": 0.1650543212890625
+  },
+  "diagnostics": []
+}

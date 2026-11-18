@@ -1,0 +1,284 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 99812,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "MeshoptCubeTest.gltf",
+        "byteSize": 68034
+      },
+      {
+        "role": "buffer",
+        "name": "MeshoptCubeTest.bin",
+        "byteSize": 10528
+      },
+      {
+        "role": "image",
+        "name": "row0.png",
+        "byteSize": 1568
+      },
+      {
+        "role": "image",
+        "name": "row1.png",
+        "byteSize": 3268
+      },
+      {
+        "role": "image",
+        "name": "row2.png",
+        "byteSize": 3324
+      },
+      {
+        "role": "image",
+        "name": "row3.png",
+        "byteSize": 3026
+      },
+      {
+        "role": "image",
+        "name": "row4.png",
+        "byteSize": 2884
+      },
+      {
+        "role": "image",
+        "name": "col0.png",
+        "byteSize": 1511
+      },
+      {
+        "role": "image",
+        "name": "col1.png",
+        "byteSize": 1563
+      },
+      {
+        "role": "image",
+        "name": "col2.png",
+        "byteSize": 1458
+      },
+      {
+        "role": "image",
+        "name": "col3.png",
+        "byteSize": 1586
+      },
+      {
+        "role": "image",
+        "name": "col4.png",
+        "byteSize": 1062
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_mesh_quantization",
+      "KHR_meshopt_compression"
+    ],
+    "required": [
+      "KHR_mesh_quantization",
+      "KHR_meshopt_compression"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": "RowLabel_0",
+    "bounds": {
+      "min": [
+        -6.100000023841858,
+        -0.800000011920929,
+        -0.5
+      ],
+      "max": [
+        17.600000023841858,
+        19.80000001192093,
+        0.5
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 35,
+    "primitives": 35,
+    "vertices": 604,
+    "faces": 320,
+    "primitivesByEncoding": {
+      "plain": 15,
+      "meshopt": 16,
+      "draco": 0,
+      "quantized": 4
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": "row0.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 1568,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": "row1.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 3268,
+      "uses": [
+        {
+          "material": 1,
+          "slot": "baseColorTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 2,
+      "name": null,
+      "file": "row2.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 3324,
+      "uses": [
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 3,
+      "name": null,
+      "file": "row3.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 3026,
+      "uses": [
+        {
+          "material": 3,
+          "slot": "baseColorTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 4,
+      "name": null,
+      "file": "row4.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 2884,
+      "uses": [
+        {
+          "material": 4,
+          "slot": "baseColorTexture",
+          "texture": 4
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 5,
+      "name": null,
+      "file": "col0.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 1511,
+      "uses": [
+        {
+          "material": 5,
+          "slot": "baseColorTexture",
+          "texture": 5
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 6,
+      "name": null,
+      "file": "col1.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 1563,
+      "uses": [
+        {
+          "material": 6,
+          "slot": "baseColorTexture",
+          "texture": 6
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 7,
+      "name": null,
+      "file": "col2.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 1458,
+      "uses": [
+        {
+          "material": 7,
+          "slot": "baseColorTexture",
+          "texture": 7
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 8,
+      "name": null,
+      "file": "col3.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 1586,
+      "uses": [
+        {
+          "material": 8,
+          "slot": "baseColorTexture",
+          "texture": 8
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 9,
+      "name": null,
+      "file": "col4.png",
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 128,
+      "byteSize": 1062,
+      "uses": [
+        {
+          "material": 9,
+          "slot": "baseColorTexture",
+          "texture": 9
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 327680,
+    "occupancy": 1
+  },
+  "diagnostics": []
+}

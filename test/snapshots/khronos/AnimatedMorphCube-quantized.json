@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 5772,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "AnimatedMorphCube.gltf",
+        "byteSize": 4072
+      },
+      {
+        "role": "buffer",
+        "name": "AnimatedMorphCube.bin",
+        "byteSize": 1700
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_mesh_quantization"
+    ],
+    "required": [
+      "KHR_mesh_quantization"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": "AnimatedMorphCube",
+    "bounds": {
+      "min": [
+        -1.0000201619542473,
+        -1.0000207962049636,
+        -1.0000104080640004
+      ],
+      "max": [
+        1.0000003748524458,
+        1.0000000777799685,
+        1.0000106028364857
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 0,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 1
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

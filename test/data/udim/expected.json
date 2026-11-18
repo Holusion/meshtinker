@@ -1,0 +1,70 @@
+{
+  "description": "Three UDIM tiles (1001, 1002, 1011): one quad and one material each, with UVs offset by whole units onto their own base color and normal images.",
+  "geometry": {
+    "primitives": 3,
+    "vertices": 12,
+    "faces": 6
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      5,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "basecolor.1001",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "REPEAT wraps the tile onto [0.25, 0.75] -> [4, 12] texels; linear -> columns and rows 3..12 (10×10 of 256)"
+    },
+    {
+      "name": "normal.1001",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "REPEAT wraps the tile onto [0.25, 0.75] -> [4, 12] texels; linear -> columns and rows 3..12 (10×10 of 256)"
+    },
+    {
+      "name": "basecolor.1002",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "REPEAT wraps the tile onto [0.25, 0.75] -> [4, 12] texels; linear -> columns and rows 3..12 (10×10 of 256)"
+    },
+    {
+      "name": "normal.1002",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "REPEAT wraps the tile onto [0.25, 0.75] -> [4, 12] texels; linear -> columns and rows 3..12 (10×10 of 256)"
+    },
+    {
+      "name": "basecolor.1011",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "REPEAT wraps the tile onto [0.25, 0.75] -> [4, 12] texels; linear -> columns and rows 3..12 (10×10 of 256)"
+    },
+    {
+      "name": "normal.1011",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "REPEAT wraps the tile onto [0.25, 0.75] -> [4, 12] texels; linear -> columns and rows 3..12 (10×10 of 256)"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "description": "A small synthetic photogrammetry scan: a bumpy open band cut into 4 charts on one JPEG atlas, seams duplicated, uint32 indices, a node transform, as a GLB.",
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 612,
+    "faces": 1024
+  },
+  "bounds": {
+    "min": [
+      -0.509565532207489,
+      0.5156963169574738,
+      -0.5480682253837585
+    ],
+    "max": [
+      0.5577057003974915,
+      1.5019702911376953,
+      0.5480682253837585
+    ],
+    "tolerance": 0.000001
+  },
+  "images": [
+    {
+      "name": "atlas",
+      "mimeType": "image/jpeg",
+      "width": 128,
+      "height": 128,
+      "occupancy": 0.7119140625,
+      "why": "not computed by hand: objtools' figure (11,664 of 16,384 texels), which meshtinker matched independently"
+    }
+  ],
+  "notes": [
+    "Bounds are the generator's float32 positions through the node transform."
+  ]
+}

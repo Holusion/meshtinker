@@ -1,0 +1,162 @@
+# Validation
+
+How to check what a meshtinker command produces: which models to run it on, which tool answers which question, and what the reference figures are. Everything here is for development only; the shipped binaries never depend on it.
+
+## Setup
+
+```sh
+npm ci --prefix tools        # Node 22: pinned validator, gltf-transform with its decoders, sharp
+tools/fetch-assets.sh        # Khronos sample models at a pinned commit, into test/assets/khronos (28 MB, gitignored)
+node tools/corpus.mjs check  # which corpus models are present
+```
+
+System programs: `ktx` (KTX-Software) to generate fixtures, `jq` for `fetch-assets.sh`, and `python3` for `monitor.py`.
+
+gltf-transform is pinned to what eCorpus's server runs (4.5.1, with draco3dgltf 1.5.9 and meshoptimizer 1.3.0), so `compare.mjs` reads models as eCorpus does. The validator is gltf-validator 2.0.0-dev.3.10.
+
+## Which tool answers which question
+
+The checks don't ask another tool for the right answer. They test properties of the output itself: it's valid, it keeps what it promises to keep, it agrees with figures known by construction, and it uses little memory.
+
+| Question | Command | Passes when |
+| --- | --- | --- |
+| Is the output valid glTF? | `node tools/validate.mjs OUT --against IN` | `newIssues` is empty: no error or warning code that the input didn't already have |
+| Did `import` keep everything it promises to keep? | `node tools/compare.mjs IN OUT` | `equal: true`. Exact mode: same scene tree, materials, image bytes, decoded vertex values and indices, animations, unknown extensions and extras |
+| Is the geometry the same, ignoring vertex order and welding? | `node tools/compare.mjs IN OUT --geometry triangles` | `equal: true`. For lossless reindexing only; the tolerance absorbs float noise, not lossy compression |
+| Are `inspect`'s figures right? | ctest, against each fixture's `expected.json` | Equal, within the tolerance `expected.json` states |
+| Did a change alter `inspect`'s figures? | `check-commands.mjs`, against the snapshots | Equal to the snapshot, or the diff of `--update-snapshots` is explained by the change |
+| All of the above for `inspect` and `import`, over many models | `node tools/check-commands.mjs [--id P] [--covers T] [--without T] [--source S] [--fast]` | Every line `ok`. It also checks that `inspect` and `import` accept the same files, and that inspecting `import`'s output gives `import`'s report. `--fast` skips the validator and `compare.mjs`, for `large` models |
+| How much memory does it use? | `python3 tools/monitor.py out/run -- build/meshtinker-inspect --json FILE` | `peak_anon_kib` stays small and roughly flat as models grow; RSS from mapped files is fine |
+
+How eCorpus's current figures map to the report, and where they differ, is in [inspect-report.md](inspect-report.md#mapping-from-ecorpus).
+
+## The corpus
+
+`test/corpus.json` lists every model used for validation, from three sources:
+
+| Source | Where | In CI | Use |
+| --- | --- | --- | --- |
+| `fixture` | `test/data`, committed | ctest, and `check-commands.mjs` in the end-to-end workflow | Tiny generated models, one case each, with known answers. The only models ctest may use. |
+| `khronos` | `test/assets/khronos`, fetched | `check-commands.mjs` in the end-to-end workflow | Khronos glTF-Sample-Assets: spec edge cases and realistic small models. |
+| `local` | listed in `test/corpus.local.json`, on each developer's machine | never | Real scans, including the large models used for memory measurements. Read in place, never modified or copied. |
+
+Validation runs on models anyone can reproduce: generated fixtures and the pinned Khronos samples, with synthetic models preferred. Real data, the `local` models, is for manual testing and development rounds: running a new command on actual scans, and measuring time and memory at full size. No check needs it to pass, so every tag a check relies on has a fixture: `photogrammetry`, `udim`, `spec-gloss` and `invalid` have one (`scan`, `udim`, `spec-gloss`, `invalid`) besides their local models. Only `large` has local models alone, until generated ones exist.
+
+`test/corpus.local.json` is gitignored, so that private models' names and paths stay on the machine. `tools/corpus.mjs` merges it into `test/corpus.json` when it exists. It has the same shape, with the `local` source's `root` (an absolute folder) and its assets:
+
+```json
+{
+  "sources": { "local": { "root": "/path/to/models" } },
+  "assets": [
+    { "id": "local/scan-large", "source": "local", "path": "scan/scan.gltf", "covers": ["gltf", "large", "photogrammetry"] }
+  ]
+}
+```
+
+Select models by tag instead of hard-coding paths:
+
+```sh
+node tools/corpus.mjs paths --covers meshopt --without large   # one path per line
+node tools/corpus.mjs list --source fixture                     # id<TAB>path
+node tools/corpus.mjs tags                                      # every tag with its count
+node tools/corpus.mjs paths --covers large                      # memory measurements
+```
+
+Tags, by what they cover:
+
+- **Containers and references:** `gltf`, `glb`, `glb-images` (images in the GLB binary chunk), `data-uri`, `multi-buffer`, `uri-escaping` (spaces, `%`, `#`, non-ASCII), `ref-outside`, `ref-absolute`, `ref-symlink`.
+- **Scene and geometry:** `minimal`, `empty`, `multi-scene`, `no-default-scene`, `orphans` (meshes and nodes no scene uses), `node-transforms`, `negative-scale`, `shared-mesh`, `shared-accessor`, `shared-buffer-view`, `interleaved`, `sparse`, `primitive-modes`, `non-indexed`, `morph`, `skin`, `animation`, `gpu-instancing`.
+- **Compression:** `meshopt` (EXT_meshopt_compression), `khr-meshopt` (KHR_meshopt_compression), `meshopt-fallback`, `draco`, `quantized` (KHR_mesh_quantization).
+- **Textures:** `png`, `jpeg`, `webp`, `ktx2`, `alt-source` (a texture with a core source and an extension source), `samplers`, `texture-transform`, `multi-uv`, `texcoord-origin`, `shared-image`, `unused-image`, `all-slots`, `normal-map`, `udim`, `occupancy` (hand-computed answers).
+- **Extensions and validity:** `unknown-ext`, `unknown-required`, `missing-image` (an image file is missing: rejected for a base color, a warning otherwise), `extras`, `spec-gloss` (KHR_materials_pbrSpecularGlossiness, archived but still exported), `invalid` (the input already has validator errors).
+- **Scale:** `photogrammetry`, `large` (hundreds of MB to GB).
+
+## Fixtures
+
+Each `test/data/<name>/` folder holds:
+
+- the model;
+- `expected.json`: what is true by construction, written by the generator: counts, bounds (with a tolerance where floats are involved), image facts and hand-computed occupancy, with the reasoning in `why` and `notes`. `images` lists every image of the input by index; one marked `dropped` must not be in the report. **It is authoritative.**
+
+`scan` is a small synthetic photogrammetry scan, from the generator's `scanBuilder`. It's a bumpy open band cut into charts on one JPEG atlas, with seams duplicated, uint32 indices and a node transform. Its size, seed and chart count are parameters. Its occupancy isn't computed by hand: `expected.json` holds objtools' figure, which meshtinker matched independently.
+
+Regenerate with `node tools/fixtures/generate.mjs [NAME...]`. Output is deterministic, so a rerun must leave `git status` clean. To add a case, add a function to the generator and an entry to `test/corpus.json`, then commit the generated files. Fetch a new Khronos sample instead only when a generated fixture can't reasonably cover the case.
+
+The hand-computed occupancies in `occupancy/expected.json` (nearest and linear filtering, `REPEAT` wrapping, `KHR_texture_transform`) were checked against objtools, which reproduces every one exactly.
+
+## Snapshots
+
+`check-commands.mjs` compares `inspect`'s report on each Khronos model with a snapshot in `test/snapshots/khronos/<name>.json`: the whole report but the `tool` field, diagnostics included. Integers compare exactly, other numbers within 1e-9 relative. A Khronos model without a snapshot is a problem.
+
+The snapshots were taken when every figure agreed with objtools and with eCorpus, apart from the differences inspect-report.md lists. They don't say a figure is right, only that it hasn't changed. When a change is meant to alter figures, rewrite them and review the diff with the change:
+
+```sh
+node tools/check-commands.mjs --source khronos --update-snapshots
+git diff test/snapshots
+```
+
+For `local` models, the same option writes snapshots to `test/assets/snapshots` (gitignored: figures of private models stay on the machine). Write them before a change and check after, to see what it does to real scans. A local model without a snapshot is skipped.
+
+## Known validator differences
+
+When the validator reports one of these, the output isn't at fault.
+
+- Doesn't recognize KTX2 images: `warning:IMAGE_UNRECOGNIZED_FORMAT` on every `.ktx2` image, the Khronos samples included.
+- Reports extensions it doesn't know (meshopt, KHR_meshopt) as `info:UNSUPPORTED_EXTENSION` and doesn't check their data. A buffer only meshopt extensions refer to is therefore `info:UNUSED_OBJECT`: `meshopt-quantized` after `import`, whose `.bin` then holds only compressed data. `check-commands.mjs` doesn't count that info for meshopt outputs.
+- Warns `MESH_PRIMITIVE_GENERATED_TANGENT_SPACE` for normal maps without tangents (`occupancy`). That's legal glTF.
+
+## Limits of the tools
+
+- `compare.mjs` reads with gltf-transform, so it can't open KHR_meshopt_compression files, or files with an unknown extension in `extensionsRequired` (`unknown-required`): it exits with 2. It also holds whole models in memory: fine up to a few hundred MB, not for `large` models.
+- `validate.mjs --against` counts only errors and warnings as new issues. Infos such as `info:UNUSED_OBJECT`, which reveal objects left behind by a rewrite, show in each side's `codes` but not in `newIssues`: compare the two `codes` objects when a command should leave nothing unused.
+- Unknown extensions are compared as multisets of their JSON values. An extension whose value holds an index (`unknown-ext` has one) shows up as lost and added when indices are renumbered: decide case by case.
+- Buffer view `extras` are not compared, because `import` rewrites buffer views by design.
+
+## Recommendation for end-to-end validation
+
+Drawn from the field notes below, which so far cover `inspect` and `import`. Revisit it once a lossy command (simplification, texture compression) has been through it.
+
+**Keep, in this order of value:**
+
+1. **The reference implementation's own tests, ported with its code**, as `test/analysis/coverage_test.cpp` ports objtools'. Its brute-force comparison over 8,000 random triangles is what made occupancy right the first time. When a command follows another tool, port that tool's tests first.
+2. **Negative inputs in ctest:** wrong file types, wrong versions, refused references. They found a reader bug no other check saw (cgltf accepting any JSON object), and no corpus model exercises them.
+3. **Cross-command consistency:** `inspect` on `import`'s output must give `import`'s report. It's cheap, runs in ctest for every fixture, and checks index renumbering, which no figure from outside sees.
+4. **Time and memory on the `large` models** (`monitor.py`), against the previous build. It found the only real performance problem so far (4× slower than objtools), which every correctness check passed. Record `elapsed_seconds` along with `peak_anon_kib`.
+5. **`validate.mjs --against`** on every output, comparing infos (`UNUSED_OBJECT`) as well as errors and warnings, with the known differences listed above.
+6. **Hand-computed fixtures** (`expected.json`) **and snapshots.** They confirmed rather than found, but they're what makes a figure trustworthy to eCorpus, and they cost nothing.
+
+**No reference tool.** Comparing with objtools and eCorpus helped while porting `inspect`, and the agreed figures live on as snapshots. It never found a bug that the ported tests or the fixtures missed, and it cost a known-differences list per tool. Lossy commands have no single right answer to compare with anyway: they will be checked by properties of their output, measured from the data.
+
+**Run less often:**
+
+- **The whole local corpus** (`check-commands.mjs` on 122 models: about 10 minutes, mostly the validator and gltf-transform). It found no bug that the fixtures or Khronos models didn't. It's a development round, not a gate: run it when a change to reading or writing is ready, and when a new command first meets real scans.
+- **`compare.mjs`**: no bug found, but it's the only check of the full content of an output. Keep it for every command that rewrites files. Avoid gltf-transform's `equals` in it: it compares storage details and raised false alarms on every animated model.
+
+## In CI
+
+- **Every push** (`.github/workflows/ci.yml`): ctest on the fixtures, in a GCC build and a sanitizer build; clang-tidy; the `ldd` check.
+- **Nightly, on pull requests and on demand** (`.github/workflows/end-to-end.yml`): `check-commands.mjs --source fixture --source khronos`. It runs the validator, `compare.mjs`, the `inspect` round trip and the snapshots, over the fixtures and the Khronos models (fetched at the pinned commit, cached). It takes a few seconds once the tools are installed. `summary.json` is kept when it fails.
+
+## Field notes
+
+What each check actually caught during development, and what it cost. They will decide what proper end-to-end validation reaches for, and what it leaves out. Add an entry when a check finds a real bug, misses one that another check or a manual look found, gives false alarms, or costs more than it's worth. Keep entries short and concrete: the check, the change being checked, what happened, and the lesson.
+
+| Area | Check | What happened | Lesson |
+| --- | --- | --- | --- |
+| writer | ctest negative case (expected.json read as a model) | cgltf accepted any JSON object as glTF: `expected.json` parsed and validated as an empty model. Fixed by sniffing the first byte and checking `asset.version`. | Keep negative inputs (wrong file types, wrong versions) in ctest: no corpus model exercises them. |
+| writer | `compare.mjs` on the Khronos models | Every animated model reported `animations[0] differ` after a lossless rewrite: gltf-transform's `Animation.equals` follows accessors to their `Buffer`, whose `uri` changes when files are repackaged. A false alarm. Fixed by comparing channels, targets and decoded keyframes. | Compare decoded values, never gltf-transform's `equals`, which includes storage details. Check a comparison tool against a known-equal pair and a mutated one before trusting it. |
+| writer | `validate.mjs --against` | GLB images extracted to files leave their buffer view unused: `info:UNUSED_OBJECT`, which `newIssues` ignores because it's an info. | For commands that drop or move objects, compare the `codes` of both sides, infos included. |
+| writer | Round trip of every fixture, Khronos and local model (98), then `validate.mjs --against` and `compare.mjs` | No new issue and all equal once `compare.mjs` was fixed. About 10 minutes, mostly gltf-transform and the validator on the photogrammetry scans. | Worth running once per change to reading or writing. It found no writer bug, so a rewrite that keeps view indices is low risk. Reordering and pruning in `import` will be the real test. |
+| writer | `monitor.py` on the `large` models | Heap stays under 400 KiB on a scan with a 1.3 GB `.bin` and a 710 MB GLB. RSS is the mapped files, as intended. | Cheap, and the only check that sees memory. Run it whenever reading or writing changes. |
+| inspect | ctest against `expected.json`, then oracles over 122 models (`check-commands.mjs`) | Every figure matched on the first run, occupancy included: the objtools port came with objtools' own unit tests (brute-force overlap included), which were ported first. Bounds match eCorpus within float noise on every model it can read. | Porting the reference implementation's tests along with its code is what made the first run right. Hand-computed fixtures and oracles then only confirmed it. Cheap to keep, but they found nothing on their own here. |
+| inspect | `monitor.py` timing against objtools on a 1.3 GB scan with 16 UDIM textures | `inspect` took 52 s against objtools' 13 s, with correct figures. Each of a material's 4 images was rasterized separately, from identical UV draws. Grouping images drawn the same way into one coverage map brought it to 15 s. | Time the large models against the reference tool, not only their memory. No correctness check can see a 4× slowdown, and the small models hide it. |
+| import | `validate.mjs --against` on `meshopt-quantized` | `info:UNUSED_OBJECT` on the `.bin` after import: the validator doesn't read meshopt extensions, so a buffer only they use looks unused. False alarm, now left out by `check-commands.mjs`. | Validator infos on files with extensions it doesn't support need a known-differences list, as here. |
+| import | `compare.mjs` on the corpus | Can't open `KHR_meshopt_compression` or unknown required extensions (3 models): those imports are checked only by the validator, `inspect` round trip and oracles (snapshots now). | A comparison tool independent of gltf-transform's extension support is missing for these. |
+| import | `inspect` on `import`'s output against `import`'s report (ctest and `check-commands.mjs`) | Always equal. It pins down index renumbering in the report, which no oracle sees. | Keep: cheap, and the one check that ties the two commands together. |
+| Draco | Sanitizer build of ctest, which decodes the Draco fixture | Clean, but it was the first sanitized run of vendored Draco code. A stale sanitizer build (a test that didn't compile stopped the build) briefly reported failures from old code. | Check that the build succeeded before reading test results; `cmake --build ... && ctest` in one command avoids it. |
+| Draco | `monitor.py` on the local Draco models | Heap peaks at 16 MB for 233k vertices: Draco decodes a whole primitive into memory, about 70 bytes per vertex. | The memory check is what shows a vendored decoder's cost. Run it on every new decoder. |
+| Draco | Bounds against eCorpus (`check-commands.mjs --covers draco`) | Equal on all 7 Draco models, but eCorpus uses the same Draco version, so it confirms the integration rather than the decoding. | An independent oracle for a decoder needs a different implementation, or the uncompressed source (`khronos/Duck-glb` against `Duck-draco`: same bounds and occupancy within quantization). |
+| Draco | CI build | Failed on missing Draco headers that every local build and test had passed with: the machine's `libdraco-dev` headers in `/usr/include/draco` filled the gaps silently. | CI on a clean machine is the check for vendoring. Locally, list dependencies (`g++ -MM`) and grep for system paths. |
+| validation | objtools and eCorpus figures for every model (`check-commands.mjs`) | They confirmed every figure and found no bug that the ported tests or `expected.json` missed. They cost an objtools build, a copy of eCorpus's code kept faithful, and a list of known differences per tool. Retired; their agreed figures became the Khronos snapshots. | A reference tool earns its keep while porting it. Afterwards, freeze its agreed figures. |
+| CI | `check-commands.mjs` in CI, on fixtures and Khronos models | A model without oracle figures used to pass silently, since figures were found missing and treated as empty, and so did an empty selection (a failed fetch). Both are problems now. The whole run takes about 4 s for 64 models. | A check that can silently compare against nothing passes in CI forever. Make missing inputs a failure, and mutate one expected figure to see it fail. |
+

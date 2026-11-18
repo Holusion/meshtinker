@@ -1,0 +1,33 @@
+{
+  "description": "The 8×8 grid through gltf-transform meshopt(): KHR_mesh_quantization plus EXT_meshopt_compression, as gltfpack-style files are.",
+  "geometry": {
+    "primitives": 1,
+    "vertices": 64,
+    "faces": 98
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      1,
+      1,
+      0.09749279121818237
+    ],
+    "tolerance": 0.001
+  },
+  "images": [
+    {
+      "name": "grid",
+      "mimeType": "image/png",
+      "width": 32,
+      "height": 32,
+      "occupancy": 1
+    }
+  ],
+  "notes": [
+    "Quantization moves positions slightly: bounds within 1e-3. meshtinker decodes it."
+  ]
+}

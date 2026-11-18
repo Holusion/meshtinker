@@ -1,0 +1,46 @@
+# End-to-end checks (docs/validation.md): `inspect` and `import` over the
+# fixtures and the pinned Khronos models with tools/check-commands.mjs, which
+# runs the validator, compare.mjs, the inspect round trip and the committed
+# snapshots of inspect's report (test/snapshots/). Only public, pinned or
+# generated models are used: the local models of test/corpus.json never reach CI.
+#
+# Nightly, on pull requests (before merging) and on demand.
+name: End-to-end
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-commands:
+    name: inspect and import over fixtures and Khronos models
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Install the validation tools
+        run: npm ci --prefix tools
+      - name: Restore the Khronos models
+        uses: actions/cache@v6
+        with:
+          path: test/assets/khronos
+          key: khronos-${{ hashFiles('test/corpus.json') }}
+          restore-keys: khronos-
+      - name: Fetch the Khronos models at the pinned commit
+        run: tools/fetch-assets.sh && node tools/corpus.mjs check
+      - name: Build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+      - name: check-commands
+        run: node tools/check-commands.mjs --source fixture --source khronos
+      - name: Keep the per-model results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: check-commands-summary
+          path: out/check/summary.json

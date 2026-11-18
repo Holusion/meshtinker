@@ -1,0 +1,20 @@
+{
+  "description": "Two primitives whose attributes interleave in one shared buffer view (stride 32), with a shared index accessor.",
+  "geometry": {
+    "primitives": 2,
+    "vertices": 8,
+    "faces": 4
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      3,
+      1,
+      0
+    ]
+  }
+}

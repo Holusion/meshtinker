@@ -1,0 +1,100 @@
+{
+  "description": "Texture occupancy cases with hand-computed answers (objtools definition: a texel counts when sampling some point reads it from the base level).",
+  "geometry": {
+    "primitives": 6,
+    "vertices": 24,
+    "faces": 12
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      11,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "nearest",
+      "width": 64,
+      "height": 64,
+      "occupancy": 0.3125,
+      "why": "nearest: u in [6.4, 25.6] texels -> columns 6..25 (20 of 64); v in [0.64, 63.36] -> all rows"
+    },
+    {
+      "name": "linear",
+      "width": 64,
+      "height": 64,
+      "occupancy": 0.34375,
+      "why": "linear: texel i counts when |i + 0.5 - u| < 1 for some u -> columns 5..26 (22 of 64); all rows"
+    },
+    {
+      "name": "transform",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.390625,
+      "why": "KHR_texture_transform maps [0,1] to [0.25,0.75] -> [4,12] texels -> 3..12 (10×10 of 256)"
+    },
+    {
+      "name": "repeat",
+      "width": 16,
+      "height": 16,
+      "occupancy": 0.234375,
+      "why": "REPEAT: u in [14.4, 17.6] -> columns 13,14,15,0,1,2 (6); v in [4,12] -> rows 3..12 (10); 60 of 256"
+    },
+    {
+      "name": "shared",
+      "width": 32,
+      "height": 32,
+      "occupancy": 0.3515625,
+      "why": "union of two uses: TEXCOORD_0 u [1.6,6.4] -> columns 1..6, TEXCOORD_1 u [17.6,22.4] -> 17..22; v [1.6,30.4] -> rows 1..30; 12×30 of 1024"
+    },
+    {
+      "name": "slot-basecolor",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    },
+    {
+      "name": "slot-metallicroughness",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    },
+    {
+      "name": "slot-normal",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    },
+    {
+      "name": "slot-occlusion",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    },
+    {
+      "name": "slot-emissive",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    },
+    {
+      "name": "slot-clearcoat",
+      "width": 8,
+      "height": 8,
+      "occupancy": 1
+    },
+    {
+      "name": "unused",
+      "width": 8,
+      "height": 8,
+      "dropped": true,
+      "why": "referenced by nothing: an orphan, which the profile drops"
+    }
+  ]
+}

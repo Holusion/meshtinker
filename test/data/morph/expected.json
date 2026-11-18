@@ -1,0 +1,23 @@
+{
+  "description": "A quad with one POSITION morph target (lifts the top edge by 3 in z) and default weight 0.5.",
+  "geometry": {
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      1,
+      1,
+      0
+    ]
+  },
+  "notes": [
+    "Bounds ignore morph targets and weights, as gltf-transform getBounds does: z stays 0."
+  ]
+}

@@ -1,0 +1,273 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 5617936,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "ChronographWatch.gltf",
+        "byteSize": 50069
+      },
+      {
+        "role": "buffer",
+        "name": "ChronographWatch.data.bin",
+        "byteSize": 4114564
+      },
+      {
+        "role": "image",
+        "name": "watchface_basecolor.ktx2",
+        "byteSize": 276966
+      },
+      {
+        "role": "image",
+        "name": "watchface_orm.ktx2",
+        "byteSize": 543690
+      },
+      {
+        "role": "image",
+        "name": "dgg_basecolor.ktx2",
+        "byteSize": 8890
+      },
+      {
+        "role": "image",
+        "name": "dgg_rm.ktx2",
+        "byteSize": 8670
+      },
+      {
+        "role": "image",
+        "name": "band_occlusion.ktx2",
+        "byteSize": 516379
+      },
+      {
+        "role": "image",
+        "name": "khronos_rm.ktx2",
+        "byteSize": 11554
+      },
+      {
+        "role": "image",
+        "name": "carbonfiber_normal.ktx2",
+        "byteSize": 74711
+      },
+      {
+        "role": "image",
+        "name": "khronos_basecolor.ktx2",
+        "byteSize": 12443
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_materials_transmission",
+      "KHR_materials_variants",
+      "KHR_texture_basisu",
+      "KHR_texture_transform"
+    ],
+    "required": [
+      "KHR_materials_transmission",
+      "KHR_texture_basisu",
+      "KHR_texture_transform"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": "Backplate Khronos",
+    "bounds": {
+      "min": [
+        -2.1385717391967773,
+        -2.952116012573242,
+        -5.032817363739014
+      ],
+      "max": [
+        2.235898017883301,
+        2.8639800548553467,
+        1.14897882938385
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 13,
+    "primitives": 19,
+    "vertices": 104765,
+    "faces": 100002,
+    "primitivesByEncoding": {
+      "plain": 19,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": "watchface_basecolor.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 276966,
+      "uses": [
+        {
+          "material": 11,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.6637043952941895
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": "watchface_orm.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 543690,
+      "uses": [
+        {
+          "material": 11,
+          "slot": "metallicRoughnessTexture",
+          "texture": 1
+        },
+        {
+          "material": 11,
+          "slot": "occlusionTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 0.6637043952941895
+    },
+    {
+      "index": 2,
+      "name": null,
+      "file": "dgg_basecolor.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 512,
+      "height": 256,
+      "byteSize": 8890,
+      "uses": [
+        {
+          "material": 6,
+          "slot": "baseColorTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 3,
+      "name": null,
+      "file": "dgg_rm.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 512,
+      "height": 256,
+      "byteSize": 8670,
+      "uses": [
+        {
+          "material": 6,
+          "slot": "metallicRoughnessTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 4,
+      "name": null,
+      "file": "band_occlusion.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 516379,
+      "uses": [
+        {
+          "material": 4,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 6,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 12,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 13,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 14,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 15,
+          "slot": "occlusionTexture",
+          "texture": 4
+        }
+      ],
+      "occupancy": 0.7137470245361328
+    },
+    {
+      "index": 5,
+      "name": null,
+      "file": "khronos_rm.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 1024,
+      "height": 256,
+      "byteSize": 11554,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "metallicRoughnessTexture",
+          "texture": 5
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 6,
+      "name": null,
+      "file": "carbonfiber_normal.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 256,
+      "height": 256,
+      "byteSize": 74711,
+      "uses": [
+        {
+          "material": 12,
+          "slot": "normalTexture",
+          "texture": 6
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 7,
+      "name": null,
+      "file": "khronos_basecolor.ktx2",
+      "mimeType": "image/ktx2",
+      "width": 1024,
+      "height": 256,
+      "byteSize": 12443,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 7
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 13434880,
+    "occupancy": 0.7006535227705792
+  },
+  "diagnostics": []
+}

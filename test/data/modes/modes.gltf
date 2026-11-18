@@ -1,0 +1,246 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "meshtinker test fixtures"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 48,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 144,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 192,
+      "byteLength": 72,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 264,
+      "byteLength": 60,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 324,
+      "byteLength": 10,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 336,
+      "byteLength": 60,
+      "target": 34962
+    }
+  ],
+  "accessors": [
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        3,
+        1,
+        0
+      ],
+      "bufferView": 0
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        2,
+        0
+      ],
+      "max": [
+        3,
+        3,
+        0
+      ],
+      "bufferView": 1
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        4,
+        0
+      ],
+      "max": [
+        3,
+        5,
+        0
+      ],
+      "bufferView": 2
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        6,
+        0
+      ],
+      "max": [
+        3,
+        7,
+        0
+      ],
+      "bufferView": 3
+    },
+    {
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [
+        0,
+        8,
+        0
+      ],
+      "max": [
+        5,
+        9,
+        0
+      ],
+      "bufferView": 4
+    },
+    {
+      "componentType": 5126,
+      "count": 5,
+      "type": "VEC3",
+      "min": [
+        0,
+        10,
+        0
+      ],
+      "max": [
+        4,
+        11,
+        0
+      ],
+      "bufferView": 5
+    },
+    {
+      "componentType": 5123,
+      "count": 5,
+      "type": "SCALAR",
+      "bufferView": 6
+    },
+    {
+      "componentType": 5126,
+      "count": 5,
+      "type": "VEC3",
+      "min": [
+        0,
+        12,
+        0
+      ],
+      "max": [
+        4,
+        13,
+        0
+      ],
+      "bufferView": 7
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Modes",
+      "primitives": [
+        {
+          "mode": 0,
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "mode": 1,
+          "attributes": {
+            "POSITION": 1
+          }
+        },
+        {
+          "mode": 2,
+          "attributes": {
+            "POSITION": 2
+          }
+        },
+        {
+          "mode": 3,
+          "attributes": {
+            "POSITION": 3
+          }
+        },
+        {
+          "mode": 4,
+          "attributes": {
+            "POSITION": 4
+          }
+        },
+        {
+          "mode": 5,
+          "attributes": {
+            "POSITION": 5
+          },
+          "indices": 6
+        },
+        {
+          "mode": 6,
+          "attributes": {
+            "POSITION": 7
+          }
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Modes",
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "buffers": [
+    {
+      "byteLength": 396,
+      "uri": "modes.bin"
+    }
+  ]
+}

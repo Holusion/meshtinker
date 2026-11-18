@@ -1,0 +1,124 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 88557,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "Box With Spaces.gltf",
+        "byteSize": 3395
+      },
+      {
+        "role": "buffer",
+        "name": "Box With Spaces.bin",
+        "byteSize": 840
+      },
+      {
+        "role": "image",
+        "name": "Normal Map.png",
+        "byteSize": 45248
+      },
+      {
+        "role": "image",
+        "name": "glTF Logo With Spaces.png",
+        "byteSize": 20640
+      },
+      {
+        "role": "image",
+        "name": "Roughness Metallic.png",
+        "byteSize": 18434
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "Cube",
+    "bounds": {
+      "min": [
+        -1,
+        -1,
+        -1
+      ],
+      "max": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": "Normal Map",
+      "file": "Normal Map.png",
+      "mimeType": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "byteSize": 45248,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "normalTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 1,
+      "name": "glTF Logo With Spaces",
+      "file": "glTF Logo With Spaces.png",
+      "mimeType": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "byteSize": 20640,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 2,
+      "name": "Roughness Metallic",
+      "file": "Roughness Metallic.png",
+      "mimeType": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "byteSize": 18434,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "metallicRoughnessTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 3145728,
+    "occupancy": 1
+  },
+  "diagnostics": []
+}

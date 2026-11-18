@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 7356,
+    "files": [
+      {
+        "role": "glb",
+        "name": "SimpleInstancing.glb",
+        "byteSize": 7356
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "EXT_mesh_gpu_instancing"
+    ],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -1.666667121546908,
+        -1.666667121546908,
+        -1.666667121546908
+      ],
+      "max": [
+        12.731707352406481,
+        12.731707352406481,
+        12.731707352406481
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

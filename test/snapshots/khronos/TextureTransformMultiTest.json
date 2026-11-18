@@ -1,0 +1,247 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 388264,
+    "files": [
+      {
+        "role": "glb",
+        "name": "TextureTransformMultiTest.glb",
+        "byteSize": 388264
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_materials_clearcoat",
+      "KHR_materials_unlit",
+      "KHR_texture_transform"
+    ],
+    "required": [
+      "KHR_texture_transform"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "BaseColorUV0",
+    "bounds": {
+      "min": [
+        -0.9999999403953552,
+        -1.399999976158142,
+        -0.02500000037252903
+      ],
+      "max": [
+        0.9999999403953552,
+        1,
+        0.03505159914493561
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 29,
+    "primitives": 29,
+    "vertices": 2222,
+    "faces": 3956,
+    "primitivesByEncoding": {
+      "plain": 29,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": "TestMap",
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 25791,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 1,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 5,
+          "slot": "emissiveTexture",
+          "texture": 0
+        },
+        {
+          "material": 6,
+          "slot": "emissiveTexture",
+          "texture": 0
+        },
+        {
+          "material": 7,
+          "slot": "emissiveTexture",
+          "texture": 0
+        },
+        {
+          "material": 11,
+          "slot": "metallicRoughnessTexture",
+          "texture": 0
+        },
+        {
+          "material": 12,
+          "slot": "metallicRoughnessTexture",
+          "texture": 0
+        },
+        {
+          "material": 13,
+          "slot": "metallicRoughnessTexture",
+          "texture": 0
+        },
+        {
+          "material": 14,
+          "slot": "occlusionTexture",
+          "texture": 0
+        },
+        {
+          "material": 15,
+          "slot": "occlusionTexture",
+          "texture": 0
+        },
+        {
+          "material": 16,
+          "slot": "occlusionTexture",
+          "texture": 0
+        },
+        {
+          "material": 17,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 18,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 19,
+          "slot": "baseColorTexture",
+          "texture": 0
+        },
+        {
+          "material": 20,
+          "slot": "KHR_materials_clearcoat.clearcoatTexture",
+          "texture": 0
+        },
+        {
+          "material": 21,
+          "slot": "KHR_materials_clearcoat.clearcoatTexture",
+          "texture": 0
+        },
+        {
+          "material": 22,
+          "slot": "KHR_materials_clearcoat.clearcoatTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.09741973876953125
+    },
+    {
+      "index": 1,
+      "name": "TTMT_Labels",
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 22486,
+      "uses": [
+        {
+          "material": 4,
+          "slot": "baseColorTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 0.3084754943847656
+    },
+    {
+      "index": 2,
+      "name": "TestMap_Normal",
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 199514,
+      "uses": [
+        {
+          "material": 8,
+          "slot": "normalTexture",
+          "texture": 2
+        },
+        {
+          "material": 9,
+          "slot": "normalTexture",
+          "texture": 2
+        },
+        {
+          "material": 10,
+          "slot": "normalTexture",
+          "texture": 2
+        },
+        {
+          "material": 26,
+          "slot": "KHR_materials_clearcoat.clearcoatNormalTexture",
+          "texture": 2
+        },
+        {
+          "material": 27,
+          "slot": "KHR_materials_clearcoat.clearcoatNormalTexture",
+          "texture": 2
+        },
+        {
+          "material": 28,
+          "slot": "KHR_materials_clearcoat.clearcoatNormalTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 0.09741973876953125
+    },
+    {
+      "index": 3,
+      "name": "TestMap",
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 31260,
+      "uses": [
+        {
+          "material": 23,
+          "slot": "KHR_materials_clearcoat.clearcoatRoughnessTexture",
+          "texture": 3
+        },
+        {
+          "material": 24,
+          "slot": "KHR_materials_clearcoat.clearcoatRoughnessTexture",
+          "texture": 3
+        },
+        {
+          "material": 25,
+          "slot": "KHR_materials_clearcoat.clearcoatRoughnessTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 0.09741973876953125
+    }
+  ],
+  "texels": {
+    "total": 1048576,
+    "occupancy": 0.15018367767333984
+  },
+  "diagnostics": []
+}

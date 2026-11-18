@@ -1,0 +1,87 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 62568,
+    "files": [
+      {
+        "role": "glb",
+        "name": "NegativeScaleTest.glb",
+        "byteSize": 62568
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "NegativeScaleBack",
+    "bounds": {
+      "min": [
+        -5.1616740226745605,
+        -4.453539848327637,
+        -0.4999999701976776
+      ],
+      "max": [
+        5.1616740226745605,
+        4.453539848327637,
+        0.4999999701976776
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 8,
+    "primitives": 8,
+    "vertices": 748,
+    "faces": 3884,
+    "primitivesByEncoding": {
+      "plain": 8,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": "CheckAndX",
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 9775,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.13484573364257812
+    },
+    {
+      "index": 1,
+      "name": "NegativeScaleLabels2",
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 18982,
+      "uses": [
+        {
+          "material": 2,
+          "slot": "baseColorTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 0.3746757507324219
+    }
+  ],
+  "texels": {
+    "total": 524288,
+    "occupancy": 0.2547607421875
+  },
+  "diagnostics": []
+}

@@ -1,0 +1,273 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 5396317,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "ChronographWatch.gltf",
+        "byteSize": 50049
+      },
+      {
+        "role": "buffer",
+        "name": "ChronographWatch.data.bin",
+        "byteSize": 4114564
+      },
+      {
+        "role": "image",
+        "name": "watchface_basecolor.webp",
+        "byteSize": 235830
+      },
+      {
+        "role": "image",
+        "name": "watchface_orm.webp",
+        "byteSize": 543794
+      },
+      {
+        "role": "image",
+        "name": "dgg_basecolor.webp",
+        "byteSize": 7364
+      },
+      {
+        "role": "image",
+        "name": "dgg_rm.webp",
+        "byteSize": 7210
+      },
+      {
+        "role": "image",
+        "name": "band_occlusion.webp",
+        "byteSize": 340176
+      },
+      {
+        "role": "image",
+        "name": "khronos_rm.webp",
+        "byteSize": 8546
+      },
+      {
+        "role": "image",
+        "name": "carbonfiber_normal.webp",
+        "byteSize": 80266
+      },
+      {
+        "role": "image",
+        "name": "khronos_basecolor.webp",
+        "byteSize": 8518
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "EXT_texture_webp",
+      "KHR_materials_transmission",
+      "KHR_materials_variants",
+      "KHR_texture_transform"
+    ],
+    "required": [
+      "EXT_texture_webp",
+      "KHR_materials_transmission",
+      "KHR_texture_transform"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": "Backplate Khronos",
+    "bounds": {
+      "min": [
+        -2.1385717391967773,
+        -2.952116012573242,
+        -5.032817363739014
+      ],
+      "max": [
+        2.235898017883301,
+        2.8639800548553467,
+        1.14897882938385
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 13,
+    "primitives": 19,
+    "vertices": 104765,
+    "faces": 100002,
+    "primitivesByEncoding": {
+      "plain": 19,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": "watchface_basecolor.webp",
+      "mimeType": "image/webp",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 235830,
+      "uses": [
+        {
+          "material": 11,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.6637043952941895
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": "watchface_orm.webp",
+      "mimeType": "image/webp",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 543794,
+      "uses": [
+        {
+          "material": 11,
+          "slot": "metallicRoughnessTexture",
+          "texture": 1
+        },
+        {
+          "material": 11,
+          "slot": "occlusionTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 0.6637043952941895
+    },
+    {
+      "index": 2,
+      "name": null,
+      "file": "dgg_basecolor.webp",
+      "mimeType": "image/webp",
+      "width": 512,
+      "height": 256,
+      "byteSize": 7364,
+      "uses": [
+        {
+          "material": 6,
+          "slot": "baseColorTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 3,
+      "name": null,
+      "file": "dgg_rm.webp",
+      "mimeType": "image/webp",
+      "width": 512,
+      "height": 256,
+      "byteSize": 7210,
+      "uses": [
+        {
+          "material": 6,
+          "slot": "metallicRoughnessTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 4,
+      "name": null,
+      "file": "band_occlusion.webp",
+      "mimeType": "image/webp",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 340176,
+      "uses": [
+        {
+          "material": 4,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 6,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 12,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 13,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 14,
+          "slot": "occlusionTexture",
+          "texture": 4
+        },
+        {
+          "material": 15,
+          "slot": "occlusionTexture",
+          "texture": 4
+        }
+      ],
+      "occupancy": 0.7137470245361328
+    },
+    {
+      "index": 5,
+      "name": null,
+      "file": "khronos_rm.webp",
+      "mimeType": "image/webp",
+      "width": 1024,
+      "height": 256,
+      "byteSize": 8546,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "metallicRoughnessTexture",
+          "texture": 5
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 6,
+      "name": null,
+      "file": "carbonfiber_normal.webp",
+      "mimeType": "image/webp",
+      "width": 256,
+      "height": 256,
+      "byteSize": 80266,
+      "uses": [
+        {
+          "material": 12,
+          "slot": "normalTexture",
+          "texture": 6
+        }
+      ],
+      "occupancy": 1
+    },
+    {
+      "index": 7,
+      "name": null,
+      "file": "khronos_basecolor.webp",
+      "mimeType": "image/webp",
+      "width": 1024,
+      "height": 256,
+      "byteSize": 8518,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 7
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 13434880,
+    "occupancy": 0.7006535227705792
+  },
+  "diagnostics": []
+}

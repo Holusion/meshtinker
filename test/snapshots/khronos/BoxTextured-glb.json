@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 5956,
+    "files": [
+      {
+        "role": "glb",
+        "name": "BoxTextured.glb",
+        "byteSize": 5956
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 256,
+      "height": 256,
+      "byteSize": 3750,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 1
+    }
+  ],
+  "texels": {
+    "total": 65536,
+    "occupancy": 1
+  },
+  "diagnostics": []
+}

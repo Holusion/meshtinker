@@ -1,0 +1,4 @@
+{
+  "description": "The buffer URI is linked.bin, a symlink to ../real.bin outside the model folder.",
+  "expect": "rejected without --trusted"
+}

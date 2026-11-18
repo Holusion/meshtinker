@@ -1,0 +1,138 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 3773916,
+    "files": [
+      {
+        "role": "glb",
+        "name": "DamagedHelmet.glb",
+        "byteSize": 3773916
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "node_damagedHelmet_-6514",
+    "bounds": {
+      "min": [
+        -0.9474585652351379,
+        -0.9009741103874731,
+        -1.187155129805747
+      ],
+      "max": [
+        0.9424954056739807,
+        0.9009951350576428,
+        0.8128451260791926
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 14556,
+    "faces": 15452,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 935629,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.7085676193237305
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": null,
+      "mimeType": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 1300661,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "metallicRoughnessTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 0.7085676193237305
+    },
+    {
+      "index": 2,
+      "name": null,
+      "file": null,
+      "mimeType": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 97499,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "emissiveTexture",
+          "texture": 2
+        }
+      ],
+      "occupancy": 0.7085676193237305
+    },
+    {
+      "index": 3,
+      "name": null,
+      "file": null,
+      "mimeType": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 361678,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "occlusionTexture",
+          "texture": 3
+        }
+      ],
+      "occupancy": 0.7085676193237305
+    },
+    {
+      "index": 4,
+      "name": null,
+      "file": null,
+      "mimeType": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "byteSize": 517757,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "normalTexture",
+          "texture": 4
+        }
+      ],
+      "occupancy": 0.7085676193237305
+    }
+  ],
+  "texels": {
+    "total": 20971520,
+    "occupancy": 0.7085676193237305
+  },
+  "diagnostics": []
+}

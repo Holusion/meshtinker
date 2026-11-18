@@ -1,0 +1,84 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 30467,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "Duck.gltf",
+        "byteSize": 3797
+      },
+      {
+        "role": "buffer",
+        "name": "Duck.bin",
+        "byteSize": 10368
+      },
+      {
+        "role": "image",
+        "name": "DuckCM.png",
+        "byteSize": 16302
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_draco_mesh_compression"
+    ],
+    "required": [
+      "KHR_draco_mesh_compression"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -0.6929849851209298,
+        0.09929369704513924,
+        -0.6132819610845601
+      ],
+      "max": [
+        0.961798913438642,
+        1.6400939574816675,
+        0.539488856654863
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 2399,
+    "faces": 4212,
+    "primitivesByEncoding": {
+      "plain": 0,
+      "meshopt": 0,
+      "draco": 1,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": "DuckCM",
+      "file": "DuckCM.png",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 16302,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.6269416809082031
+    }
+  ],
+  "texels": {
+    "total": 262144,
+    "occupancy": 0.6269416809082031
+  },
+  "diagnostics": []
+}

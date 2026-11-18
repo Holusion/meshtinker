@@ -1,0 +1,59 @@
+# Linux builds and tests. ctest uses only the fixtures in test/data. The
+# Khronos models are checked by end-to-end.yml; the local models of
+# test/corpus.json never reach CI.
+#
+# Release binaries will need an older build environment than these runners:
+# eCorpus runs them in node:22-slim (Debian bookworm, glibc 2.36), and binaries
+# built on ubuntu-24.04 (glibc 2.39) won't load there. Build releases in a
+# debian:bookworm container, and add arm64 then.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gcc:
+    name: GCC build and tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Only the C library is linked dynamically
+        run: |
+          ctest --test-dir build --output-on-failure -R '^dynamic-libraries$'
+          ldd build/meshtinker build/meshtinker-*
+
+  sanitizers:
+    name: AddressSanitizer and UndefinedBehaviorSanitizer
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DMESHTINKER_SANITIZE=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install clang-tidy 19
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-19
+      - name: Configure
+        run: cmake -S . -B build -DMESHTINKER_RUN_CLANG_TIDY=/usr/bin/run-clang-tidy-19
+      - name: clang-tidy, findings as errors
+        run: cmake --build build --target tidy

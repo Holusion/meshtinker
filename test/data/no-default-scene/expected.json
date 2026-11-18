@@ -1,0 +1,25 @@
+{
+  "description": "Two scenes and no `scene` property: scene 0 is used, as three.js does.",
+  "scene": {
+    "index": 0,
+    "name": "Zero"
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 4,
+    "faces": 2
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      1,
+      1,
+      0
+    ]
+  }
+}

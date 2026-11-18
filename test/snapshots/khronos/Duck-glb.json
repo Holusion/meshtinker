@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 120484,
+    "files": [
+      {
+        "role": "glb",
+        "name": "Duck.glb",
+        "byteSize": 120484
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -0.6929849851209298,
+        0.09929369704513924,
+        -0.6132819610845601
+      ],
+      "max": [
+        0.9617989897325856,
+        1.63969997555688,
+        0.5392519639599627
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 2399,
+    "faces": 4212,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512,
+      "byteSize": 16302,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.6266136169433594
+    }
+  ],
+  "texels": {
+    "total": 262144,
+    "occupancy": 0.6266136169433594
+  },
+  "diagnostics": []
+}

@@ -1,0 +1,4 @@
+{
+  "description": "The buffer URI is ../outside.bin: outside the model folder.",
+  "expect": "rejected without --trusted; with --trusted, as fixture/triangle-like quad: 4 vertices, 2 faces"
+}

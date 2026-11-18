@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 4275,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "MeshPrimitiveModes.gltf",
+        "byteSize": 4059
+      },
+      {
+        "role": "buffer",
+        "name": "buffer.bin",
+        "byteSize": 216
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -2.86599999666214,
+        -4,
+        0
+      ],
+      "max": [
+        2.86599999666214,
+        4,
+        0
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 7,
+    "primitives": 7,
+    "vertices": 7,
+    "faces": 16,
+    "primitivesByEncoding": {
+      "plain": 7,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

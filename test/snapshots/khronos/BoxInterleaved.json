@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 3525,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "BoxInterleaved.gltf",
+        "byteSize": 2877
+      },
+      {
+        "role": "buffer",
+        "name": "BoxInterleaved.bin",
+        "byteSize": 648
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

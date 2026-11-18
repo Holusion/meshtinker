@@ -1,0 +1,206 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "meshtinker test fixtures"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 48,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96,
+      "byteLength": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 128,
+      "byteLength": 12,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 140,
+      "byteLength": 36,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 176,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 224,
+      "byteLength": 36,
+      "target": 34962
+    }
+  ],
+  "accessors": [
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ],
+      "bufferView": 0
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "bufferView": 1
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2",
+      "min": [
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1
+      ],
+      "bufferView": 2
+    },
+    {
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "bufferView": 3
+    },
+    {
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3",
+      "min": [
+        0,
+        -3,
+        0
+      ],
+      "max": [
+        5,
+        0,
+        0
+      ],
+      "bufferView": 4
+    },
+    {
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC4",
+      "min": [
+        0,
+        0,
+        0,
+        0.7071067690849304
+      ],
+      "max": [
+        0,
+        0,
+        0.7071067690849304,
+        1
+      ],
+      "bufferView": 5
+    },
+    {
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3",
+      "min": [
+        1,
+        1,
+        1
+      ],
+      "max": [
+        2,
+        2,
+        2
+      ],
+      "bufferView": 6
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Instanced",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Instanced",
+      "mesh": 0,
+      "translation": [
+        0,
+        0,
+        1
+      ],
+      "extensions": {
+        "EXT_mesh_gpu_instancing": {
+          "attributes": {
+            "TRANSLATION": 4,
+            "ROTATION": 5,
+            "SCALE": 6
+          }
+        }
+      }
+    }
+  ],
+  "extensionsUsed": [
+    "EXT_mesh_gpu_instancing"
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "buffers": [
+    {
+      "byteLength": 260,
+      "uri": "instancing.bin"
+    }
+  ]
+}

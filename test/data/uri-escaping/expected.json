@@ -1,0 +1,36 @@
+{
+  "description": "Two buffers and two images whose file names need percent-encoding (space, %, #, non-ASCII). The model file name has a space.",
+  "geometry": {
+    "primitives": 2,
+    "vertices": 8,
+    "faces": 4
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      3,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "base color ♻",
+      "mimeType": "image/jpeg",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "100% #1",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    }
+  ]
+}

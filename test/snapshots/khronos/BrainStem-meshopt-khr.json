@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 409991,
+    "files": [
+      {
+        "role": "gltf",
+        "name": "BrainStem.gltf",
+        "byteSize": 81499
+      },
+      {
+        "role": "buffer",
+        "name": "BrainStem.bin",
+        "byteSize": 328492
+      }
+    ]
+  },
+  "extensions": {
+    "used": [
+      "KHR_mesh_quantization",
+      "KHR_meshopt_compression"
+    ],
+    "required": [
+      "KHR_mesh_quantization",
+      "KHR_meshopt_compression"
+    ]
+  },
+  "scene": {
+    "index": 0,
+    "name": null,
+    "firstNamedRootNode": null,
+    "bounds": {
+      "min": [
+        -1.252197265625,
+        -0.00048828125,
+        -0.341400146484375
+      ],
+      "max": [
+        1.1624755859375,
+        1.8343505859375,
+        0.255706787109375
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 49,
+    "vertices": 34084,
+    "faces": 61666,
+    "primitivesByEncoding": {
+      "plain": 0,
+      "meshopt": 49,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [],
+  "texels": {
+    "total": 0,
+    "occupancy": null
+  },
+  "diagnostics": []
+}

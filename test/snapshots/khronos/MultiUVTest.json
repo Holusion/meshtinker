@@ -1,0 +1,87 @@
+{
+  "format": 1,
+  "input": {
+    "byteSize": 43004,
+    "files": [
+      {
+        "role": "glb",
+        "name": "MultiUVTest.glb",
+        "byteSize": 43004
+      }
+    ]
+  },
+  "extensions": {
+    "used": [],
+    "required": []
+  },
+  "scene": {
+    "index": 0,
+    "name": "Scene",
+    "firstNamedRootNode": "Cube",
+    "bounds": {
+      "min": [
+        -1.0000003576278687,
+        -1,
+        -1.0000003576278687
+      ],
+      "max": [
+        1.0000004768371582,
+        1,
+        1.0000005960464478
+      ]
+    }
+  },
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 24,
+    "faces": 12,
+    "primitivesByEncoding": {
+      "plain": 1,
+      "meshopt": 0,
+      "draco": 0,
+      "quantized": 0
+    }
+  },
+  "images": [
+    {
+      "index": 0,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "byteSize": 15150,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "baseColorTexture",
+          "texture": 0
+        }
+      ],
+      "occupancy": 0.3779296875
+    },
+    {
+      "index": 1,
+      "name": null,
+      "file": null,
+      "mimeType": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "byteSize": 24001,
+      "uses": [
+        {
+          "material": 0,
+          "slot": "emissiveTexture",
+          "texture": 1
+        }
+      ],
+      "occupancy": 0.06348037719726562
+    }
+  ],
+  "texels": {
+    "total": 2097152,
+    "occupancy": 0.2207050323486328
+  },
+  "diagnostics": []
+}
