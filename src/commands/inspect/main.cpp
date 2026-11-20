@@ -8,22 +8,19 @@
 namespace meshtinker::inspect {
 namespace {
 
-namespace fs = std::filesystem;
-
 int run(int argc, char** argv) {
     cli::Command command("inspect", "Report statistics about a glTF or GLB file",
                          "Sizes, geometry, bounds, images and texture occupancy of the scene the file shows. "
                          "Only the default scene counts, as `import` keeps only "
                          "that one.");
-    fs::path input;
-    command.app().add_option("input", input, "The .gltf or .glb file")->required();
+    command.addInput();
     command.addJsonOption();
     command.addTrustedOption();
-    command.addWorkspaceOptions("the input's directory");
+    command.addWorkspaceOptions();
     return command.run(argc, argv, [&] {
-        common::Workspace workspace(command.tmpDir().value_or(input.parent_path()), command.keepTmp());
+        common::Workspace workspace = command.workspace();
         const analysis::Inspection inspection =
-            analysis::inspect(input, {command.trusted()}, workspace, command.diagnostics());
+            analysis::inspect(command.input(), {command.trusted()}, workspace, command.diagnostics());
         if (command.json()) {
             std::cout << analysis::toJson(inspection.report, command.jsonHeader(), command.diagnostics()).dump(2) << '\n';
         } else {

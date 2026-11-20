@@ -2,6 +2,7 @@
 
 #include "meshtinker/common/diagnostics.hpp"
 #include "meshtinker/common/run.hpp"
+#include "meshtinker/common/workspace.hpp"
 
 #include <CLI/CLI.hpp>
 #include <nlohmann/json.hpp>
@@ -31,18 +32,34 @@ public:
     std::string program() const { return "meshtinker-" + name_; }
     common::Diagnostics& diagnostics() { return diagnostics_; }
 
+    // The `input` positional: the .gltf or .glb file the command reads.
+    void addInput();
+    // The `output` positional: the .gltf file the command writes, with its
+    // .bin and images beside it. Declare it after the input.
+    void addOutput();
     // --json: print the result as one JSON object on stdout, even on failure.
     void addJsonOption();
     // --trusted: let the model reference files outside its folder.
     void addTrustedOption();
-    // --tmp-dir and --keep-tmp. `default_location` names the default in the
-    // help text, such as "the output's directory".
-    void addWorkspaceOptions(const std::string& default_location);
+    // --tmp-dir and --keep-tmp. The workspace goes in the output's directory,
+    // or the input's for a command without output: declare them after the
+    // positionals.
+    void addWorkspaceOptions();
 
     bool json() const { return json_; }
     bool trusted() const { return trusted_; }
-    const std::optional<std::filesystem::path>& tmpDir() const { return tmp_dir_; }
-    bool keepTmp() const { return keep_tmp_; }
+    const std::filesystem::path& input() const { return input_; }
+
+    // The output's directory, "." when the output names none. Throws a
+    // Failure (`output-directory-missing`, exit code 4) if it doesn't exist,
+    // so call it from run()'s body.
+    std::filesystem::path outputDirectory() const;
+    // The output's file name without `.gltf`: the stem of every file the
+    // command writes.
+    std::string outputStem() const;
+    // The command's workspace: in --tmp-dir, or in the default location
+    // (see addWorkspaceOptions). Created on first use.
+    common::Workspace workspace() const;
 
     // The start of every JSON object the command prints: `format` (the
     // version of the command's report shape) and `tool`.
@@ -65,6 +82,8 @@ private:
     std::string summary_;
     CLI::App app_;
     common::Diagnostics diagnostics_;
+    std::filesystem::path input_;
+    std::optional<std::filesystem::path> output_;
     bool json_ = false;
     bool trusted_ = false;
     std::optional<std::filesystem::path> tmp_dir_;

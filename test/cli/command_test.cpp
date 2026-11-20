@@ -110,3 +110,56 @@ TEST_CASE(diagnostics_keep_three_examples) {
     CHECK_EQ(diagnostics.entries()[0].examples.size(), 3u);
     CHECK_EQ(diagnostics.entries()[0].message, std::string("first message"));
 }
+
+TEST_CASE(output_must_end_in_gltf) {
+    cli::Command command("test", "Do a test thing");
+    command.addInput();
+    command.addOutput();
+    const Result result = runCommand(command, {"in.glb", "out.glb"}, [] { return 0; });
+    CHECK_EQ(result.code, 2);
+}
+
+TEST_CASE(output_directory_must_exist) {
+    cli::Command command("test", "Do a test thing");
+    command.addInput();
+    command.addOutput();
+    command.addJsonOption();
+    std::string directory;
+    std::string stem;
+    const Result result = runCommand(command, {"--json", "in.glb", "missing-directory/out.gltf"}, [&] {
+        stem = command.outputStem();
+        directory = command.outputDirectory().string();
+        return 0;
+    });
+    CHECK_EQ(result.code, 4);
+    CHECK_EQ(stem, std::string("out"));
+    CHECK(directory.empty());
+    const auto report = nlohmann::json::parse(result.out);
+    CHECK_EQ(report.at("error").at("code").get<std::string>(), std::string("output-directory-missing"));
+}
+
+TEST_CASE(output_without_directory_is_the_working_directory) {
+    cli::Command command("test", "Do a test thing");
+    command.addInput();
+    command.addOutput();
+    std::string directory;
+    const Result result = runCommand(command, {"in.glb", "out.gltf"}, [&] {
+        directory = command.outputDirectory().string();
+        return 0;
+    });
+    CHECK_EQ(result.code, 0);
+    CHECK_EQ(directory, std::string("."));
+    CHECK_EQ(command.input().string(), std::string("in.glb"));
+}
+
+TEST_CASE(workspace_default_follows_the_positionals) {
+    cli::Command reader("test", "Do a test thing");
+    reader.addInput();
+    reader.addWorkspaceOptions();
+    CHECK(reader.app().get_option("--tmp-dir")->get_description().find("(default: the input's directory)") != std::string::npos);
+    cli::Command writer("test", "Do a test thing");
+    writer.addInput();
+    writer.addOutput();
+    writer.addWorkspaceOptions();
+    CHECK(writer.app().get_option("--tmp-dir")->get_description().find("(default: the output's directory)") != std::string::npos);
+}

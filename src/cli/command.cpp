@@ -1,6 +1,7 @@
 #include "meshtinker/cli/command.hpp"
 
 #include "meshtinker/common/cleanup.hpp"
+#include "meshtinker/common/failure.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -18,6 +19,18 @@ Command::Command(std::string name, std::string summary, const std::string& descr
     app_.get_formatter()->column_width(32);
 }
 
+void Command::addInput() { app_.add_option("input", input_, "The .gltf or .glb file")->required(); }
+
+void Command::addOutput() {
+    output_.emplace();
+    app_.add_option("output", *output_, "The .gltf file to write. Its directory must exist; no file is overwritten")
+        ->required()
+        ->check([](const std::string& value) {
+            return std::filesystem::u8path(value).extension() == ".gltf" ? std::string()
+                                                                         : std::string("OUTPUT must end in .gltf");
+        });
+}
+
 void Command::addJsonOption() {
     app_.add_flag("--json", json_, "Print the result as one JSON object on stdout, even on failure");
 }
@@ -27,10 +40,33 @@ void Command::addTrustedOption() {
                   "Let the model reference files outside its folder: absolute paths, `..` leading out, symlinks");
 }
 
-void Command::addWorkspaceOptions(const std::string& default_location) {
+void Command::addWorkspaceOptions() {
+    const std::string default_location = output_ ? "the output's directory" : "the input's directory";
     app_.add_option("--tmp-dir", tmp_dir_, "Where to create the temporary workspace (default: " + default_location + ")")
         ->check(CLI::ExistingDirectory);
     app_.add_flag("--keep-tmp", keep_tmp_, "Keep the temporary workspace and print its path, for debugging");
+}
+
+std::filesystem::path Command::outputDirectory() const {
+    std::filesystem::path directory = output_.value().parent_path();
+    if (directory.empty()) {
+        directory = ".";
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(directory, error)) {
+        throw common::Failure(common::ExitCode::machine, "output-directory-missing",
+                              "the output's directory doesn't exist");
+    }
+    return directory;
+}
+
+std::string Command::outputStem() const { return output_.value().stem().u8string(); }
+
+common::Workspace Command::workspace() const {
+    if (tmp_dir_) {
+        return common::Workspace(*tmp_dir_, keep_tmp_);
+    }
+    return common::Workspace(output_ ? outputDirectory() : input_.parent_path(), keep_tmp_);
 }
 
 nlohmann::ordered_json Command::jsonHeader(int format) const {
