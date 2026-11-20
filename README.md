@@ -75,14 +75,15 @@ $ meshtinker inspect --help
 Report statistics about a glTF or GLB file
 
 Sizes, geometry, bounds, images and texture occupancy of the scene the file
-shows. Only the default scene counts, as `import` keeps only that one.
+shows. Only the default scene counts, as `import` keeps only that one. Given a
+chain, reads its last stage.
 
 
 meshtinker inspect [OPTIONS] input
 
 
 POSITIONALS:
-  input TEXT REQUIRED           The .gltf or .glb file
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -90,8 +91,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the input's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the input's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
@@ -112,7 +113,8 @@ Rewrite a glTF or GLB file in the normalized profile
 Writes the output .gltf, one .bin beside it and the images as files, keeping
 only the default scene. Geometry and image encodings, unknown extensions and
 extras are kept. Prints the same statistics as `inspect`, measured on what was
-written.
+written. Given a directory, creates a chain there, with the model as its first
+stage.
 
 
 meshtinker import [OPTIONS] input output
@@ -120,8 +122,8 @@ meshtinker import [OPTIONS] input output
 
 POSITIONALS:
   input TEXT REQUIRED           The .gltf or .glb file
-  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
-                                overwritten
+  output TEXT REQUIRED          The .gltf file to write, or a chain to create: a directory, new
+                                or empty. Its parent must exist; no file is overwritten
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -129,8 +131,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
@@ -188,13 +190,14 @@ normals, 12-bit texture coordinates. Draco and meshopt primitives are copied as
 they are.
 
 
-meshtinker compress [OPTIONS] input output
+meshtinker compress [OPTIONS] input [output]
 
 
 POSITIONALS:
-  input TEXT REQUIRED           The .gltf or .glb file
-  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
-                                overwritten
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -202,8 +205,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
@@ -225,13 +228,14 @@ Simplified primitives are written uncompressed, emptied ones are removed, and
 others are copied as they are.
 
 
-meshtinker simplify [OPTIONS] input output
+meshtinker simplify [OPTIONS] input [output]
 
 
 POSITIONALS:
-  input TEXT REQUIRED           The .gltf or .glb file
-  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
-                                overwritten
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -241,8 +245,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 

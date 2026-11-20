@@ -3,6 +3,7 @@
 #include "meshtinker/common/cleanup.hpp"
 #include "meshtinker/common/failure.hpp"
 
+#include <cerrno>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -123,6 +124,10 @@ void Command::resolve() {
         return;
     }
     if (!input_is_chain) {
+        if (kind_ != Kind::files && !std::filesystem::exists(input_, error)) {
+            throw common::systemFailure(ENOENT, common::Side::input, "file-unreadable",
+                                        "cannot open '" + input_.filename().u8string() + "'");
+        }
         if (kind_ == Kind::terminal) {
             throw usageFailure("INPUT must be a chain, which `meshtinker import` creates");
         }

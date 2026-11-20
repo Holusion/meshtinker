@@ -16,7 +16,8 @@ int run(int argc, char** argv) {
     cli::Command command("simplify", "Reduce the triangles of a glTF or GLB model",
                          "Collapses edges with meshoptimizer until its estimate of how far the surface moved reaches "
                          "the error, keeping UV seams and the borders primitives share. Simplified "
-                         "primitives are written uncompressed, emptied ones are removed, and others are copied as they are.");
+                         "primitives are written uncompressed, emptied ones are removed, and others are copied as they are.",
+                         cli::Kind::transform);
     Options options;
     command.addInput();
     command.addOutput();
@@ -40,12 +41,15 @@ int run(int argc, char** argv) {
         const std::filesystem::path directory = command.outputDirectory();
         options.read.trusted = command.trusted();
         common::Workspace workspace = command.workspace();
-        common::Outputs outputs;
-        const Report report = simplify(command.input(), directory, command.outputStem(), options, workspace, outputs,
-                                       command.diagnostics());
-        outputs.commit();
+        const Report report = simplify(command.input(), directory, command.outputStem(), options, workspace,
+                                       command.outputs(), command.diagnostics());
+        if (chain::StageWriter* stage = command.stage(); stage != nullptr && report.simplified > 0) {
+            stage->lossy().addError("simplificationError", report.achieved_error);
+        }
+        const nlohmann::ordered_json json = toJson(report, command.jsonHeader(), command.diagnostics());
+        command.publish(json);
         if (command.json()) {
-            std::cout << toJson(report, command.jsonHeader(), command.diagnostics()).dump(2) << '\n';
+            std::cout << json.dump(2) << '\n';
         } else {
             printText(std::cout, report);
         }

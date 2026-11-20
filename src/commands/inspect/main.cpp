@@ -12,7 +12,8 @@ int run(int argc, char** argv) {
     cli::Command command("inspect", "Report statistics about a glTF or GLB file",
                          "Sizes, geometry, bounds, images and texture occupancy of the scene the file shows. "
                          "Only the default scene counts, as `import` keeps only "
-                         "that one.");
+                         "that one. Given a chain, reads its last stage.",
+                         cli::Kind::read_only);
     command.addInput();
     command.addJsonOption();
     command.addTrustedOption();
