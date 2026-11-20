@@ -70,6 +70,22 @@ const Json* meshoptExtension(const Json& view) {
 
 Json* meshoptExtension(Json& view) { return const_cast<Json*>(meshoptExtension(static_cast<const Json&>(view))); }
 
+// The name of the meshopt extension of a buffer view, if any.
+const char* meshoptExtensionName(const Json& view) {
+    const auto extensions = view.find("extensions");
+    if (extensions == view.end() || !extensions->is_object()) {
+        return nullptr;
+    }
+    for (const char* name : meshopt_extensions) {
+        if (extensions->contains(name)) {
+            return name;
+        }
+    }
+    return nullptr;
+}
+
+std::uint64_t alignUp(std::uint64_t n, std::uint64_t alignment) { return (n + alignment - 1) / alignment * alignment; }
+
 } // namespace
 
 std::vector<std::string> imageFileNames(const Document& document, const std::string& stem) {
@@ -121,7 +137,12 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
     // after the .bin (buffer 0) if there is one.
     bool any_data = false;
     std::vector<bool> needed(data.buffers_count, false);
-    for (const std::size_t view : layout.view_sources) {
+    for (std::size_t i = 0; i < layout.view_sources.size(); ++i) {
+        const std::size_t view = layout.view_sources[i];
+        if (view == Layout::added_view) {
+            any_data = any_data || !layout.added.at(i).empty();
+            continue;
+        }
         const cgltf_buffer_view& source = data.buffer_views[view];
         const auto buffer = static_cast<std::size_t>(source.buffer - data.buffers);
         needed[buffer] = true;
@@ -143,6 +164,19 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
             buffers.push_back(document.json()["buffers"][i]);
         }
     }
+    // Added meshopt views get one new fallback buffer per extension, after
+    // the others, as glTF-Transform and gltfpack write them: it holds no data,
+    // and its length covers the views' decoded ranges.
+    std::map<std::string, std::size_t> fallback_buffer;
+    std::map<std::string, std::uint64_t> fallback_length;
+    for (const auto& [index, bytes] : layout.added) {
+        const char* name = meshoptExtensionName(json["bufferViews"][index]);
+        if (name != nullptr && fallback_buffer.count(name) == 0) {
+            fallback_buffer[name] = buffers.size();
+            fallback_length[name] = 0;
+            buffers.push_back(Json{{"byteLength", 0}, {"extensions", {{name, {{"fallback", true}}}}}});
+        }
+    }
 
     if (any_data) {
         const std::string bin_name = stem + ".bin";
@@ -150,6 +184,25 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
         for (const std::size_t index : layout.bin_order) {
             const std::size_t source_index = layout.view_sources[index];
             Json& view = json["bufferViews"][index];
+            if (source_index == Layout::added_view) {
+                const ByteView bytes = layout.added.at(index);
+                const char* name = meshoptExtensionName(view);
+                if (name != nullptr) {
+                    std::uint64_t& length = fallback_length[name];
+                    length = alignUp(length, view_alignment);
+                    view["buffer"] = fallback_buffer[name];
+                    view["byteOffset"] = length;
+                    length += view.value("byteLength", std::uint64_t{0});
+                }
+                // Taken after the view's own keys are set: adding keys to an
+                // ordered_json object moves its values.
+                Json& target = name != nullptr ? *meshoptExtension(view) : view;
+                bin.align(view_alignment);
+                target["buffer"] = 0;
+                target["byteOffset"] = bin.position();
+                bin.write(bytes);
+                continue;
+            }
             const cgltf_buffer_view& source = data.buffer_views[source_index];
             const auto source_buffer = static_cast<std::size_t>(source.buffer - data.buffers);
             view["buffer"] = new_buffer[source_buffer];
@@ -174,6 +227,9 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
         }
         bin.align(view_alignment);
         buffers[0] = Json{{"byteLength", bin.position()}, {"uri", encodeUriSegment(bin_name)}};
+        for (const auto& [name, buffer] : fallback_buffer) {
+            buffers[buffer]["byteLength"] = fallback_length[name];
+        }
         written.push_back({FileRole::buffer, bin_name, bin.position()});
         bin.close();
     }
