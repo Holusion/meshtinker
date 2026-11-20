@@ -32,6 +32,8 @@ These figures are from the field notes in `docs/validation.md`. Release builds, 
 - **Writeback even on short runs.** A sample during a 10 s Notre Dame simplify at 4 MiB (`tools/experiments/dirty-probe.py`) showed dirty memory climbing to 1.4 GB, and writes starting at 6 s, at about 880 MB dirty. That's below the machine-wide background threshold (`nr_dirty_background_threshold`, 1.4 GB here), so the trigger is probably the disk's share of that threshold. Past `nr_dirty_threshold` (2.9 GB here), the kernel pauses the process at the disk's write speed. That's why the spinning disk is slower.
 - **Why punching holes might help.** A shared 64 MiB file keeps the dirty pages of blocks already freed until its last block goes. Those pages count toward the thresholds and can get written for nothing. `simplify` frees each space's input arrays when it moves on, but its outputs stay live until the write, so freed and live blocks get interleaved in the same files.
 
+- **The shared-position search in `simplify`** (`sharedPositions` in `src/commands/simplify/simplify.cpp`) writes one 16-byte entry per vertex of the scene: 400 MB for the 44M scan, in a scratch file of its own past the budget. It sorts the entries in place, which dirties every page, and frees the file after about 3 s. Pages not written by then are dropped, but on large models writeback is usually already running. Measure how much of the writes it accounts for: `dirty-probe.py` around that phase, or a variant that skips the search. And say whether a smaller entry (a 64-bit hash plus the primitive, checked against the positions on a match) is worth it.
+
 ## The machine
 
 - 4 cores and 31 GB of RAM.
