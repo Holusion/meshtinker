@@ -1,6 +1,9 @@
 #include "meshtinker/cli/command.hpp"
 #include "meshtinker/common/failure.hpp"
 #include "support/check.hpp"
+#include "support/fixtures.hpp"
+
+#include <fstream>
 
 #include <iostream>
 #include <sstream>
@@ -150,6 +153,125 @@ TEST_CASE(output_without_directory_is_the_working_directory) {
     CHECK_EQ(result.code, 0);
     CHECK_EQ(directory, std::string("."));
     CHECK_EQ(command.input().string(), std::string("in.glb"));
+}
+
+namespace {
+
+namespace fs = std::filesystem;
+
+// A body that writes a stand-in model where the command says, and publishes.
+std::function<int()> writeModel(cli::Command& command) {
+    return [&command] {
+        common::OutputFile file = command.outputs().create(command.outputDirectory() / (command.outputStem() + ".gltf"));
+        file.write(std::string("{}"));
+        file.close();
+        command.publish(nlohmann::ordered_json{{"from", command.input().filename().u8string()}});
+        return 0;
+    };
+}
+
+void declare(cli::Command& command) {
+    command.addInput();
+    command.addOutput();
+    command.addJsonOption();
+}
+
+} // namespace
+
+TEST_CASE(chain_mode_follows_the_kind) {
+    const fs::path root = test::workDirectory("cli/chain");
+    std::ofstream(root / "scan.glb") << "source";
+    const std::string work = (root / "work").string();
+    {
+        // A constructor given a directory creates the chain and stage 000.
+        cli::Command import("import", "Import", "", cli::Kind::constructor);
+        declare(import);
+        const Result result = runCommand(import, {(root / "scan.glb").string(), work}, writeModel(import));
+        CHECK_EQ(result.code, 0);
+    }
+    CHECK(chain::isChain(work));
+    {
+        // A transform given a chain adds a stage built on the last one.
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        const Result result = runCommand(transform, {work}, writeModel(transform));
+        CHECK_EQ(result.code, 0);
+    }
+    const chain::Chain chain = chain::Chain::open(work);
+    const chain::StageName last = chain.last();
+    CHECK_EQ(last.text().substr(0, 13), std::string("001-simplify-"));
+    const auto record = chain.record(last);
+    CHECK_EQ(record["report"]["from"].get<std::string>(), std::string("scan.gltf"));
+    CHECK_EQ(record["argv"].size(), std::size_t{2});
+    CHECK_EQ(record["tool"].get<std::string>().substr(0, 20), std::string("meshtinker-simplify "));
+    CHECK(fs::exists(chain.model(last)));
+    {
+        // A read-only command reads the last stage, and writes nothing.
+        cli::Command reader("inspect", "Inspect", "", cli::Kind::read_only);
+        reader.addInput();
+        std::string input;
+        const Result result = runCommand(reader, {work}, [&] {
+            input = reader.input().string();
+            return 0;
+        });
+        CHECK_EQ(result.code, 0);
+        CHECK_EQ(input, chain.model(last).string());
+    }
+    {
+        // A chain takes no output: where a stage goes is the chain's to decide.
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        const Result result = runCommand(transform, {"--json", work, (root / "out.gltf").string()}, [] { return 0; });
+        CHECK_EQ(result.code, 2);
+        CHECK_EQ(nlohmann::json::parse(result.out)["error"]["code"].get<std::string>(), std::string("usage"));
+    }
+    {
+        // A file needs one.
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        CHECK_EQ(runCommand(transform, {(root / "scan.glb").string()}, [] { return 0; }).code, 2);
+    }
+    {
+        // A directory that isn't a chain is rejected.
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        const Result result = runCommand(transform, {"--json", root.string()}, [] { return 0; });
+        CHECK_EQ(result.code, 1);
+        CHECK_EQ(nlohmann::json::parse(result.out)["error"]["code"].get<std::string>(), std::string("not-a-chain"));
+    }
+    {
+        // A terminal command reads chains only.
+        cli::Command terminal("export", "Export", "", cli::Kind::terminal);
+        declare(terminal);
+        CHECK_EQ(runCommand(terminal, {(root / "scan.glb").string(), (root / "out.glb").string()}, [] { return 0; }).code, 2);
+    }
+    {
+        // One writer at a time.
+        const std::optional<common::FileLock> held = common::FileLock::tryAcquire(fs::path(work) / "lock");
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        const Result result = runCommand(transform, {"--json", work}, writeModel(transform));
+        CHECK_EQ(result.code, 4);
+        CHECK_EQ(nlohmann::json::parse(result.out)["error"]["code"].get<std::string>(), std::string("chain-in-use"));
+    }
+    CHECK_EQ(chain.stages().size(), std::size_t{2});
+    {
+        // A failed stage leaves nothing behind.
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        const Result result = runCommand(transform, {work}, [&] {
+            common::OutputFile file = transform.outputs().create(transform.outputDirectory() / "scan.gltf");
+            file.close();
+            throw common::Failure(common::ExitCode::input_rejected, "test", "failed");
+            return 0;
+        });
+        CHECK_EQ(result.code, 1);
+    }
+    std::size_t entries = 0;
+    for ([[maybe_unused]] const auto& entry : fs::directory_iterator(work)) {
+        ++entries;
+    }
+    CHECK_EQ(entries, std::size_t{4}); // chain.json, lock, two stages
 }
 
 TEST_CASE(workspace_default_follows_the_positionals) {
