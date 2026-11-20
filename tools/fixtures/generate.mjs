@@ -592,6 +592,34 @@ fixtures.textures = async (dir) => {
   });
 };
 
+// Charts spread over their textures, for uv: three charts in a 64×64 base color and a 32×32 normal map
+// (one image half the other's size), and a second material sharing the base color image.
+fixtures.atlas = async (dir) => {
+  const b = new Builder();
+  const color = b.image('atlas-color.png', await png(128, 128, 6), 'image/png');
+  const normals = Buffer.alloc(64 * 64 * 3);
+  for (let i = 0; i < 64 * 64; i++) {
+    const nx = ((i % 64) - 31.5) / 80, ny = (Math.floor(i / 64) - 31.5) / 80, nz = Math.sqrt(1 - nx * nx - ny * ny);
+    [nx, ny, nz].forEach((v, c) => { normals[i * 3 + c] = Math.round((v + 1) * 127.5); });
+  }
+  const normal = b.image('atlas-normal.png', await sharp(normals, { raw: { width: 64, height: 64, channels: 3 } }).png().toBuffer(), 'image/png');
+  const charted = b.add('materials', { name: 'Charted', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(color) } },
+    normalTexture: { index: b.texture(normal) } });
+  const sharing = b.add('materials', { name: 'Sharing', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(color) } } });
+  const charts = [[0.05, 0.05, 0.25, 0.3], [0.6, 0.1, 0.9, 0.35], [0.3, 0.7, 0.55, 0.95]];
+  const primitives = charts.map((uv, i) => ({ ...quad(b, { x0: 2 * i, x1: 2 * i + 1, uv }), material: charted }));
+  const { node: a } = b.meshNode(primitives, {}, 'Charted');
+  const { node: c } = b.meshNode([{ ...quad(b, { x0: 6, x1: 7, uv: [0.7, 0.6, 0.95, 0.9] }), material: sharing }], {}, 'Sharing');
+  b.json.scene = b.scene([a, c]);
+  b.write(path.join(dir, 'atlas.gltf'));
+  writeExpected(dir, {
+    description: 'Three charts spread over a 128×128 base color and a 64×64 normal map, and a second material sharing the base color, for uv.',
+    geometry: { primitives: 4, vertices: 16, faces: 8 },
+    bounds: { min: [0, 0, 0], max: [7, 1, 0] },
+    images: [{ name: 'atlas-color', mimeType: 'image/png', width: 128, height: 128 }, { name: 'atlas-normal', mimeType: 'image/png', width: 64, height: 64 }],
+  });
+};
+
 fixtures['alt-sources'] = async (dir) => {
   const b = new Builder();
   const fallbackPng = b.image('fallback.png', await png(16, 16, 0), 'image/png');

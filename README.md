@@ -37,6 +37,7 @@ Commands:
   ktx           Encode the images of a glTF or GLB model as KTX2
   placeholder   Build a low-poly stand-in for a glTF or GLB model
   simplify      Reduce the triangles of a glTF or GLB model
+  uv            Pack the UV charts of a glTF or GLB model tighter, and bake its textures
 
 Commands are the meshtinker-<command> executables next to meshtinker, then on PATH.
 ```
@@ -318,6 +319,44 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
+```
+
+### uv
+
+Packs the UV charts of each material tighter and bakes its textures into the new layout, so that fewer texels are wasted: `inspect`'s texture occupancy is the measure. Charts are only moved, by whole texels, so baking copies texels without resampling, and only the texture coordinates of the material's primitives change (no vertex is added; the primitives are written uncompressed). Materials that share images are packed together, and every image of a material gets the same layout, keeping their ratio of sizes. The baked images are PNG; run `ktx` after `uv`. A material whose images wouldn't lose 10 % of their texels is left as it is. So is, with a counted warning, a material with KTX2, WebP or AVIF images, a texture transform, textures on different texture coordinate sets, a repeating texture its UVs tile, morphed texture coordinates, or images that aren't whole multiples of each other in size. [docs/uv.md](docs/uv.md) has the details.
+
+`--max-size N` scales down baked images whose longest side is over N texels. The report gives, per group of materials, its status, charts, the images' sizes before and after, texels and occupancy before and after, and the time. Given a [chain](#chains), `uv` adds a stage; a PNG adds no lossy round.
+
+```console
+$ meshtinker uv --help
+Pack the UV charts of a glTF or GLB model tighter, and bake its textures
+
+Moves the UV charts of each material closer together, by whole texels, and
+copies their texels into smaller images, written as PNG. Charts are not rotated,
+scaled or re-cut. Materials whose images wouldn't shrink by 10 % are left as
+they are.
+
+
+meshtinker uv [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --max-size N          Scale down images whose longest side is over N texels, keeping
+                                their aspect ratio
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
 ### export

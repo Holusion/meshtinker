@@ -9,6 +9,7 @@
 #include <CLI/CLI.hpp>
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -62,8 +63,12 @@ public:
     void addOutput();
     // A command's own flag. CLI11's add_flag is a template that can throw, so
     // calling it from main()'s translation unit makes clang-tidy's
-    // exception-escape check fire; this keeps it in command.cpp.
-    void addFlag(const std::string& name, bool& value, const std::string& help);
+    // exception-escape check fire; this keeps it in command.cpp. A hidden flag
+    // is left out of --help, for measurements.
+    void addFlag(const std::string& name, bool& value, const std::string& help, bool hidden = false);
+    // Options left out of --help, for measurements.
+    void addHiddenOption(const std::string& name, std::uint32_t& value);
+    void addHiddenOption(const std::string& name, double& value);
     // --json: print the result as one JSON object on stdout, even on failure.
     void addJsonOption();
     // --trusted: let the model reference files outside its folder.

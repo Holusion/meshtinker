@@ -80,4 +80,8 @@ bool readAccessor(const cgltf_data& data, const cgltf_accessor& accessor, const 
 // the views read its arrays, and its indices are converted in place.
 PrimitiveGeometry addPlainGeometry(Layout& layout, TriangleData& data);
 
+// Adds one attribute as addPlainGeometry does, and returns its accessor's
+// index: for a command that rewrites one attribute and keeps the others.
+std::size_t addPlainAttribute(Layout& layout, AttributeData& attribute, bool morph_target);
+
 } // namespace meshtinker::gltf

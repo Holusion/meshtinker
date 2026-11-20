@@ -3,7 +3,9 @@
 #include "encode.hpp"
 
 #include "meshtinker/gltf/edit.hpp"
+#include "meshtinker/gltf/graph.hpp"
 #include "meshtinker/gltf/layout.hpp"
+#include "meshtinker/gltf/material_slots.hpp"
 #include "meshtinker/gltf/selection.hpp"
 #include "meshtinker/image/image.hpp"
 
@@ -69,46 +71,7 @@ using Clock = std::chrono::steady_clock;
 
 double secondsSince(Clock::time_point start) { return std::chrono::duration<double>(Clock::now() - start).count(); }
 
-enum class SlotKind : std::uint8_t { color, data, normal };
-
-// A material slot that takes a texture: core glTF's and the Khronos material
-// extensions' (docs/ktx.md#codec-per-slot).
-struct Slot {
-    // The extension the slot is in, or null for core glTF.
-    const char* extension;
-    // The object the slot is in, inside the material or the extension.
-    const char* parent;
-    const char* name;
-    SlotKind kind;
-    // Whether the slot samples the alpha channel. Base color and diffuse do
-    // only when the material isn't OPAQUE.
-    bool alpha;
-    bool alpha_unless_opaque;
-};
-
-constexpr Slot slots[] = {
-    {nullptr, "pbrMetallicRoughness", "baseColorTexture", SlotKind::color, false, true},
-    {nullptr, "pbrMetallicRoughness", "metallicRoughnessTexture", SlotKind::data, false, false},
-    {nullptr, nullptr, "normalTexture", SlotKind::normal, false, false},
-    {nullptr, nullptr, "occlusionTexture", SlotKind::data, false, false},
-    {nullptr, nullptr, "emissiveTexture", SlotKind::color, false, false},
-    {"KHR_materials_clearcoat", nullptr, "clearcoatTexture", SlotKind::data, false, false},
-    {"KHR_materials_clearcoat", nullptr, "clearcoatRoughnessTexture", SlotKind::data, false, false},
-    {"KHR_materials_clearcoat", nullptr, "clearcoatNormalTexture", SlotKind::normal, false, false},
-    {"KHR_materials_sheen", nullptr, "sheenColorTexture", SlotKind::color, false, false},
-    {"KHR_materials_sheen", nullptr, "sheenRoughnessTexture", SlotKind::data, true, false},
-    {"KHR_materials_specular", nullptr, "specularTexture", SlotKind::data, true, false},
-    {"KHR_materials_specular", nullptr, "specularColorTexture", SlotKind::color, false, false},
-    {"KHR_materials_transmission", nullptr, "transmissionTexture", SlotKind::data, false, false},
-    {"KHR_materials_volume", nullptr, "thicknessTexture", SlotKind::data, false, false},
-    {"KHR_materials_iridescence", nullptr, "iridescenceTexture", SlotKind::data, false, false},
-    {"KHR_materials_iridescence", nullptr, "iridescenceThicknessTexture", SlotKind::data, false, false},
-    {"KHR_materials_anisotropy", nullptr, "anisotropyTexture", SlotKind::normal, false, false},
-    {"KHR_materials_diffuse_transmission", nullptr, "diffuseTransmissionTexture", SlotKind::data, true, false},
-    {"KHR_materials_diffuse_transmission", nullptr, "diffuseTransmissionColorTexture", SlotKind::color, false, false},
-    {"KHR_materials_pbrSpecularGlossiness", nullptr, "diffuseTexture", SlotKind::color, false, true},
-    {"KHR_materials_pbrSpecularGlossiness", nullptr, "specularGlossinessTexture", SlotKind::color, true, false},
-};
+using gltf::SlotKind;
 
 const Json* child(const Json& object, const char* key) {
     if (!object.is_object()) {
@@ -134,27 +97,18 @@ std::map<std::size_t, TextureUse> textureUses(const Json& json) {
         return uses;
     }
     for (const Json& material : *materials) {
-        const Json* mode = child(material, "alphaMode");
-        const bool opaque = mode == nullptr || !mode->is_string() || mode->get<std::string>() == "OPAQUE";
-        for (const Slot& slot : slots) {
-            const Json* base = &material;
-            if (slot.extension != nullptr) {
-                const Json* extensions = child(material, "extensions");
-                base = extensions != nullptr ? child(*extensions, slot.extension) : nullptr;
-            }
-            if (base != nullptr && slot.parent != nullptr) {
-                base = child(*base, slot.parent);
-            }
-            const Json* info = base != nullptr ? child(*base, slot.name) : nullptr;
-            const Json* index = info != nullptr ? child(*info, "index") : nullptr;
-            if (index == nullptr || !index->is_number_unsigned()) {
+        const bool opaque = gltf::isOpaque(material);
+        for (const gltf::TextureSlot& slot : gltf::textureSlots(material)) {
+            const std::optional<gltf::KnownSlot> known = gltf::knownSlot(slot.path);
+            const Json* index = child(*slot.info, "index");
+            if (!known || index == nullptr || !index->is_number_unsigned()) {
                 continue;
             }
             TextureUse& use = uses[index->get<std::size_t>()];
-            use.color = use.color || slot.kind == SlotKind::color;
-            use.data = use.data || slot.kind == SlotKind::data;
-            use.normal = use.normal || slot.kind == SlotKind::normal;
-            use.alpha = use.alpha || slot.alpha || (slot.alpha_unless_opaque && !opaque);
+            use.color = use.color || known->kind == SlotKind::color;
+            use.data = use.data || known->kind == SlotKind::data;
+            use.normal = use.normal || known->kind == SlotKind::normal;
+            use.alpha = use.alpha || known->alpha || (known->alpha_unless_opaque && !opaque);
         }
     }
     return uses;

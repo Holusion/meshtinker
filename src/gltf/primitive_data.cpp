@@ -75,45 +75,6 @@ void narrowInPlace(float* values, std::size_t count) {
     }
 }
 
-std::size_t addAttribute(Layout& layout, AttributeData& attribute, bool morph_target) {
-    const std::size_t count = attribute.values.size() / attribute.components;
-    int component_type = float_type;
-    std::size_t component_size = sizeof(float);
-    if (!morph_target && attribute.name.rfind("JOINTS_", 0) == 0) {
-        component_type = attribute.source_component_type == unsigned_byte_type ? unsigned_byte_type : unsigned_short_type;
-        component_size = component_type == unsigned_byte_type ? 1 : 2;
-        if (component_type == unsigned_byte_type) {
-            narrowInPlace<std::uint8_t>(attribute.values.data(), attribute.values.size());
-        } else {
-            narrowInPlace<std::uint16_t>(attribute.values.data(), attribute.values.size());
-        }
-    }
-    const std::uint64_t byte_length = std::uint64_t{attribute.values.size()} * component_size;
-    const common::ByteView bytes{reinterpret_cast<const std::uint8_t*>(attribute.values.data()),
-                                 static_cast<std::size_t>(byte_length)};
-    const std::size_t view = addView(layout, Json{{"byteLength", byte_length}, {"target", array_buffer}}, bytes);
-    Json accessor{{"bufferView", view}, {"componentType", component_type}, {"count", count},
-                  {"type", typeName(attribute.components)}};
-    copyAccessorProperties(layout, attribute.source_accessor, accessor);
-    if (attribute.name == "POSITION") {
-        std::array<float, 3> min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
-                                 std::numeric_limits<float>::max()};
-        std::array<float, 3> max{-min[0], -min[1], -min[2]};
-        for (std::size_t v = 0; v < count; ++v) {
-            for (std::size_t k = 0; k < 3; ++k) {
-                min[k] = std::min(min[k], attribute.values[3 * v + k]);
-                max[k] = std::max(max[k], attribute.values[3 * v + k]);
-            }
-        }
-        if (count == 0) {
-            min = max = {0, 0, 0};
-        }
-        accessor["min"] = Json::array({min[0], min[1], min[2]});
-        accessor["max"] = Json::array({max[0], max[1], max[2]});
-    }
-    return addAccessor(layout, std::move(accessor));
-}
-
 } // namespace
 
 const AttributeData& TriangleData::position() const {
@@ -255,17 +216,56 @@ bool readAccessor(const cgltf_data& data, const cgltf_accessor& accessor, const 
     return readAttribute(data, attribute, accessor.count, workspace, out);
 }
 
+std::size_t addPlainAttribute(Layout& layout, AttributeData& attribute, bool morph_target) {
+    const std::size_t count = attribute.values.size() / attribute.components;
+    int component_type = float_type;
+    std::size_t component_size = sizeof(float);
+    if (!morph_target && attribute.name.rfind("JOINTS_", 0) == 0) {
+        component_type = attribute.source_component_type == unsigned_byte_type ? unsigned_byte_type : unsigned_short_type;
+        component_size = component_type == unsigned_byte_type ? 1 : 2;
+        if (component_type == unsigned_byte_type) {
+            narrowInPlace<std::uint8_t>(attribute.values.data(), attribute.values.size());
+        } else {
+            narrowInPlace<std::uint16_t>(attribute.values.data(), attribute.values.size());
+        }
+    }
+    const std::uint64_t byte_length = std::uint64_t{attribute.values.size()} * component_size;
+    const common::ByteView bytes{reinterpret_cast<const std::uint8_t*>(attribute.values.data()),
+                                 static_cast<std::size_t>(byte_length)};
+    const std::size_t view = addView(layout, Json{{"byteLength", byte_length}, {"target", array_buffer}}, bytes);
+    Json accessor{{"bufferView", view}, {"componentType", component_type}, {"count", count},
+                  {"type", typeName(attribute.components)}};
+    copyAccessorProperties(layout, attribute.source_accessor, accessor);
+    if (attribute.name == "POSITION") {
+        std::array<float, 3> min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+                                 std::numeric_limits<float>::max()};
+        std::array<float, 3> max{-min[0], -min[1], -min[2]};
+        for (std::size_t v = 0; v < count; ++v) {
+            for (std::size_t k = 0; k < 3; ++k) {
+                min[k] = std::min(min[k], attribute.values[3 * v + k]);
+                max[k] = std::max(max[k], attribute.values[3 * v + k]);
+            }
+        }
+        if (count == 0) {
+            min = max = {0, 0, 0};
+        }
+        accessor["min"] = Json::array({min[0], min[1], min[2]});
+        accessor["max"] = Json::array({max[0], max[1], max[2]});
+    }
+    return addAccessor(layout, std::move(accessor));
+}
+
 PrimitiveGeometry addPlainGeometry(Layout& layout, TriangleData& data) {
     PrimitiveGeometry geometry;
     for (AttributeData& attribute : data.attributes) {
-        geometry.attributes[attribute.name] = addAttribute(layout, attribute, false);
+        geometry.attributes[attribute.name] = addPlainAttribute(layout, attribute, false);
     }
     if (!data.targets.empty()) {
         geometry.targets = Json::array();
         for (std::vector<AttributeData>& target : data.targets) {
             Json attributes = Json::object();
             for (AttributeData& attribute : target) {
-                attributes[attribute.name] = addAttribute(layout, attribute, true);
+                attributes[attribute.name] = addPlainAttribute(layout, attribute, true);
             }
             geometry.targets.push_back(std::move(attributes));
         }

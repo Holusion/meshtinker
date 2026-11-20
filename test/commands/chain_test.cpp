@@ -249,3 +249,22 @@ TEST_CASE(ktx_records_a_round_per_image) {
     CHECK_EQ(again.code, 0);
     CHECK_EQ(again.json["totals"]["encoded"].get<int>(), 0);
 }
+
+TEST_CASE(uv_then_ktx) {
+    const fs::path root = test::workDirectory("chain-commands/atlas");
+    const std::string work = (root / "work").string();
+    CHECK_EQ(run("import", {test::fixture("atlas").model.string(), work}).code, 0);
+    const Run packed = run("uv", {work});
+    CHECK_EQ(packed.code, 0);
+    CHECK_EQ(packed.json["totals"]["repacked"].get<int>(), 1);
+    const chain::Chain chain = chain::Chain::open(work);
+    const Json record = chain.record(chain.last());
+    CHECK_EQ(record["command"].get<std::string>(), std::string("uv"));
+    // Copies of texels into PNG: no lossy round.
+    CHECK(!record["lossy"].contains("imageEncoding"));
+    CHECK_EQ(run("ktx", {work}).code, 0);
+    // uv after ktx finds only KTX2 images.
+    const Run late = run("uv", {work});
+    CHECK_EQ(late.code, 0);
+    CHECK(hasDiagnostic(late.json, "image-already-compressed"));
+}

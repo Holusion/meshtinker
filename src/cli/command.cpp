@@ -94,9 +94,16 @@ void Command::addOutput() {
     }
 }
 
-void Command::addFlag(const std::string& name, bool& value, const std::string& help) {
-    app_.add_flag(name, value, help);
+void Command::addFlag(const std::string& name, bool& value, const std::string& help, bool hidden) {
+    CLI::Option* option = app_.add_flag(name, value, help);
+    if (hidden) {
+        option->group("");
+    }
 }
+
+void Command::addHiddenOption(const std::string& name, std::uint32_t& value) { app_.add_option(name, value)->group(""); }
+
+void Command::addHiddenOption(const std::string& name, double& value) { app_.add_option(name, value)->group(""); }
 
 void Command::addJsonOption() {
     app_.add_flag("--json", json_, "Print the result as one JSON object on stdout, even on failure");
