@@ -38,7 +38,7 @@ This sits under the "flexible memory management" item in TODO.md: commands decid
 ## Writing
 
 - KTX2 is written by basisu ([ktx.md](ktx.md)).
-- PNG and JPEG are written with stb_image_write (already vendored), for `uv`'s baked images. The choice between them is open.
+- `uv`'s baked images are written as PNG with stb_image_write (already vendored), at a fast compression level (`stbi_write_png_compression_level` 1). PNG adds no lossy round, and `ktx` usually follows, so size matters less than writing time.
 - A file name keeps its stem and changes its extension (`wall.png` becomes `wall.ktx2`). Collisions are renamed as in [gltf-io.md](gltf-io.md#writing).
 - Encoding to JPEG or KTX2 is a lossy round. In a chain it goes into `lossy`, and a second round on the same image warns with `repeated-lossy-image-encoding` ([chaining.md](chaining.md)). In file mode there is no history, and a JPEG source isn't counted.
 
