@@ -204,6 +204,38 @@ Json Chain::record(const StageName& stage) const {
     return readJson(directory_ / fs::u8path(stage.text()) / stage_file, "invalid-stage");
 }
 
+common::FileLock Chain::lock() const { return lockChain(directory_); }
+
+void Chain::remove(const common::FileLock& /*lock*/, common::Diagnostics& diagnostics) const {
+    const auto failed = [&](const std::error_code& error, const fs::path& path) {
+        return common::systemFailure(error.value(), common::Side::machine, "remove-failed", "cannot remove " + quoted(path));
+    };
+    std::error_code error;
+    if (!fs::remove(directory_ / chain_file, error) && error) {
+        throw failed(error, directory_ / chain_file);
+    }
+    std::vector<fs::path> entries;
+    for (const fs::directory_entry& entry : fs::directory_iterator(directory_, error)) {
+        const std::string name = entry.path().filename().u8string();
+        const bool leftover = name.find(".meshtinker-") != std::string::npos && name.size() > 4 &&
+                              name.compare(name.size() - 4, 4, ".tmp") == 0;
+        if (parseStageName(name) || leftover) {
+            entries.push_back(entry.path());
+        }
+    }
+    for (const fs::path& entry : entries) {
+        fs::remove_all(entry, error);
+        if (error) {
+            throw failed(error, entry);
+        }
+    }
+    fs::remove(directory_ / lock_file, error);
+    if (!fs::remove(directory_, error)) {
+        diagnostics.warn("chain-directory-kept",
+                         "the chain's directory holds files that aren't the chain's, and was kept", quoted(directory_));
+    }
+}
+
 std::unique_ptr<StageWriter> StageWriter::add(const Chain& chain, const std::string& command, common::Outputs& outputs) {
     common::FileLock lock = lockChain(chain.directory());
     // Read under the lock, so no other stage can take the next number.

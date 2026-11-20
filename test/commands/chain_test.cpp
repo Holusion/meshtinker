@@ -161,3 +161,57 @@ TEST_CASE(busy_and_broken_chains) {
     }
     CHECK_EQ(entries, std::size_t{3});
 }
+
+TEST_CASE(export_writes_the_last_stage) {
+    const fs::path root = test::workDirectory("chain-commands/export");
+    const std::string work = (root / "work").string();
+    fs::create_directory(root / "out");
+    CHECK_EQ(run("import", {test::fixture("scan").model.string(), work}).code, 0);
+    CHECK_EQ(run("simplify", {"--error", "0.01", work}).code, 0);
+    const Run last = run("inspect", {work});
+    const chain::Chain chain = chain::Chain::open(work);
+
+    const Run glb = run("export", {work, (root / "out" / "model.glb").string()});
+    CHECK_EQ(glb.code, 0);
+    CHECK_EQ(glb.json["stage"].get<std::string>(), chain.last().text());
+    CHECK_EQ(glb.json["files"].size(), std::size_t{1});
+    const Run glb_inspected = run("inspect", {(root / "out" / "model.glb").string()});
+    CHECK_EQ(glb_inspected.json["geometry"], last.json["geometry"]);
+    CHECK_EQ(glb_inspected.json["scene"], last.json["scene"]);
+    CHECK_EQ(glb_inspected.json["images"][0]["byteSize"], last.json["images"][0]["byteSize"]);
+
+    const Run gltf = run("export", {work, (root / "out" / "model.gltf").string()});
+    CHECK_EQ(gltf.code, 0);
+    CHECK_EQ(gltf.json["files"].size(), std::size_t{3});
+    // Copies: the output doesn't share the chain's files.
+    CHECK_EQ(fs::hard_link_count(root / "out" / "scan_texture_0.jpg"), std::uintmax_t{1});
+    CHECK_EQ(run("inspect", {(root / "out" / "model.gltf").string()}).json["geometry"], last.json["geometry"]);
+
+    // Outputs are never overwritten, and a file is not a chain.
+    CHECK_EQ(run("export", {work, (root / "out" / "model.glb").string()}).code, 4);
+    CHECK_EQ(run("export", {test::fixture("scan").model.string(), (root / "out" / "other.glb").string()}).code, 2);
+    CHECK(chain::isChain(work));
+
+    // --remove-chain removes the chain once the output is published.
+    const Run removed = run("export", {"--remove-chain", work, (root / "out" / "final.glb").string()});
+    CHECK_EQ(removed.code, 0);
+    CHECK(removed.json["removedChain"].get<bool>());
+    CHECK(!fs::exists(work));
+    CHECK_EQ(run("inspect", {(root / "out" / "final.glb").string()}).json["geometry"], last.json["geometry"]);
+
+    // A directory with other files in it stays, with them.
+    const std::string kept = (root / "kept").string();
+    CHECK_EQ(run("import", {test::fixture("cube").model.string(), kept}).code, 0);
+    std::ofstream(fs::path(kept) / "notes.txt") << "mine";
+    const Run partly = run("export", {"--remove-chain", kept, (root / "out" / "cube.gltf").string()});
+    CHECK_EQ(partly.code, 0);
+    CHECK_EQ(partly.json["diagnostics"][0]["code"].get<std::string>(), std::string("chain-directory-kept"));
+    CHECK(!chain::isChain(kept));
+    std::size_t entries = 0;
+    for ([[maybe_unused]] const auto& entry : fs::directory_iterator(kept)) {
+        ++entries;
+    }
+    CHECK_EQ(entries, std::size_t{1});
+    // The output's files outlive the chain they were linked from.
+    CHECK_EQ(run("inspect", {(root / "out" / "cube.gltf").string()}).code, 0);
+}

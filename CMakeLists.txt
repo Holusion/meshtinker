@@ -137,6 +137,7 @@ meshtinker_add_command(import)
 meshtinker_add_command(placeholder)
 meshtinker_add_command(simplify)
 meshtinker_add_command(compress)
+meshtinker_add_command(export)
 find_package(Threads REQUIRED)
 target_link_libraries(meshtinker-placeholder-lib PRIVATE Threads::Threads)
 

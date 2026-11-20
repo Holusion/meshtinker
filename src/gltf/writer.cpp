@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
@@ -148,7 +149,9 @@ struct BinPlan {
     std::uint64_t length = 0;
 };
 
-BinPlan planBin(const Document& document, const Layout& layout) {
+// `data_buffer` reserves buffer 0 for data even when no view has any, for a
+// GLB whose BIN chunk holds only images.
+BinPlan planBin(const Document& document, const Layout& layout, bool data_buffer = false) {
     const cgltf_data& data = document.data();
     BinPlan plan;
     plan.json = layout.json;
@@ -174,6 +177,7 @@ BinPlan planBin(const Document& document, const Layout& layout) {
             any_data = any_data || !document.buffer(compressed).empty();
         }
     }
+    any_data = any_data || data_buffer;
     plan.any_data = any_data;
     std::vector<std::size_t> new_buffer(data.buffers_count, 0);
     Json buffers = Json::array();
@@ -362,6 +366,115 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
     written.front().size = gltf.position();
     gltf.close();
     return written;
+}
+
+namespace {
+
+void writeUint32(common::OutputFile& file, std::uint32_t value) {
+    const std::uint8_t bytes[4] = {static_cast<std::uint8_t>(value & 0xFFu), static_cast<std::uint8_t>((value >> 8) & 0xFFu),
+                                   static_cast<std::uint8_t>((value >> 16) & 0xFFu),
+                                   static_cast<std::uint8_t>((value >> 24) & 0xFFu)};
+    file.write(ByteView{bytes, sizeof bytes});
+}
+
+const char* mimeFor(const char* extension) {
+    const std::string name = extension;
+    if (name == "png") {
+        return "image/png";
+    }
+    if (name == "jpg") {
+        return "image/jpeg";
+    }
+    if (name == "webp") {
+        return "image/webp";
+    }
+    if (name == "ktx2") {
+        return "image/ktx2";
+    }
+    return nullptr;
+}
+
+} // namespace
+
+std::vector<WrittenFile> writeGlb(const Document& document, const Layout& layout, const fs::path& path,
+                                  common::Outputs& outputs) {
+    const std::vector<std::string> names = imageFileNames(document, "model");
+    bool any_image = false;
+    for (const std::size_t source : layout.image_sources) {
+        any_image = any_image || !document.image(source).missing;
+    }
+    BinPlan plan = planBin(document, layout, any_image);
+    Json& json = plan.json;
+
+    // Images follow the views in the BIN chunk, each in a new buffer view;
+    // images that share a source file share one.
+    std::vector<ByteView> image_bytes;
+    std::map<std::string, std::size_t> view_by_name;
+    std::uint64_t length = plan.length;
+    if (!json.contains("bufferViews") && any_image) {
+        json["bufferViews"] = Json::array();
+    }
+    for (std::size_t i = 0; i < layout.image_sources.size(); ++i) {
+        const std::size_t source = layout.image_sources[i];
+        const ImageData& data = document.image(source);
+        Json& image = json["images"][i];
+        image.erase("bufferView");
+        if (data.missing) {
+            // No bytes to embed: it keeps a reference to its name, as writeSeparate does.
+            image["uri"] = encodeUriSegment(names[source]);
+            continue;
+        }
+        image.erase("uri");
+        auto found = view_by_name.find(names[source]);
+        if (found == view_by_name.end()) {
+            length = alignUp(length, view_alignment);
+            json["bufferViews"].push_back(Json{{"buffer", 0}, {"byteOffset", length}, {"byteLength", data.bytes.size}});
+            found = view_by_name.emplace(names[source], json["bufferViews"].size() - 1).first;
+            image_bytes.push_back(data.bytes);
+            length += data.bytes.size;
+        }
+        image["bufferView"] = found->second;
+        if (const char* mime = mimeFor(extensionFor(data, image))) {
+            image["mimeType"] = mime;
+        }
+    }
+    length = alignUp(length, view_alignment);
+    if (plan.any_data) {
+        json["buffers"][0] = Json{{"byteLength", length}};
+    }
+
+    std::string text = json.dump();
+    text.append((4 - text.size() % 4) % 4, ' ');
+    const std::uint64_t total = 12 + 8 + text.size() + (plan.any_data ? 8 + length : 0);
+    if (total > std::numeric_limits<std::uint32_t>::max()) {
+        throw common::Failure(common::ExitCode::input_rejected, "glb-too-large",
+                              "the model needs " + std::to_string(total) +
+                                  " bytes, more than a GLB file can hold (4 GiB): write a .gltf instead");
+    }
+    common::OutputFile file = outputs.create(path);
+    writeUint32(file, 0x46546C67u); // "glTF"
+    writeUint32(file, 2);
+    writeUint32(file, static_cast<std::uint32_t>(total));
+    writeUint32(file, static_cast<std::uint32_t>(text.size()));
+    writeUint32(file, 0x4E4F534Au); // "JSON"
+    file.write(text);
+    if (plan.any_data) {
+        writeUint32(file, static_cast<std::uint32_t>(length));
+        writeUint32(file, 0x004E4942u); // "BIN\0"
+        const std::uint64_t start = file.position();
+        writePieces(file, plan);
+        for (const ByteView bytes : image_bytes) {
+            file.align(view_alignment);
+            file.write(bytes);
+        }
+        file.align(view_alignment);
+        if (file.position() - start != length) {
+            throw std::logic_error("the GLB plan and its writing disagree");
+        }
+    }
+    const std::uint64_t size = file.position();
+    file.close();
+    return {{FileRole::glb, path.filename().u8string(), size}};
 }
 
 } // namespace meshtinker::gltf

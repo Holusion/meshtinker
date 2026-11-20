@@ -103,6 +103,15 @@ public:
     // read (`invalid-stage`) or has a newer format (`chain-format-newer`).
     Json record(const StageName& stage) const;
 
+    // Takes the chain's lock, as a command writing a stage does. Throws a
+    // Failure (exit code 4, `chain-in-use`) if another command holds it.
+    common::FileLock lock() const;
+    // Removes the chain, under its lock: chain.json first, so that it is no
+    // longer a chain, then its stages, killed runs' leftovers and the lock.
+    // The directory goes too if nothing else is in it; otherwise it stays,
+    // with a warning (`chain-directory-kept`).
+    void remove(const common::FileLock& lock, common::Diagnostics& diagnostics) const;
+
 private:
     Chain(std::filesystem::path directory, std::string source) : directory_(std::move(directory)), source_(std::move(source)) {}
 

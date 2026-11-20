@@ -106,6 +106,7 @@ When the validator reports one of these, the output isn't at fault.
 
 - Doesn't recognize KTX2 images: `warning:IMAGE_UNRECOGNIZED_FORMAT` on every `.ktx2` image, the Khronos samples included.
 - Reports extensions it doesn't know (meshopt, KHR_meshopt) as `info:UNSUPPORTED_EXTENSION` and doesn't check their data. A buffer only meshopt extensions refer to is therefore `info:UNUSED_OBJECT`: `meshopt-quantized` after `import`, whose `.bin` then holds only compressed data. `check-commands.mjs` doesn't count that info for meshopt outputs.
+- Warns `VALUE_NOT_IN_LIST` on the `mimeType` of a WebP or KTX2 image embedded in a GLB (`export` of `alt-sources`): core glTF lists only PNG and JPEG, and `EXT_texture_webp` and `KHR_texture_basisu` require `image/webp` and `image/ktx2` there.
 - Warns `MESH_PRIMITIVE_GENERATED_TANGENT_SPACE` for normal maps without tangents (`occupancy`). That's legal glTF.
 
 ## Limits of the tools

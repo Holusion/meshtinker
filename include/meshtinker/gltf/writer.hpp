@@ -46,4 +46,13 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
                                        const std::filesystem::path& directory, const std::string& stem,
                                        common::Outputs& outputs);
 
+// Writes `layout` as one GLB file at `path`. The BIN chunk is buffer 0: the
+// buffer views as writeSeparate lays them out in its .bin, then the bytes of
+// each image, in a new buffer view at the end of `bufferViews`, with its
+// `mimeType`. Images that share a source file share a view. A missing image
+// keeps its `uri`. Throws a Failure (exit code 1, `glb-too-large`) for a
+// model over the format's 4 GiB.
+std::vector<WrittenFile> writeGlb(const Document& document, const Layout& layout, const std::filesystem::path& path,
+                                  common::Outputs& outputs);
+
 } // namespace meshtinker::gltf

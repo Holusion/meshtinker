@@ -31,6 +31,7 @@ Usage: meshtinker <command> [args...]
 
 Commands:
   compress      Compress the geometry of a glTF or GLB model with meshopt
+  export        Write the last stage of a chain as a .gltf or .glb file
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   placeholder   Build a low-poly stand-in for a glTF or GLB model
@@ -248,6 +249,39 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### export
+
+Writes the last stage of a [chain](#chains) as one `.gltf` file with its `.bin` and images beside it, or as one `.glb` file, by the output's extension. The model is written as the stage holds it, in the normalized profile. A `.glb` puts the images into its binary chunk after the buffer views, each in a buffer view of its own with its `mimeType`. A GLB can't exceed 4 GiB: a larger model fails with `glb-too-large` and can be written as `.gltf`. The output's files are copies (reflinks where the file system has them), never links to the chain's.
+
+`--remove-chain` removes the chain once the output is published, under the chain's lock: `chain.json` first, then the stages and the lock. The chain's files then become the output's by hard link, rather than by copy. A directory that holds other files is kept, with them (`chain-directory-kept`).
+
+The report gives the stage written and the files, with their sizes.
+
+```console
+$ meshtinker export --help
+Write the last stage of a chain as a .gltf or .glb file
+
+A .gltf output gets its .bin and images beside it, as in the stage. A .glb
+output holds everything: the images go into its binary chunk. The model is
+written as the stage holds it.
+
+
+meshtinker export [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The chain: its last stage
+  output TEXT REQUIRED          The .gltf or .glb file to write. Its directory must exist; no
+                                file is overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --remove-chain        Remove the chain once the output is written. Its directory stays
+                                if it holds other files
+          --json                Print the result as one JSON object on stdout, even on failure
 ```
 
 ## Architecture
