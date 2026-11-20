@@ -28,11 +28,17 @@ A `Workspace` is a private directory, `meshtinker-<pid>-<random>`. The random pa
 3. `commit()` moves each temporary file to its destination without ever replacing a file. It uses `renameat2(RENAME_NOREPLACE)` on Linux, a hard link elsewhere, and on file systems with neither, a check followed by a rename.
 4. If the command fails before or during `commit()`, every temporary file and every file already published by this run are removed.
 
-Readers watching the directory never see a partial output under its final name. Write errors are classified like any system error: a full disk, quota or file-size limit gives exit code 3, anything else 4.
+Readers watching the directory never see a partial output under its final name.
+
+A directory is published the same way, whole (`createDirectory`), as a chain's stages are ([chaining.md](chaining.md)). It is created as `<name>.meshtinker-<random>.tmp`, its files are written inside it under their final names, and `commit()` renames it with `renameat2(RENAME_NOREPLACE)` on Linux, `renamex_np(RENAME_EXCL)` on macOS, and elsewhere by claiming the name with `mkdir` and renaming over that empty directory. A failed run removes it with its files.
+
+`copy(source, bytes, destination)` writes a file identical to a whole input file without reading it through the process: a hard link when the source is in the directory given to `linkFrom` (a chain's parent stage, whose files never change), else a reflink (`FICLONE`), else `copy_file_range`, else a plain write of the mapped bytes. A source whose size no longer matches its mapping gets the mapped bytes, which are what the command read. Other files are never hard linked: an editor that rewrites a source in place would change the output too.
+
+`common::FileLock` takes an exclusive `flock` without waiting, which chains use to keep two commands from writing a stage at once. The kernel releases it when the process dies. Write errors are classified like any system error: a full disk, quota or file-size limit gives exit code 3, anything else 4.
 
 ## Interruption
 
-`installInterruptCleanup()` handles `SIGINT`, `SIGTERM` and `SIGHUP`. Temporary outputs and workspace directories register themselves (`CleanupRegistration`). On a signal, the handler removes them with `unlink` and `rmdir`, which are safe in a signal handler, then lets the signal kill the process as usual. `SIGKILL` can't be caught: it leaves the `<name>.meshtinker-<random>.tmp` files beside the outputs and the empty `meshtinker-<pid>-<random>` workspace directory, never a partial file under its final name.
+`installInterruptCleanup()` handles `SIGINT`, `SIGTERM` and `SIGHUP`. Temporary outputs and workspace directories register themselves (`CleanupRegistration`). On a signal, the handler removes them with `unlink` and `rmdir`, which are safe in a signal handler: files first, then directories, one pass per nesting level (a chain directory, a stage in it), then lets the signal kill the process as usual. `SIGKILL` can't be caught: it leaves the `<name>.meshtinker-<random>.tmp` files beside the outputs and the empty `meshtinker-<pid>-<random>` workspace directory, never a partial file under its final name.
 
 ## Failures and exit codes
 

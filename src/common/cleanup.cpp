@@ -21,11 +21,25 @@ constexpr std::size_t no_slot = slot_count;
 std::array<std::atomic<const char*>, slot_count> slots{};
 
 #if defined(MESHTINKER_POSIX_SIGNALS)
+// How deep registered directories nest: a chain directory created by
+// `import`, a stage or workspace directory in it.
+constexpr int directory_depth = 4;
+
 extern "C" void removeRegisteredPaths(int signal_number) {
+    // Files first, then directories, which must be empty by then. Slots
+    // aren't in nesting order, so directories take one pass per level.
     for (std::atomic<const char*>& slot : slots) {
         const char* path = slot.load();
-        if (path != nullptr && ::unlink(path) != 0) {
-            ::rmdir(path);
+        if (path != nullptr) {
+            ::unlink(path);
+        }
+    }
+    for (int pass = 0; pass < directory_depth; ++pass) {
+        for (std::atomic<const char*>& slot : slots) {
+            const char* path = slot.load();
+            if (path != nullptr) {
+                ::rmdir(path);
+            }
         }
     }
     std::signal(signal_number, SIG_DFL);
