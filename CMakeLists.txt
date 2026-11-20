@@ -10,7 +10,10 @@ endif()
 
 include(CTest)
 
-option(MESHTINKER_WARNINGS_AS_ERRORS "Treat compiler warnings in project code as errors" ON)
+# Off by default: a compiler version the project hasn't been checked with can
+# warn about code that is fine, and a build from source shouldn't fail on it.
+# CI and agents turn it on, with the reference toolchain (.github/workflows/ci.yml).
+option(MESHTINKER_WARNINGS_AS_ERRORS "Treat compiler warnings in project code as errors" OFF)
 option(MESHTINKER_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 # Executables link libstdc++ and libgcc statically so that only the C library
@@ -38,7 +41,7 @@ function(meshtinker_configure_base target)
     endif()
 endfunction()
 
-# Project code: strict warnings, as errors unless disabled.
+# Project code: strict warnings, as errors with MESHTINKER_WARNINGS_AS_ERRORS.
 function(meshtinker_configure target)
     meshtinker_configure_base(${target})
     if(MSVC)
