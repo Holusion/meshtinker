@@ -135,7 +135,7 @@ Drawn from the field notes below, which so far cover `inspect` and `import`. Rev
 
 ## In CI
 
-- **Every push** (`.github/workflows/ci.yml`): ctest on the fixtures, in a GCC build and a sanitizer build; clang-tidy; the `ldd` check.
+- **Every push** (`.github/workflows/ci.yml`): ctest on the fixtures, in release builds for x86_64 and arm64 and a sanitizer build, all with the reference toolchain and warnings as errors; the `ldd` check. clang-tidy runs only locally.
 - **Nightly, on pull requests and on demand** (`.github/workflows/end-to-end.yml`): `check-commands.mjs --source fixture --source khronos`. It runs the validator, `compare.mjs`, the `inspect` round trip and the snapshots, over the fixtures and the Khronos models (fetched at the pinned commit, cached). It takes a few seconds once the tools are installed. `summary.json` is kept when it fails.
 
 ## Field notes

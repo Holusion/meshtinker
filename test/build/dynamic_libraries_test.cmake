@@ -2,7 +2,9 @@
 # "Architecture"). Variables: BUILD_DIR, COMMANDS.
 
 find_program(LDD ldd REQUIRED)
-set(allowed "^(linux-vdso\\.so|linux-gate\\.so|libc\\.so|libm\\.so|ld-linux[-a-z0-9_]*\\.so)")
+# Before glibc 2.34, threads, dlopen and some realtime functions came in
+# separate libraries of glibc: libpthread, libdl and librt.
+set(allowed "^(linux-vdso\\.so|linux-gate\\.so|libc\\.so|libm\\.so|libpthread\\.so|libdl\\.so|librt\\.so|ld-linux[-a-z0-9_]*\\.so)")
 foreach(program meshtinker ${COMMANDS})
     execute_process(COMMAND "${LDD}" "${BUILD_DIR}/${program}" OUTPUT_VARIABLE out RESULT_VARIABLE code)
     if(NOT code EQUAL 0)

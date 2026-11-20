@@ -2,63 +2,121 @@
 # Khronos models are checked by end-to-end.yml; the local models of
 # test/corpus.json never reach CI.
 #
-# Release binaries will need an older build environment than these runners:
-# eCorpus runs them in node:22-slim (Debian bookworm, glibc 2.36), and binaries
-# built on these runners, with a newer glibc, won't load there. Build releases in a
-# debian:bookworm container, and add arm64 then.
+# Every build here uses one reference toolchain, with warnings as errors: GCC
+# from Red Hat's gcc-toolset on Rocky Linux 8. A warning that fails here then
+# fails the same way everywhere in CI, and on a machine with the same GCC major
+# version (Debian 13 has GCC 14). Changing GCC_TOOLSET is a deliberate upgrade,
+# made together with the fixes for its new warnings.
+#
+# The same builds are the release binaries. A binary loads on any system whose
+# C library is at least as recent as the one it was linked against, so binaries
+# built on Rocky Linux 8 run on it and on later distributions: Debian 10 and
+# later, Ubuntu 20.04 and later (natively or under WSL), and the node:22-slim
+# image eCorpus uses. Binaries built on the runners themselves would not load
+# on most of these.
+#
+# Pushing a tag v<version> also publishes a GitHub release with the binaries,
+# once every job of this workflow has passed. The tag must match the version in
+# CMakeLists.txt.
 name: CI
 
 on:
   push:
   pull_request:
 
-# Each job normally takes about two minutes. The timeouts stop a stalled
-# download or a hung test well before GitHub's 6-hour default.
-jobs:
-  gcc:
-    name: GCC build and tests
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
-      - name: Build
-        run: cmake --build build --parallel
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-      - name: Only the C library is linked dynamically
-        run: |
-          ctest --test-dir build --output-on-failure -R '^dynamic-libraries$'
-          ldd build/meshtinker build/meshtinker-*
+env:
+  GCC_TOOLSET: 14
 
-  sanitizers:
-    name: AddressSanitizer and UndefinedBehaviorSanitizer
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
+# Each job normally takes a few minutes. The timeouts stop a stalled download
+# or a hung test well before GitHub's 6-hour default.
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Build and tests (x86_64)
+            arch: x86_64
+            runner: ubuntu-26.04
+            cmake-args: -DCMAKE_BUILD_TYPE=Release
+          # Native arm64 runner: no emulation.
+          - name: Build and tests (arm64)
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            cmake-args: -DCMAKE_BUILD_TYPE=Release
+          - name: AddressSanitizer and UndefinedBehaviorSanitizer
+            arch: x86_64
+            runner: ubuntu-26.04
+            cmake-args: -DCMAKE_BUILD_TYPE=Debug -DMESHTINKER_SANITIZE=ON
+            sanitize: true
+    runs-on: ${{ matrix.runner }}
+    container: rockylinux/rockylinux:8
+    timeout-minutes: 20
     env:
       ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
       UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     steps:
+      # The sanitizer runtimes install into /lib64, so putting the toolset on
+      # PATH is all its `enable` script does that the build needs.
+      - name: Install the toolchain
+        run: |
+          dnf install -y "gcc-toolset-$GCC_TOOLSET-gcc-c++" \
+            "gcc-toolset-$GCC_TOOLSET-libasan-devel" "gcc-toolset-$GCC_TOOLSET-libubsan-devel" \
+            cmake make git
+          echo "/opt/rh/gcc-toolset-$GCC_TOOLSET/root/usr/bin" >> "$GITHUB_PATH"
       - uses: actions/checkout@v7
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DMESHTINKER_SANITIZE=ON
+        run: cmake -S . -B build -DMESHTINKER_WARNINGS_AS_ERRORS=ON ${{ matrix.cmake-args }}
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel "$(nproc)"
       - name: Test
         run: ctest --test-dir build --output-on-failure
+      - name: Only the C library is linked dynamically
+        if: ${{ !matrix.sanitize }}
+        run: |
+          ctest --test-dir build --output-on-failure -R '^dynamic-libraries$'
+          ldd build/meshtinker build/meshtinker-*
+      - name: The tag matches the version
+        if: ${{ !matrix.sanitize && startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          version=$(build/meshtinker --version | cut -d ' ' -f 2)
+          echo "meshtinker $version, tag $GITHUB_REF_NAME"
+          test "v$version" = "$GITHUB_REF_NAME"
+      - name: Package
+        if: ${{ !matrix.sanitize }}
+        run: |
+          name=meshtinker-linux-${{ matrix.arch }}
+          cmake --install build --prefix "dist/$name" --strip
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@v7
+        if: ${{ !matrix.sanitize }}
+        with:
+          name: meshtinker-linux-${{ matrix.arch }}
+          path: dist/meshtinker-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
 
-  tidy:
-    name: clang-tidy
+  release:
+    name: Publish the release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [build]
     runs-on: ubuntu-26.04
-    timeout-minutes: 15
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
-      # clang-tidy 20 comes with the runner image. Installing a version from
-      # the Ubuntu archive downloads over 100 MB of LLVM packages, which can
-      # take 30 minutes on a slow mirror. 18, on ubuntu-24.04, raised
-      # unchecked-optional-access false positives that 19 and later don't.
-      - name: Configure
-        run: cmake -S . -B build -DMESHTINKER_RUN_CLANG_TIDY=/usr/bin/run-clang-tidy-20
-      - name: clang-tidy, findings as errors
-        run: cmake --build build --target tidy
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: meshtinker-linux-*
+          merge-multiple: true
+          path: dist
+      - name: Create the release with the binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum meshtinker-linux-*.tar.gz > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag \
+            meshtinker-linux-*.tar.gz SHA256SUMS

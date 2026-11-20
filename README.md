@@ -4,7 +4,7 @@ Perform various analysis and optimizations on glTF files, with an emphasis on lo
 
 ## Building
 
-Requires CMake 3.20 and a C++17 compiler. Every dependency is vendored.
+Requires CMake 3.20 and a C++17 compiler. Every dependency is vendored. Add `-DMESHTINKER_WARNINGS_AS_ERRORS=ON` to the first `cmake` to make warnings errors, as CI does.
 
 ```sh
 cmake -S . -B build && cmake --build build && ctest --test-dir build
@@ -12,6 +12,12 @@ build/meshtinker <command> [args...]
 ```
 
 `build/` then holds the `meshtinker` wrapper and one `meshtinker-<command>` executable per command. Copy them to the same directory, or put each on `PATH`, to install them. They need only the system C library.
+
+## Releases
+
+Each [release](https://github.com/Holusion/meshtinker/releases) has Linux binaries for x86_64 and arm64, `meshtinker-linux-<arch>.tar.gz`, with a `bin/` folder to put on `PATH`, and their `SHA256SUMS`. They are built on Rocky Linux 8, and run on it and on later distributions, such as RHEL 8, Debian 10, Ubuntu 20.04 (natively or under WSL) and the `node:22-slim` image.
+
+To publish one, set the version in `project()` in `CMakeLists.txt`, then push a tag `v<version>`, such as `v0.1.0`. CI builds and tests the binaries, and creates the release once every CI job has passed. A tag that doesn't match the version fails the build.
 
 ## Usage
 

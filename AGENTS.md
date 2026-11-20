@@ -60,16 +60,17 @@ C++17, built with CMake from the repository root. The build scaffolding comes fr
 
 - Comments and docs describe current behaviour and the reasons for it. They don't describe development history or removed features.
 - Every behaviour change comes with tests and a documentation update: the README for options and reported statistics, `docs/` for behaviour and implementation details.
-- Project code builds with the strict warning set from cluster_lod (`-Wconversion -Wsign-conversion` and the rest) as errors. Write narrowing conversions as explicit casts after checking the range.
+- Project code builds with the strict warning set from cluster_lod (`-Wconversion -Wsign-conversion` and the rest). Warnings are errors with `-DMESHTINKER_WARNINGS_AS_ERRORS=ON`, which CI and the commands below set, and are off by default so that a build from source with another compiler doesn't fail on them. Write narrowing conversions as explicit casts after checking the range.
+- CI builds with one reference toolchain, so that its warnings are predictable: GCC from `gcc-toolset-14` on Rocky Linux 8 (`.github/workflows/ci.yml`), the GCC major version of Debian 13. Changing it is a deliberate upgrade, in its own commit with the fixes for its new warnings.
 - Before committing, run:
 
   ```sh
-  cmake -S . -B build && cmake --build build && ctest --test-dir build
-  cmake -S . -B build/asan -DCMAKE_BUILD_TYPE=Debug -DMESHTINKER_SANITIZE=ON
+  cmake -S . -B build -DMESHTINKER_WARNINGS_AS_ERRORS=ON && cmake --build build && ctest --test-dir build
+  cmake -S . -B build/asan -DCMAKE_BUILD_TYPE=Debug -DMESHTINKER_SANITIZE=ON -DMESHTINKER_WARNINGS_AS_ERRORS=ON
   cmake --build build/asan && ctest --test-dir build/asan
   ```
 
-- clang-tidy is not part of the pre-commit checks. It runs in CI, and locally through the `tidy` build target, which lints project sources (not `vendor/`) with `.clang-tidy`. The configuration comes from cluster_lod: bug-prone, performance and a few narrowing checks, and no style-only checks. Run it when a change does offset or size arithmetic. Its widening checks catch 32-bit products that overflow before they become 64-bit offsets, which tests with small files never trigger. CI uses the clang-tidy 20 that comes with its ubuntu-26.04 runner image, one version ahead of the 19 used locally: it has a few more `bugprone` checks, so CI can report findings that a local run doesn't.
+- clang-tidy is not part of the pre-commit checks, nor of CI. It runs locally through the `tidy` build target, which lints project sources (not `vendor/`) with `.clang-tidy`. The configuration comes from cluster_lod: bug-prone, performance and a few narrowing checks, and no style-only checks. Run it when a change does offset or size arithmetic. Its widening checks catch 32-bit products that overflow before they become 64-bit offsets, which tests with small files never trigger.
 
   ```sh
   cmake --build build --target tidy
