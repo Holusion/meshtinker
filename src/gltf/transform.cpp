@@ -1,5 +1,7 @@
 #include "meshtinker/gltf/transform.hpp"
 
+#include <algorithm>
+
 #include <cmath>
 #include <string>
 
@@ -38,6 +40,14 @@ Matrix trsMatrix(const double t[3], const double q[4], const double scale[3]) {
     m[14] = tz;
     m[15] = 1;
     return m;
+}
+
+Matrix worldMatrix(const cgltf_node& node) {
+    Matrix world = localMatrix(node);
+    for (const cgltf_node* parent = node.parent; parent != nullptr; parent = parent->parent) {
+        world = multiply(localMatrix(*parent), world);
+    }
+    return world;
 }
 
 Matrix localMatrix(const cgltf_node& node) {

@@ -30,9 +30,11 @@ Usage: meshtinker <command> [args...]
        meshtinker --version
 
 Commands:
+  compress      Compress the geometry of a glTF or GLB model with meshopt
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   placeholder   Build a low-poly stand-in for a glTF or GLB model
+  simplify      Reduce the triangles of a glTF or GLB model
 
 Commands are the meshtinker-<command> executables next to meshtinker, then on PATH.
 ```
@@ -162,6 +164,80 @@ OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
           --resolution N        Cells along the model's longest axis, 2 to 128 (default 16)
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### compress
+
+Quantizes and compresses the geometry with `EXT_meshopt_compression`, in the preset of glTF-Transform's `meshopt({level: "high"})`: 14-bit positions, 8-bit octahedral normals, 12-bit texture coordinates, 8-bit colors and weights, with primitives reordered for the vertex cache first. Positions go on one grid for the whole scene, so that the tiles of a scan quantize their shared borders the same way, and the grid's scale goes into the node transforms, or a new child node when the node's transform can't take it. Skinned, instanced and morphed meshes keep float positions. Draco primitives are copied as they are, with a warning (`draco-kept`), and so are primitives already compressed with meshopt, so compressing twice changes nothing. [docs/compress.md](docs/compress.md) has the details and figures.
+
+The report gives the primitives compressed and kept, the meshes whose positions were quantized or kept float, the nodes added, the bytes of the geometry's buffer views before and after, and the files written. A 44-million-face scan's 1.32 GB of geometry becomes 207 MB in 20 s, with a heap under 6 MB.
+
+```console
+$ meshtinker compress --help
+Compress the geometry of a glTF or GLB model with meshopt
+
+Reorders, quantizes and encodes every primitive with EXT_meshopt_compression, as
+glTF-Transform's meshopt "high" level does: 14-bit positions, 8-bit octahedral
+normals, 12-bit texture coordinates. Draco and meshopt primitives are copied as
+they are.
+
+
+meshtinker compress [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
+                                overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### simplify
+
+Reduces the triangles of every mesh with [meshoptimizer](https://github.com/zeux/meshoptimizer)'s simplifier, until its estimate of how far the surface moved reaches `--error`, a fraction of the scene's size (the longest side of its bounding box in world space). There is no target face count: each primitive loses what the error allows and no more, and one that can't lose anything is copied as it is. It keeps UV seams, and the borders primitives share, so that tiled scans don't crack, whether their tiles are primitives of one mesh or meshes of their own. Disconnected parts smaller than the error, such as floating scan noise, are removed, and a primitive that loses every triangle goes too (`primitive-removed`), with the material and images only it used. [docs/simplify.md](docs/simplify.md) says how, and how far the estimate can be from the actual distance.
+
+Simplified primitives are written uncompressed (float32 attributes), as every command that rewrites geometry writes them; the others, compressed or not, are copied. Points and lines are copied with a warning (`points-and-lines-kept`). The report gives the error asked for and the largest one meshoptimizer reached, the primitives simplified, unchanged, removed and skipped, the input's and output's primitives, vertices and faces (each primitive once, however many nodes show it), and the files written.
+
+A 44-million-face scan in 4 meshes takes about 70 s at the default error, down to 937,000 faces, with a heap under 5 MB.
+
+```console
+$ meshtinker simplify --help
+Reduce the triangles of a glTF or GLB model
+
+Collapses edges with meshoptimizer until its estimate of how far the surface
+moved reaches the error, keeping UV seams and the borders primitives share.
+Simplified primitives are written uncompressed, emptied ones are removed, and
+others are copied as they are.
+
+
+meshtinker simplify [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
+                                overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --error E             How far the surface may move, as a fraction of the scene's size
+                                (default 0.001)
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

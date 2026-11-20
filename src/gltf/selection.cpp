@@ -90,8 +90,9 @@ std::size_t Selection::dropped(Kind kind) const {
     return static_cast<std::size_t>(std::count(list.begin(), list.end(), false));
 }
 
-Selection selectScene(const Document& document) {
-    const Json& json = document.json();
+Selection selectScene(const Document& document) { return selectScene(document.json()); }
+
+Selection selectScene(const Json& json) {
     Selection selection;
     const std::size_t scenes = count(json, Kind::scene);
     if (scenes == 0) {

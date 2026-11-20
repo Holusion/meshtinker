@@ -31,5 +31,7 @@ struct Selection {
 };
 
 Selection selectScene(const Document& document);
+// The same, on a document's JSON, such as a layout being edited.
+Selection selectScene(const Json& json);
 
 } // namespace meshtinker::gltf

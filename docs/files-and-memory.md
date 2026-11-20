@@ -6,6 +6,7 @@ How commands use memory and disk, publish outputs and report failures. The code 
 
 - **Inputs are mapped** (`MappedFile`): read-only, `MAP_PRIVATE`, whole files. Their pages are page cache: they count in RSS while memory is free, and are dropped rather than swapped under pressure. `releasePages()` drops pages already read, for a pass that won't come back.
 - **Scratch space is mapped too** (`Workspace::scratch`): a zero-filled file of the requested size, mapped read-write and shared. `posix_fallocate` reserves its blocks first, so a full disk fails with exit code 3 when the file is created, not as a `SIGBUS` on first write. File systems without `fallocate` get a sparse file instead.
+- **Working arrays** (`common::LargeArray`), such as a primitive's positions and indices while a command rewrites it, go on the heap while all of them hold 4 MiB together, and in scratch blocks beyond: 64 MiB scratch files shared by many arrays, or a file of its own for an array over 16 MiB (`Workspace::block`). A shared file's space comes back when its last array goes. meshoptimizer's allocations share the budget (`gltf::MeshoptMemory`). A per-array limit wasn't enough: a scan in 634 small primitives held each under it, and the whole model on the heap.
 - The heap holds the JSON (twice, see [gltf-io.md](gltf-io.md)) and per-object records. `tools/monitor.py` reports `peak_anon_kib` separately from file-backed RSS: that figure is the one that must stay small.
 
 ## Workspaces

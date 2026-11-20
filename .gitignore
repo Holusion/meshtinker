@@ -2,3 +2,4 @@
 /test/assets/
 /out/
 /test/corpus.local.json
+*.swp
