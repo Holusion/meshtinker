@@ -49,7 +49,7 @@ The rule is the one eCorpus uses and the spec's implementation note recommends: 
 The aim is few options:
 
 - `--quality <Highest|High|Medium|Low|Thumb>` (default `High`), the same names as `optimize`, so that it passes its own straight through.
-- `--fast`, which must be at least twice as fast as the default for a small loss in quality.
+- `--fast`, only if it can be about ten times faster than the default ([below](#the-fast-preset)).
 - `--max-size N` ([images.md](images.md#resizing)).
 
 eCorpus's settings are the baseline:
@@ -60,6 +60,10 @@ eCorpus's settings are the baseline:
 `--max-size` stays explicit: `optimize` maps its quality to a size, as eCorpus does, but `ktx` alone doesn't resize unless asked.
 
 The benchmark (below) fills in the settings table for each quality, and decides what `--fast` changes (basisu's `-effort` and `-quality`, the UASTC level, the Zstd level, RDO), with the time, size and PSNR of each against eCorpus's settings.
+
+### The fast preset
+
+A fast preset exists to produce a temporary model, about 80 % as good, while the final asset is being made. It is only worth having if it is about an order of magnitude faster than the default: a speedup of 1.5 or 2 is a slower default, not a fast preset. If no setting gets there, `ktx` has no fast mode, and fast pipelines skip KTX2 for something else, such as a quick JPEG placeholder command.
 
 <!-- benchmark results go here -->
 

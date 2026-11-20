@@ -45,3 +45,4 @@ This sits under the "flexible memory management" item in TODO.md: commands decid
 ## Open questions
 
 1. **16-bit PNG.** stb_image can decode it at 16 bits or reduce it to 8. basisu's LDR modes take 8 bits, so `ktx` reduces it to 8 either way. `uv` could write 16-bit PNG when its source was 16-bit, so as not to downgrade, at twice the size. Proposal: `uv` keeps 16 bits for normal maps only, and writes 8 bits otherwise.
+reduce to 8. Nothing should reach us with this kind of precision and if it does, we don't want it: we can't export that kind of things and don't want to.
