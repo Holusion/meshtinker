@@ -7,7 +7,6 @@ meshtinker import foo.glb work/          # output is a directory: creates the ch
 meshtinker simplify work/                # input is a chain, no output: adds a stage built on the last one
 meshtinker compress work/
 meshtinker inspect work/                 # reads the last stage
-meshtinker placeholder work/ ph.gltf     # reads the last stage, writes outside the chain
 meshtinker export work/ out.glb          # writes the last stage as GLB or .gltf
 ```
 
@@ -19,15 +18,15 @@ File mode stays as it is: `meshtinker simplify in.gltf out.gltf` reads and write
 work/
   chain.json                 {format, source: "foo.glb", created}
   lock                       held with flock while a command writes a stage
-  000-import/   foo.gltf foo.bin foo_texture_0.png  stage.json
-  001-simplify/ foo.gltf foo.bin foo_texture_0.png  stage.json
-  002-compress/ ...
+  000-import-k3v9q/   foo.gltf foo.bin foo_texture_0.png  stage.json
+  001-simplify-7xd2m/ foo.gltf foo.bin foo_texture_0.png  stage.json
+  002-compress-p0a4c/ ...
 ```
 
 - **The chain is a directory the user names.** It is not looked up from the input file's path in a cache directory, which would break on two pipelines over one file, relative paths and symlinks, and would hide state that nothing cleans. It is not created beside the source either, since source folders may be read-only or must not be touched. It goes where the user puts it, on a real disk ([files-and-memory.md](files-and-memory.md#workspaces)). `import` always takes the chain directory as its output: there is no default location.
 - **`chain.json` marks the directory as a chain.** A command treats its input as a chain when it is a directory holding `chain.json`. Its `format` is the chain format's version.
-- **A stage is a directory `NNN-<command>`**, numbered from 000 in decimal (three digits, more once past 999; they are compared as numbers). It holds the model in the normalized profile ([normalized-profile.md](normalized-profile.md)) and `stage.json`. The model's stem is the source file's stem in every stage, so file names stay the same from stage to stage, and messages show the source's name.
-- **The last stage** is the one with the highest number. A directory that doesn't match `NNN-<name>` or has no `stage.json`, such as a killed run's `NNN-<name>.meshtinker-<random>.tmp`, is ignored.
+- **A stage is a directory `NNN-<command>-<id>`**, numbered from 000 in decimal (three digits, more once past 999; they are compared as numbers). `<id>` is five random characters from `a-z0-9`. Today the lock makes numbers unique already; the id keeps names unique if a later feature runs a step again at a position that has a stage, and it makes the name the stage's identity, which `parent` refers to. A command name can contain hyphens (`simplify-qem`): the number is the part before the first hyphen, the id the part after the last one. A stage holds the model in the normalized profile ([normalized-profile.md](normalized-profile.md)) and `stage.json`. The model's stem is the source file's stem in every stage, so file names stay the same from stage to stage, and messages show the source's name.
+- **The last stage** is the one with the highest number. A directory that doesn't match `NNN-<command>-<id>` or has no `stage.json`, such as a killed run's `NNN-<command>-<id>.meshtinker-<random>.tmp`, is ignored. Which stage is last when two share a number is for the feature that makes it possible to decide.
 - **Every stage is kept.** A stage is never changed once published, and nothing removes stages except `export --remove-chain`, which removes the whole chain. A meta-command's chain lives in its workspace and goes with it.
 
 ## No log file: the stages are the log
@@ -41,21 +40,21 @@ This is also why the record is a plain JSON file and not a line appended to a te
 ```json
 {
   "format": 1,
-  "stage": 1,
-  "parent": 0,
+  "stage": "001-simplify-7xd2m",
+  "parent": "000-import-k3v9q",
   "command": "simplify",
   "tool": "meshtinker-simplify 0.3.0",
   "argv": ["meshtinker-simplify", "--error", "0.001", "work/"],
   "report": { "...": "the command's --json output" },
   "lossy": {
-    "geometryQuantization": [{"stage": 0, "source": "KHR_draco_mesh_compression", "positionBits": 14}],
+    "geometryQuantization": [{"stage": "000-import-k3v9q", "source": "KHR_draco_mesh_compression", "positionBits": 14}],
     "simplificationError": 0.001,
-    "imageEncoding": [{"stage": 0, "image": 0, "format": "image/jpeg"}]
+    "imageEncoding": [{"stage": "000-import-k3v9q", "image": 0, "format": "image/jpeg"}]
   }
 }
 ```
 
-- **`parent`** is the stage this one was built from, always the previous one for now. Building a stage from an older one (`--from N`, to compare two variants) is out of scope, but readers follow `parent` rather than assume `stage - 1`, so adding it changes no format.
+- **`stage` and `parent`** are directory names: the stage's own, and the one it was built from, always the previous stage for now (`null` for stage 000). Building a stage from an older one (`--from`, to compare two variants) is out of scope, but readers follow `parent` rather than assume the previous number, so adding it changes no format.
 - **`report`** is the command's JSON report. `import`'s is the `inspect` report ([inspect-report.md](inspect-report.md)), so stage 000 has the model's statistics without another pass. Later stages carry their own command's report, and a caller that needs fresh statistics runs `inspect` on the chain.
 - **`tool` and `argv`** make a chain reproducible by hand. A variant built from another branch writes stages too: readers ignore fields they don't know, and refuse a `format` newer than theirs.
 - **`lossy`** is the running total of lossy rounds, copied from the parent and extended by the stage. The file alone can't tell it once a stage has decoded Draco to float32 or re-encoded a JPEG. Errors add up ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)), so a command about to add a round warns, with a counted diagnostic, when one of the same kind is already there: `repeated-quantization`, `repeated-lossy-image-encoding`. A simplification adds its error to `simplificationError`. File mode has no history, and recording it in the model (`asset.extras`) was rejected for the same reasons as an import marker ([normalized-profile.md](normalized-profile.md#how-commands-get-normalized-input)).
@@ -69,9 +68,9 @@ This is also why the record is a plain JSON file and not a line appended to a te
 | constructor | `import` | `import in out.gltf` | `import in work/` creates the chain and stage 000 |
 | transform | simplify, compress, uv, ktx | `cmd in out.gltf` | `cmd work/` adds a stage |
 | read-only | `inspect` | `inspect in` | `inspect work/` reads the last stage |
-| derive | `placeholder` | `cmd in out.gltf` | `cmd work/ out.gltf` reads the last stage, adds none |
 | terminal | `export` | — | `export work/ out.glb` |
 
+- `placeholder` stays out of chains and reads files only. Commands that read a model and write something other than its next version may not stay, so chains aren't designed around them.
 - Only `import` creates a chain. A transform given a chain and an output is a command-line error (2): a stage's location is the chain's to decide.
 - In chain mode a command's input is always `import`'s output or a stage built on it, so it is in the profile and read front to back.
 - The workspace (`--tmp-dir`) defaults to the chain directory.
@@ -85,7 +84,7 @@ A texture-only stage must not copy a multi-gigabyte `.bin`, and a geometry stage
 
 ## Concurrency
 
-Two transforms on one chain would both build on the same stage. A command that writes a stage holds `flock` on `work/lock` from reading the last stage to publishing its own, and fails at once with exit code 4 (`chain-in-use`) if another command holds it. The kernel releases the lock when a process dies, so no stale lock is left. Read-only and derive commands take no lock: they read a published stage, which never changes.
+Two transforms on one chain would both build on the same stage. A command that writes a stage holds `flock` on `work/lock` from reading the last stage to publishing its own, and fails at once with exit code 4 (`chain-in-use`) if another command holds it. The kernel releases the lock when a process dies, so no stale lock is left. Read-only commands take no lock: they read a published stage, which never changes.
 
 ## Meta-commands
 
@@ -98,5 +97,5 @@ Two transforms on one chain would both build on the same stage. A command that w
 
 - **Finding subcommands** uses the wrapper's lookup (own directory, then `PATH`), moved into `common`.
 - **Output.** Children's stderr passes through, so progress and warnings appear once, from the command that raised them. With `--json`, `optimize` prints `steps: [{command, argv, exitCode, report}]` and merges the children's diagnostics, each tagged with its step.
-- **Exit codes.** A child's non-zero exit code becomes `optimize`'s.
+- **Exit codes.** A child's non-zero exit code becomes `optimize`'s. A child killed by a signal is an internal error (70). In a container a `SIGKILL` most likely comes from the cgroup's OOM killer, but nothing confirms it, so it is not reported as out of memory (3).
 - **Interruption.** A container's `SIGTERM` reaches only `optimize`. It forwards `SIGINT`, `SIGTERM` and `SIGHUP` to the running child, waits for it, then cleans its workspace. The current handler only unlinks and re-raises, so spawning needs a variant of it.
