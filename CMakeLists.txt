@@ -102,6 +102,7 @@ file(GLOB meshtinker_core_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/gltf/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/cli/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/analysis/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/chain/*.cpp"
 )
 add_library(meshtinker-core STATIC ${meshtinker_core_sources})
 meshtinker_configure(meshtinker-core)
@@ -196,6 +197,7 @@ if(BUILD_TESTING)
     meshtinker_add_test(common-references common/references_test.cpp)
     meshtinker_add_test(common-outputs common/outputs_test.cpp)
     meshtinker_add_test(common-workspace common/workspace_test.cpp)
+    meshtinker_add_test(chain chain/chain_test.cpp)
     meshtinker_add_test(gltf-uri gltf/uri_test.cpp)
     meshtinker_add_test(gltf-image-header gltf/image_header_test.cpp)
     meshtinker_add_test(gltf-document gltf/document_test.cpp)
