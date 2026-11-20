@@ -1,6 +1,6 @@
 # Images
 
-How commands that decode images (`uv`, `ktx`) read, hold, resize and write them. This is the design: the shared code will be the `image` namespace (`include/meshtinker/image/`, in `meshtinker-core`), and [uv.md](uv.md) and [ktx.md](ktx.md) build on it.
+How commands that decode images (`uv`, `ktx`) read, hold, resize and write them. The shared code is the `image` namespace (`include/meshtinker/image/`, in `meshtinker-core`), and [uv.md](uv.md) and [ktx.md](ktx.md) build on it.
 
 ## Formats
 
@@ -15,7 +15,7 @@ How commands that decode images (`uv`, `ktx`) read, hold, resize and write them.
 Before encoding, a decoded image is checked for:
 
 - **unused alpha:** every alpha value is 255, or every material that samples the image ignores alpha (`alphaMode: OPAQUE`, or a slot that doesn't read alpha). The image is then encoded as RGB.
-- **gray:** R = G = B on every texel, which the encoders can store with one channel.
+- **gray:** R = G = B on every texel. An encoder that stores one channel could use it; basisu writes RGB or RGBA only, so `ktx` doesn't.
 
 ## Resizing
 
@@ -30,7 +30,7 @@ Resizing is an option of the commands that already decode images (`ktx --max-siz
 Images break the "map, don't load" rule: the decoders and encoders need whole images in memory, and an 8k RGBA image is 256 MiB decoded, a 16k one 1 GiB. Memory stays low where it is easy, without working around the libraries to get it there:
 
 - Source files are mapped, never copied. Outputs are written as they are produced.
-- **One image at a time**, as long as that keeps the cores busy: work inside an image (basisu's job pool, baking rows) is split across threads. Small images, which can't keep every core busy on their own, are processed several at a time.
+- **One image at a time**, as long as that keeps the cores busy: work inside an image (basisu's job pool, baking rows) is split across threads. Small images, which can't keep every core busy on their own, are processed several at a time: `ktx` encodes images under a megatexel (1024²) in batches of one per thread, each on one thread, and writes a batch's files once it is done.
 - Decoded pixels are on the heap. Peak memory is about the largest image times a factor that depends on the command (measured in [ktx.md](ktx.md) and [uv.md](uv.md)).
 - The thread count is the number of CPUs the process may use: its affinity mask (`sched_getaffinity`), capped by the cgroup's `cpu.max` quota when one is set.
 

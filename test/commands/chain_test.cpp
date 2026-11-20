@@ -217,3 +217,35 @@ TEST_CASE(export_writes_the_last_stage) {
     // The output's files outlive the chain they were linked from.
     CHECK_EQ(run("inspect", {(root / "out" / "cube.gltf").string()}).code, 0);
 }
+
+TEST_CASE(ktx_records_a_round_per_image) {
+    const fs::path root = test::workDirectory("chain-commands/textures");
+    const std::string work = (root / "work").string();
+    CHECK_EQ(run("import", {test::fixture("textures").model.string(), work}).code, 0);
+    const chain::Chain chain = chain::Chain::open(work);
+    // import records the JPEG, so encoding it again warns.
+    CHECK_EQ(chain.record(chain.last())["lossy"]["imageEncoding"].size(), std::size_t{1});
+    const Run encoded = run("ktx", {"--quality", "Low", work});
+    CHECK_EQ(encoded.code, 0);
+    CHECK(hasDiagnostic(encoded.json, "repeated-lossy-image-encoding"));
+    const Json record = chain.record(chain.last());
+    CHECK_EQ(record["command"].get<std::string>(), std::string("ktx"));
+    const Json& rounds = record["lossy"]["imageEncoding"];
+    CHECK_EQ(rounds.size(), std::size_t{10});
+    std::size_t etc1s = 0;
+    for (std::size_t i = 1; i < rounds.size(); ++i) {
+        CHECK_EQ(rounds[i]["format"].get<std::string>(), std::string("image/ktx2"));
+        CHECK_EQ(rounds[i]["stage"].get<std::string>(), chain.last().text());
+        if (rounds[i]["codec"] == "ETC1S") {
+            ++etc1s;
+            CHECK_EQ(rounds[i]["qualityLevel"].get<int>(), 180);
+        } else {
+            CHECK_EQ(rounds[i]["uastcLevel"].get<int>(), 1);
+        }
+    }
+    CHECK_EQ(etc1s, std::size_t{6});
+    // Running ktx again finds only KTX2 textures: nothing to encode.
+    const Run again = run("ktx", {work});
+    CHECK_EQ(again.code, 0);
+    CHECK_EQ(again.json["totals"]["encoded"].get<int>(), 0);
+}

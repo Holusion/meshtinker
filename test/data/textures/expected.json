@@ -1,0 +1,85 @@
+{
+  "description": "Image cases for ktx and uv: alpha used, unused (all 255) and ignored (OPAQUE), a 30×18 size, a JPEG, a normal map, an ORM image in two data slots, a gray occlusion image, one image behind two color textures, a 16-bit PNG.",
+  "geometry": {
+    "primitives": 8,
+    "vertices": 32,
+    "faces": 16
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      15,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "alpha",
+      "mimeType": "image/png",
+      "width": 30,
+      "height": 18,
+      "occupancy": 1
+    },
+    {
+      "name": "opaque",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "ignored-alpha",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "emissive",
+      "mimeType": "image/jpeg",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "normal",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "orm",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "occlusion",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "shared",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    },
+    {
+      "name": "deep",
+      "mimeType": "image/png",
+      "width": 16,
+      "height": 16,
+      "occupancy": 1
+    }
+  ]
+}

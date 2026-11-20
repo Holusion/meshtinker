@@ -34,6 +34,7 @@ Commands:
   export        Write the last stage of a chain as a .gltf or .glb file
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
+  ktx           Encode the images of a glTF or GLB model as KTX2
   placeholder   Build a low-poly stand-in for a glTF or GLB model
   simplify      Reduce the triangles of a glTF or GLB model
 
@@ -279,6 +280,44 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### ktx
+
+Encodes the scene's PNG and JPEG images as KTX2 with Basis Universal and points their textures at them through `KHR_texture_basisu`, as eCorpus does with `ktx create` through glTF-Transform. Color slots (base color, emissive, sheen and specular color, spec-gloss diffuse and specular) get ETC1S in sRGB; normal maps, ORM and every other data slot get UASTC in linear, with Zstandard. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. Every image gets a full mip chain, and sides that aren't multiples of 4 are rounded up, as the extension requires. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` or `EXT_texture_avif` alternative. `KHR_texture_basisu` is then required. Images are left as they are, each with a counted warning, when they are WebP or AVIF only (`image-format-unsupported`), already KTX2 (`image-already-compressed`), used as color by one slot and as data by another (`image-color-space-conflict`), used only by slots `ktx` doesn't know (`image-slot-unknown`), or can't be decoded. [docs/ktx.md](docs/ktx.md) has the details, and the benchmark that set the presets.
+
+`--quality` takes eCorpus's names: ETC1S quality levels 250, 240 (`High`, the default), 220, 180 and 128; UASTC is level 1 at every quality. `--max-size N` scales down images whose longest side is over N texels; without it, `ktx` doesn't resize. Large images are encoded one at a time on every CPU the process may use (its affinity, capped by the cgroup's `cpu.max`), and images under a megatexel several at a time. DamagedHelmet's five 2k images take 16 s with a 365 MiB peak, a 4k scan texture 15 s and 1.1 GB.
+
+The report gives, per image, its source format and size, codec, transfer function, whether alpha was kept, the output's size, bytes before and after, and the time; then the totals and the files written. Given a [chain](#chains), `ktx` adds a stage and records one `lossy.imageEncoding` round per image (`codec`, and `qualityLevel` or `uastcLevel`). It warns `repeated-lossy-image-encoding` when an earlier stage recorded one, such as `import` for a JPEG source. Run `uv` and other image commands before it: they leave KTX2 images as they are.
+
+```console
+$ meshtinker ktx --help
+Encode the images of a glTF or GLB model as KTX2
+
+Encodes PNG and JPEG images with Basis Universal and references them through
+KHR_texture_basisu: ETC1S for color, UASTC for normal maps and other data. The
+textures' other sources are removed.
+
+
+meshtinker ktx [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --quality <Highest|High|Medium|Low|Thumb> 
+                                ETC1S quality, as eCorpus's presets name it (default High)
+          --max-size N          Scale down images whose longest side is over N texels, keeping
+                                their aspect ratio
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
 ```
 
 ### export

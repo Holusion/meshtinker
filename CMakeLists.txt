@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(meshtinker VERSION 0.1.0 LANGUAGES CXX)
+project(meshtinker VERSION 0.1.0 LANGUAGES C CXX)
 
 # An empty build type compiles without optimization, which makes large inputs
 # impractically slow. Keep debug info so stack sampling remains useful.
@@ -201,6 +201,8 @@ meshtinker_add_command(placeholder)
 meshtinker_add_command(simplify)
 meshtinker_add_command(compress)
 meshtinker_add_command(export)
+meshtinker_add_command(ktx)
+target_link_libraries(meshtinker-ktx-lib PUBLIC basisu)
 find_package(Threads REQUIRED)
 target_link_libraries(meshtinker-placeholder-lib PRIVATE Threads::Threads)
 
@@ -279,6 +281,8 @@ if(BUILD_TESTING)
     target_include_directories(test-simplify PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     meshtinker_add_test(compress compress/compress_test.cpp meshtinker-compress-lib)
     target_include_directories(test-compress PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    meshtinker_add_test(ktx ktx/ktx_test.cpp meshtinker-ktx-lib)
+    target_include_directories(test-ktx PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     meshtinker_add_script_test(wrapper commands/wrapper_test.cmake)
     meshtinker_add_test(chain-commands commands/chain_test.cpp)
     meshtinker_add_test(cli-readme-help cli/readme_help_test.cpp)

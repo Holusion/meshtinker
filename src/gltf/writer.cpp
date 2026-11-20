@@ -143,7 +143,8 @@ std::string ImageNames::reserve(const std::string& wanted) {
     const std::string extension = path.extension().u8string();
     std::string name = wanted;
     for (int n = 1; taken_.count(lowercase(name)) != 0; ++n) {
-        name = base + "_" + std::to_string(n) + extension;
+        name = base;
+        name.append("_").append(std::to_string(n)).append(extension);
     }
     taken_.insert(lowercase(name));
     return name;

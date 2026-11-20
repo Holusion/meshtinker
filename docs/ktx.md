@@ -1,6 +1,6 @@
 # ktx
 
-`meshtinker ktx` encodes the images of the scene as KTX2 with Basis Universal and references them through `KHR_texture_basisu`. It replaces glTF-Transform's `toktx` calls in eCorpus's `optimizeGlb.ts`. This is the design. Decoding, resizing, memory and threads are shared with other commands and described in [images.md](images.md). The benchmark that set the presets is under [Measurements](#measurements).
+`meshtinker ktx` encodes the images of the scene as KTX2 with Basis Universal and references them through `KHR_texture_basisu`. It replaces glTF-Transform's `toktx` calls in eCorpus's `optimizeGlb.ts`. Decoding, resizing, memory and threads are shared with other commands and described in [images.md](images.md). The benchmark that set the presets is under [Measurements](#measurements).
 
 ```bash
 meshtinker ktx in.gltf out/                    # default quality
@@ -17,6 +17,8 @@ The two alternatives were rejected:
 
 `ktx validate` (KTX-Software) is used in validation, never at runtime.
 
+basisu writes BT.709 primaries into every file's data format descriptor, but `KHR_texture_basisu` asks for unspecified primaries with the linear transfer function, and `ktx validate --gltf-basisu` rejects the files. `ktx` sets that byte after encoding linear images, as eCorpus asks `ktx create` for with `--assign-primaries none` (`src/commands/ktx/encode.cpp`).
+
 `KHR_texture_basisu` covers only ETC1S (BasisLZ) and UASTC LDR 4×4, with Zstd allowed on UASTC only. The newer basisu formats (ASTC/XUASTC LDR, UASTC HDR, XUBC7) are not used.
 
 ## Codec per slot
@@ -32,7 +34,7 @@ The rule is the one eCorpus uses and the spec's implementation note recommends: 
 - **An image used by several slots** takes UASTC if any of its slots asks for it.
 - **An image used as color by one slot and as data by another** can't have a single transfer function. It is left as it is, with the warning `image-color-space-conflict`.
 - **An image used only by slots the command doesn't know** (an unknown extension) is left as it is, with the warning `image-slot-unknown`. Guessing would risk the wrong transfer function, and three.js's `KTX2Loader` follows the file's transfer function. Writing a conflicting image twice, once per transfer function, was rejected: it is rare, and costs a second image.
-- **Channels:** an image whose alpha is unused ([images.md](images.md#channel-analysis)) is written as RGB. Single-channel `occlusionTexture` images are written as Red, without sRGB, as the spec requires for Red and Red-Green.
+- **Channels:** an image whose alpha is unused ([images.md](images.md#channel-analysis)) is written as RGB: its values are all 255, or no slot that samples it reads alpha (base color and spec-gloss diffuse read it unless the material is `OPAQUE`; sheen roughness, specular, diffuse transmission and spec-gloss specular always do). basisu writes RGB or RGBA descriptors only, so a gray image, such as an occlusion map, is RGB with equal channels. It is linear, never sRGB, which is what the spec requires of Red and Red-Green images.
 - Images are always written with a full mip chain: the spec says an image SHOULD have one when its sampler minifies with mipmaps, or has no sampler.
 
 ## Textures and sources
@@ -40,8 +42,9 @@ The rule is the one eCorpus uses and the spec's implementation note recommends: 
 - An encoded texture gets `extensions.KHR_texture_basisu.source`, pointing to the new image (`mimeType: image/ktx2`).
 - **The core `source` is removed**, and `KHR_texture_basisu` goes into both `extensionsUsed` and `extensionsRequired`, as the spec says for files without fallback. This is what eCorpus does, and its viewer reads KTX2. A fallback would make the output larger for readers that eCorpus doesn't need to serve.
 - The texture's other extension sources (`EXT_texture_webp`, `EXT_texture_avif`) are removed too, so that an encoded texture has its KTX2 source only. A renderer that reads KTX2 picks it anyway, and the others would only cost space. This is a stated exception to "don't strip": `ktx` replaces a texture's sources, it doesn't add one.
-- `gltf::prune` then removes the images nothing uses any more.
-- A texture whose only decodable source is missing (WebP or AVIF only) is left as it is, with `image-format-unsupported`.
+- `gltf::prune` then removes the images nothing uses any more, and `EXT_texture_webp` and `EXT_texture_avif` leave `extensionsUsed` and `extensionsRequired` once no texture uses them.
+- The new image keeps the source image's `name`, `extras` and extensions, and its file the source's stem: `wall.jpg` becomes `wall.ktx2` (`gltf::ImageNames`, [gltf-io.md](gltf-io.md#editing)). Each file is written as soon as it is encoded.
+- A texture whose only source is WebP or AVIF is left as it is, with `image-format-unsupported`. So is an image in another format than PNG or JPEG, with the same warning, and an image whose file is missing (`image-missing`), that can't be decoded (`image-decode-failed`), or that basisu fails on (`image-encode-failed`).
 - A texture already in KTX2 is kept and not re-encoded.
 
 ## Presets
@@ -119,23 +122,22 @@ basisu v2.50, 4 threads, against eCorpus's `ktx create` arguments (`--encode bas
 
 ## Report
 
-Per image: source format and size, codec, output size in texels, bytes before and after, encoding time. Totals: bytes before and after, time. Text by default, JSON with `--json`.
+Per image: the source's name, format and size, the output's index, name and size, codec, transfer function, whether alpha was kept, bytes before and after, and the time. Totals: images encoded and left as they are, bytes before and after, and the time; then the files written. Text by default, JSON with `--json`.
+
+In a chain, each encoded image adds an `imageEncoding` round to `lossy` ([chaining.md](chaining.md)): `{image, format: "image/ktx2", codec, qualityLevel}` for ETC1S, `uastcLevel` instead for UASTC. An earlier round, such as the one `import` records for a JPEG source, makes it warn `repeated-lossy-image-encoding`.
 
 ## Validation
 
-There's no reference output to compare against ([validation.md](validation.md)). The checks are:
+There's no reference output to compare against ([validation.md](validation.md)). ctest (`test/ktx/ktx_test.cpp`) decodes the output with basisu's transcoder, which comes with the vendored encoder, and checks, on the `textures`, `alt-sources` and `occupancy` fixtures:
 
-- PSNR of each image against its decoded source, at least a threshold per quality, measured on the corpus. Tests decode KTX2 with basisu's transcoder, which comes with the vendored encoder.
-- `ktx validate` on every KTX2 file, and the glTF validator on the model.
-- A fixture with:
-  - a color image with alpha and one without;
-  - a normal map;
-  - an ORM image;
-  - an occlusion-only image;
-  - a size that isn't a multiple of 4;
-  - a JPEG;
-  - a WebP-only texture;
-  - an image already in KTX2;
-  - an image shared by a color slot and a data slot;
-  - an image shared by two color slots.
+- the codec, transfer function, primaries and alpha of each file, against the slot table above;
+- a full mip chain, and sides that are multiples of 4: `alpha.png`, 30×18, becomes 32×20;
+- PSNR of mip level 0 against the decoded source of at least 25 dB. The fixtures are 16×16 patterns with hard edges, so this catches broken output (wrong channels, transfer function or orientation) rather than small losses;
+- one KTX2 image for an image two textures share, and each texture with its KTX2 source only;
+- what is left as it is: the WebP-only texture, the KTX2 one, the image used as color and as data;
+- `--max-size`;
+- in a chain (`test/commands/chain_test.cpp`), one round per image and the warning for the JPEG `import` recorded.
 
+The fixture `textures` holds the image cases: alpha used, unused (all 255) and ignored (`OPAQUE`), a 30×18 size, a JPEG, a normal map, an ORM image in two data slots, a gray occlusion image, one image behind two color textures, and a 16-bit PNG.
+
+On other models: `ktx validate --gltf-basisu` on every KTX2 file, and `node tools/validate.mjs OUT --against IN`, whose validator doesn't know `KHR_texture_basisu` ([validation.md](validation.md#known-validator-differences)).
