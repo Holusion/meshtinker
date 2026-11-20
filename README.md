@@ -33,6 +33,7 @@ Commands:
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   placeholder   Build a low-poly stand-in for a glTF or GLB model
+  simplify      Reduce the triangles of a glTF or GLB model
 
 Commands are the meshtinker-<command> executables next to meshtinker, then on PATH.
 ```
@@ -162,6 +163,45 @@ OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
           --resolution N        Cells along the model's longest axis, 2 to 128 (default 16)
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### simplify
+
+Reduces the triangles of every mesh with [meshoptimizer](https://github.com/zeux/meshoptimizer)'s simplifier, until its estimate of how far the surface moved reaches `--error`, a fraction of the scene's size (the longest side of its bounding box in world space). There is no target face count: each primitive loses what the error allows and no more, and one that can't lose anything is copied as it is. It keeps UV seams, and the borders primitives share, so that tiled scans don't crack, whether their tiles are primitives of one mesh or meshes of their own. Disconnected parts smaller than the error, such as floating scan noise, are removed, and a primitive that loses every triangle goes too (`primitive-removed`), with the material and images only it used. [docs/simplify.md](docs/simplify.md) says how, and how far the estimate can be from the actual distance.
+
+Simplified primitives are written uncompressed (float32 attributes), as every command that rewrites geometry writes them; the others, compressed or not, are copied. Points and lines are copied with a warning (`points-and-lines-kept`). The report gives the error asked for and the largest one meshoptimizer reached, the primitives simplified, unchanged, removed and skipped, the input's and output's primitives, vertices and faces (each primitive once, however many nodes show it), and the files written.
+
+A 44-million-face scan in 4 meshes takes about 70 s at the default error, down to 937,000 faces, with a heap under 5 MB.
+
+```console
+$ meshtinker simplify --help
+Reduce the triangles of a glTF or GLB model
+
+Collapses edges with meshoptimizer until its estimate of how far the surface
+moved reaches the error, keeping UV seams and the borders primitives share.
+Simplified primitives are written uncompressed, emptied ones are removed, and
+others are copied as they are.
+
+
+meshtinker simplify [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
+                                overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --error E             How far the surface may move, as a fraction of the scene's size
+                                (default 0.001)
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

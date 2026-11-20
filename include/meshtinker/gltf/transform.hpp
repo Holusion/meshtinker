@@ -29,6 +29,9 @@ std::array<double, 3> apply(const Matrix& m, const std::array<double, 3>& p);
 // linear part's determinant is zero, relative to its scale).
 std::optional<Matrix> invertAffine(const Matrix& m);
 
+// A node's world matrix: its local matrix through every parent's.
+Matrix worldMatrix(const cgltf_node& node);
+
 // The EXT_mesh_gpu_instancing attributes of a node, and how many instances they give.
 struct Instancing {
     const cgltf_accessor* translation = nullptr;

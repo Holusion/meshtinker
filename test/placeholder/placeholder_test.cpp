@@ -250,8 +250,9 @@ TEST_CASE(floaters_are_dropped_and_the_grid_refitted) {
 TEST_CASE(overlays_every_fixture) {
     for (const test::Fixture& f : test::fixtures()) {
         // `modes` also has points and lines, which the placeholder leaves out;
-        // `floater` loses its floater.
-        if (!buildable(f) || !f.expected.contains("bounds") || f.name == "modes" || f.name == "floater") {
+        // `floater` loses its floater, and `noise` its small cubes.
+        if (!buildable(f) || !f.expected.contains("bounds") || f.name == "modes" || f.name == "floater" ||
+            f.name == "noise") {
             continue;
         }
         const int before = test::failureCount();

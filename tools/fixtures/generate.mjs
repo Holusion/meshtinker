@@ -647,8 +647,10 @@ function prng(seed) {
  * A synthetic photogrammetry scan: a bumpy open band around a sphere (scans have holes where the camera
  * didn't reach), cut into charts that each get a cell of one texture atlas, vertices duplicated along chart
  * seams, uint32 indices, and a node transform. Returns the builder and the world-space bounds of the data.
+ * With `split`, each chart is its own primitive (`primitives`), as tiled scan exports write them: the
+ * seams between charts become borders that two primitives share.
  */
-function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation = [0, 1, 0] }) {
+function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation = [0, 1, 0], split = false }) {
   const random = prng(seed);
   const waves = Array.from({ length: 6 }, () => ({ a: 0.02 + 0.04 * random(), m: 1 + Math.floor(7 * random()), n: 1 + Math.floor(7 * random()), p: 2 * Math.PI * random() }));
   const radius = (theta, phi) => 1 + waves.reduce((r, w) => r + w.a * Math.sin(w.m * theta + w.p) * Math.cos(w.n * phi), 0);
@@ -656,8 +658,10 @@ function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation =
   const rows = Math.ceil(charts / columns);
   const perChart = segments / charts;
   const pos = [], nor = [], uv = [], idx = [];
+  const chartRanges = [];
   for (let c = 0; c < charts; c++) {
     const first = pos.length / 3;
+    const firstIndex = idx.length;
     const [cellU, cellV] = [(c % columns) / columns, Math.floor(c / columns) / rows];
     for (let r = 0; r <= rings; r++) for (let s = 0; s <= perChart; s++) {
       const theta = Math.PI * (0.15 + (0.7 * r) / rings); // 27° to 153° from the pole: an open band
@@ -674,17 +678,26 @@ function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation =
       const below = a + perChart + 1;
       idx.push(a, below, a + 1, a + 1, below, below + 1);
     }
+    chartRanges.push({ first, end: pos.length / 3, firstIndex, endIndex: idx.length });
   }
   const b = new Builder();
   const world = (i, axis) => scale * pos[3 * i + axis] + translation[axis];
   const count = pos.length / 3;
   const min = [0, 1, 2].map((axis) => Math.min(...Array.from({ length: count }, (_, i) => world(i, axis))));
   const max = [0, 1, 2].map((axis) => Math.max(...Array.from({ length: count }, (_, i) => world(i, axis))));
-  const primitive = {
+  const primitive = split ? null : {
     attributes: { POSITION: b.floats(pos, 'VEC3'), NORMAL: b.floats(nor, 'VEC3'), TEXCOORD_0: b.floats(uv, 'VEC2') },
     indices: b.indices(idx, { componentType: UINT }),
   };
-  return { b, primitive, transform: { scale: [scale, scale, scale], translation }, bounds: { min, max }, vertices: count, faces: idx.length / 3 };
+  const primitives = !split ? null : chartRanges.map(({ first, end, firstIndex, endIndex }) => ({
+    attributes: {
+      POSITION: b.floats(pos.slice(3 * first, 3 * end), 'VEC3'),
+      NORMAL: b.floats(nor.slice(3 * first, 3 * end), 'VEC3'),
+      TEXCOORD_0: b.floats(uv.slice(2 * first, 2 * end), 'VEC2'),
+    },
+    indices: b.indices(idx.slice(firstIndex, endIndex).map((i) => i - first), { componentType: UINT }),
+  }));
+  return { b, primitive, primitives, transform: { scale: [scale, scale, scale], translation }, bounds: { min, max }, vertices: count, faces: idx.length / 3 };
 }
 
 fixtures.scan = async (dir) => {
@@ -700,6 +713,38 @@ fixtures.scan = async (dir) => {
     images: [{ name: 'atlas', mimeType: 'image/jpeg', width: 128, height: 128, occupancy: 0.7119140625,
       why: 'not computed by hand: objtools\' figure (11,664 of 16,384 texels), which meshtinker matched independently' }],
     notes: ['Bounds are the generator\'s float32 positions through the node transform.'],
+  });
+};
+
+fixtures['scan-tiles'] = async (dir) => {
+  const { b, primitives, transform, bounds, vertices, faces } = scanBuilder({ rings: 48, segments: 96, charts: 4, seed: 2, split: true });
+  const atlas = b.image('atlas.jpg', await jpeg(128, 128, 0), 'image/jpeg');
+  const material = b.add('materials', { name: 'Scan', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(atlas) }, metallicFactor: 0 } });
+  const { node } = b.meshNode(primitives.map((p) => ({ ...p, material })), transform, 'Scan');
+  b.json.scene = b.scene([node]);
+  b.write(path.join(dir, 'scan-tiles.gltf'));
+  writeExpected(dir, {
+    description: 'The synthetic scan cut into 4 charts, each its own primitive with its own vertices, as tiled scan exports write them: the seams between charts are borders two primitives share, at the same positions.',
+    geometry: { meshes: 1, primitives: 4, vertices, faces }, bounds: { ...bounds, tolerance: 1e-6 },
+    images: [{ name: 'atlas', mimeType: 'image/jpeg', width: 128, height: 128 }],
+    notes: ['Bounds are the generator\'s float32 positions through the node transform.', 'Occupancy is not stated: this fixture is for geometry.'],
+  });
+};
+
+fixtures['scan-meshes'] = async (dir) => {
+  // The tiles of scan-tiles as one mesh and one node each, all with the same transform, as some scan exports write
+  // UDIM tiles: the borders are shared between meshes in one space.
+  const { b, primitives, transform, bounds, vertices, faces } = scanBuilder({ rings: 48, segments: 96, charts: 4, seed: 2, split: true });
+  const atlas = b.image('atlas.jpg', await jpeg(128, 128, 0), 'image/jpeg');
+  const material = b.add('materials', { name: 'Scan', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(atlas) }, metallicFactor: 0 } });
+  const nodes = primitives.map((p, i) => b.meshNode([{ ...p, material }], transform, `Tile${i}`).node);
+  b.json.scene = b.scene(nodes);
+  b.write(path.join(dir, 'scan-meshes.gltf'));
+  writeExpected(dir, {
+    description: 'scan-tiles with each tile its own mesh and node, every node with the same transform: borders shared between meshes drawn in one space.',
+    geometry: { meshes: 4, primitives: 4, vertices, faces }, bounds: { ...bounds, tolerance: 1e-6 },
+    images: [{ name: 'atlas', mimeType: 'image/jpeg', width: 128, height: 128 }],
+    notes: ['Bounds are the generator\'s float32 positions through the node transform.', 'Occupancy is not stated: this fixture is for geometry.'],
   });
 };
 
@@ -967,6 +1012,28 @@ fixtures.floater = (dir) => {
     description: 'A 2×2×2 cube around the origin and a 0.05 cube 40 units away, as scan noise far off.',
     geometry: { primitives: 2, vertices: 6 * 25 + 6 * 4, faces: 6 * 32 + 6 * 2 }, bounds: { min: [-1, -1, -1], max: [40.025, 1, 1], tolerance: 1e-5 },
     notes: ['40.025 is not a float32: bounds within 1e-5.', 'placeholder: the floater is left out (small-parts-left-out) and the grid refitted to the cube, within a cell of it.'],
+  });
+};
+
+fixtures.noise = (dir) => {
+  // Scan noise in the same primitive as the model: a 0.05 cube and a 0.001 cube beside a 2×2×2 cube. At simplify's
+  // default error (0.001 of the scene's 2.5-unit size) only the 0.001 cube is smaller than the error.
+  const b = new Builder();
+  const parts = [cubeSurface(4, [0, 0, 0], 2), cubeSurface(1, [1.5, 0, 0], 0.05), cubeSurface(1, [0, 1.5, 0], 0.001)];
+  const positions = [];
+  const indices = [];
+  for (const part of parts) {
+    const base = positions.length / 3;
+    positions.push(...part.positions);
+    indices.push(...part.indices.map((i) => i + base));
+  }
+  const { node } = b.meshNode([{ attributes: { POSITION: b.floats(positions, 'VEC3') }, indices: b.indices(indices) }], {}, 'Noise');
+  b.json.scene = b.scene([node]);
+  b.write(path.join(dir, 'noise.gltf'));
+  writeExpected(dir, {
+    description: 'One primitive: a 2×2×2 cube around the origin, a 0.05 cube at x = 1.5 and a 0.001 cube at y = 1.5, as scan noise beside a model.',
+    geometry: { primitives: 1, vertices: 6 * 25 + 2 * 6 * 4, faces: 6 * 32 + 2 * 6 * 2 }, bounds: { min: [-1, -1, -1], max: [1.525, 1.5005, 1], tolerance: 1e-5 },
+    notes: ['Bounds within 1e-5: 1.525 and 1.5005 are not float32 values.'],
   });
 };
 
