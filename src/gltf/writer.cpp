@@ -129,6 +129,26 @@ std::vector<std::string> imageFileNames(const Document& document, const std::str
     return names;
 }
 
+ImageNames::ImageNames(const Document& document, const std::string& stem) {
+    taken_.insert(lowercase(stem + ".gltf"));
+    taken_.insert(lowercase(stem + ".bin"));
+    for (const std::string& name : imageFileNames(document, stem)) {
+        taken_.insert(lowercase(name));
+    }
+}
+
+std::string ImageNames::reserve(const std::string& wanted) {
+    const fs::path path = fs::u8path(wanted);
+    const std::string base = path.stem().u8string();
+    const std::string extension = path.extension().u8string();
+    std::string name = wanted;
+    for (int n = 1; taken_.count(lowercase(name)) != 0; ++n) {
+        name = base + "_" + std::to_string(n) + extension;
+    }
+    taken_.insert(lowercase(name));
+    return name;
+}
+
 namespace {
 
 // A run of bytes at its offset in the binary data.
@@ -344,6 +364,13 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
         const std::size_t source = layout.image_sources[i];
         Json& image = json["images"][i];
         image.erase("bufferView");
+        if (source == Layout::added_image) {
+            // The command wrote the file already.
+            const Layout::AddedImage& added = layout.added_images.at(i);
+            image["uri"] = encodeUriSegment(added.name);
+            written.push_back({FileRole::image, added.name, added.size});
+            continue;
+        }
         image["uri"] = encodeUriSegment(names[source]);
         // A missing image keeps a reference to its name, with no file behind it.
         const ImageData& data = document.image(source);
@@ -398,6 +425,10 @@ const char* mimeFor(const char* extension) {
 
 std::vector<WrittenFile> writeGlb(const Document& document, const Layout& layout, const fs::path& path,
                                   common::Outputs& outputs) {
+    if (!layout.added_images.empty()) {
+        // GLB is written from a stage, whose images are all files of its own.
+        throw std::logic_error("writeGlb: a layout with added images");
+    }
     const std::vector<std::string> names = imageFileNames(document, "model");
     bool any_image = false;
     for (const std::size_t source : layout.image_sources) {

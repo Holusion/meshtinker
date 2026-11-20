@@ -205,3 +205,43 @@ TEST_CASE(added_meshopt_view_decodes) {
     CHECK(reader.prepare(position) == gltf::Readability::readable);
     CHECK(readFloats(position) == positions);
 }
+
+// An image the command wrote itself replaces the texture's source: the writer
+// points at its file, and prune drops the image it replaced.
+TEST_CASE(added_image_replaces_a_source) {
+    const test::Fixture& f = test::fixture("quantized");
+    const fs::path out = test::workDirectory("edit/added-image");
+    common::Diagnostics diagnostics;
+    Document document = gltf::readNormalized(f.model, trusted, diagnostics);
+    gltf::Layout layout = gltf::normalizedLayout(document, gltf::selectScene(document), diagnostics);
+    gltf::ImageNames names(document, "quantized");
+    CHECK_EQ(names.reserve("grid.png"), std::string("grid_1.png"));
+    CHECK_EQ(names.reserve("GRID.ktx2"), std::string("GRID.ktx2"));
+    CHECK_EQ(names.reserve("grid.ktx2"), std::string("grid_1.ktx2"));
+    CHECK_EQ(names.reserve("quantized.bin"), std::string("quantized_1.bin"));
+
+    common::Outputs outputs;
+    const std::string bytes = "not really KTX2";
+    common::OutputFile file = outputs.create(out / "grid_1.ktx2");
+    file.write({reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()});
+    file.close();
+    const std::size_t image = gltf::addImage(layout, Json{{"mimeType", "image/ktx2"}}, "grid_1.ktx2", bytes.size());
+    Json& texture = layout.json["textures"][0];
+    texture.erase("source");
+    texture["extensions"]["KHR_texture_basisu"]["source"] = image;
+    gltf::prune(layout);
+    const std::vector<gltf::WrittenFile> files = gltf::writeSeparate(document, layout, out, "quantized", outputs);
+    outputs.commit();
+
+    const std::map<std::string, std::string> written = filesIn(out);
+    CHECK(written.count("grid.png") == 0);
+    CHECK_EQ(written.at("grid_1.ktx2"), bytes);
+    const Json json = Json::parse(written.at("quantized.gltf"));
+    CHECK_EQ(json["images"].size(), std::size_t{1});
+    CHECK_EQ(json["images"][0]["uri"].get<std::string>(), std::string("grid_1.ktx2"));
+    CHECK_EQ(json["textures"][0]["extensions"]["KHR_texture_basisu"]["source"].get<int>(), 0);
+    const auto listed = std::find_if(files.begin(), files.end(), [](const gltf::WrittenFile& w) {
+        return w.role == gltf::FileRole::image;
+    });
+    CHECK(listed != files.end() && listed->name == "grid_1.ktx2" && listed->size == bytes.size());
+}

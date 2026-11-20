@@ -96,6 +96,68 @@ target_compile_options(draco-decoder PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w
 target_include_directories(draco-decoder SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/vendor/draco/src")
 target_link_libraries(meshtinker-vendor PUBLIC draco-decoder)
 
+# basis_universal's encoder and transcoder, with Zstandard, as upstream's
+# basisu_encoder target builds them (vendor/README.md). Only `ktx` and its
+# tests link it, so other commands don't carry it.
+find_package(Threads REQUIRED)
+set(basisu_dir "${CMAKE_CURRENT_SOURCE_DIR}/vendor/basisu")
+# Upstream's ENCODER_LIB_SRC_LIST, with Zstandard and without astcenc.
+set(basisu_sources
+    encoder/basisu_backend.cpp
+    encoder/basisu_basis_file.cpp
+    encoder/basisu_comp.cpp
+    encoder/basisu_enc.cpp
+    encoder/basisu_etc.cpp
+    encoder/basisu_frontend.cpp
+    encoder/basisu_gpu_texture.cpp
+    encoder/basisu_pvrtc1_4.cpp
+    encoder/basisu_resampler.cpp
+    encoder/basisu_resample_filters.cpp
+    encoder/basisu_ssim.cpp
+    encoder/basisu_uastc_enc.cpp
+    encoder/basisu_bc7e_scalar.cpp
+    encoder/basisu_dds_export.cpp
+    encoder/basisu_bc7enc.cpp
+    encoder/basisu_kernels_sse.cpp
+    encoder/basisu_bc15_spmd.cpp
+    encoder/basisu_bc15_spmd_sse.cpp
+    encoder/basisu_opencl.cpp
+    encoder/basisu_uastc_hdr_4x4_enc.cpp
+    encoder/basisu_astc_hdr_6x6_enc.cpp
+    encoder/basisu_astc_hdr_common.cpp
+    encoder/basisu_astc_ldr_common.cpp
+    encoder/basisu_astc_ldr_encode.cpp
+    encoder/basisu_astc_ldr_fencode.cpp
+    encoder/basisu_xbc7_encode.cpp
+    encoder/basisu_tinyexr.cpp
+    encoder/jpgd.cpp
+    encoder/pvpngreader.cpp
+    encoder/3rdparty/android_astc_decomp.cpp
+    transcoder/basisu_transcoder.cpp
+    zstd/zstd.c)
+list(TRANSFORM basisu_sources PREPEND "${basisu_dir}/")
+add_library(basisu STATIC ${basisu_sources})
+meshtinker_configure_base(basisu)
+target_compile_options(basisu PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w -fno-strict-aliasing>)
+target_include_directories(basisu SYSTEM PUBLIC "${basisu_dir}")
+target_compile_definitions(basisu PUBLIC BASISD_SUPPORT_KTX2_ZSTD=1 BASISU_SUPPORT_OPENCL=0 PRIVATE BASISU_SUPPORT_ASTCENC=0)
+# Upstream builds the whole library with SSE 4.1 on x86, and calls one of its
+# kernels without checking the CPU, so it needs x86-64-v2.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+    target_compile_definitions(basisu PUBLIC BASISU_SUPPORT_SSE=1)
+    target_compile_options(basisu PRIVATE -msse4.1)
+else()
+    target_compile_definitions(basisu PUBLIC BASISU_SUPPORT_SSE=0)
+endif()
+target_link_libraries(basisu PUBLIC Threads::Threads)
+
+# xatlas, for `uv` only.
+add_library(xatlas STATIC vendor/xatlas/xatlas.cpp)
+meshtinker_configure_base(xatlas)
+target_compile_options(xatlas PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w>)
+target_include_directories(xatlas SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/vendor/xatlas")
+target_link_libraries(xatlas PUBLIC Threads::Threads)
+
 # Shared namespaces: common, gltf, cli, analysis. Never depends on a subcommand.
 file(GLOB meshtinker_core_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/common/*.cpp"
@@ -103,6 +165,7 @@ file(GLOB meshtinker_core_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/cli/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/analysis/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/chain/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/image/*.cpp"
 )
 add_library(meshtinker-core STATIC ${meshtinker_core_sources})
 meshtinker_configure(meshtinker-core)
@@ -201,6 +264,7 @@ if(BUILD_TESTING)
     meshtinker_add_test(chain chain/chain_test.cpp)
     meshtinker_add_test(gltf-uri gltf/uri_test.cpp)
     meshtinker_add_test(gltf-image-header gltf/image_header_test.cpp)
+    meshtinker_add_test(image image/image_test.cpp)
     meshtinker_add_test(gltf-document gltf/document_test.cpp)
     meshtinker_add_test(gltf-writer gltf/writer_test.cpp)
     meshtinker_add_test(gltf-selection gltf/selection_test.cpp)
