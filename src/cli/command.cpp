@@ -94,6 +94,10 @@ void Command::addOutput() {
     }
 }
 
+void Command::addFlag(const std::string& name, bool& value, const std::string& help) {
+    app_.add_flag(name, value, help);
+}
+
 void Command::addJsonOption() {
     app_.add_flag("--json", json_, "Print the result as one JSON object on stdout, even on failure");
 }
@@ -119,7 +123,7 @@ void Command::resolve() {
     resolved_input_ = input_;
     const bool input_is_chain = kind_ != Kind::files && kind_ != Kind::constructor && chain::isChain(input_);
     std::error_code error;
-    if (kind_ == Kind::constructor && hasOutput() && !hasExtension(output_->u8string(), ".gltf")) {
+    if (kind_ == Kind::constructor && output_ && hasOutput() && !hasExtension(output_->u8string(), ".gltf")) {
         stage_ = chain::StageWriter::create(*output_, input_.filename().u8string(), name_, outputs_);
         return;
     }

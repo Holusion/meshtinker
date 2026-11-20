@@ -60,6 +60,10 @@ public:
     // .bin and images beside it, or what the kind accepts instead. Declare it
     // after the input.
     void addOutput();
+    // A command's own flag. CLI11's add_flag is a template that can throw, so
+    // calling it from main()'s translation unit makes clang-tidy's
+    // exception-escape check fire; this keeps it in command.cpp.
+    void addFlag(const std::string& name, bool& value, const std::string& help);
     // --json: print the result as one JSON object on stdout, even on failure.
     void addJsonOption();
     // --trusted: let the model reference files outside its folder.

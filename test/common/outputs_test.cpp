@@ -253,7 +253,7 @@ TEST_CASE(file_lock_is_exclusive_across_processes) {
     const fs::path directory = meshtinker::test::workDirectory("outputs/lock");
     std::optional<FileLock> lock = FileLock::tryAcquire(directory / "lock");
     CHECK(lock.has_value());
-    CHECK(lock->created());
+    CHECK(lock && lock->created());
     const pid_t child = ::fork();
     if (child == 0) {
         const std::optional<FileLock> other = FileLock::tryAcquire(directory / "lock");
@@ -265,5 +265,5 @@ TEST_CASE(file_lock_is_exclusive_across_processes) {
     lock.reset();
     const std::optional<FileLock> again = FileLock::tryAcquire(directory / "lock");
     CHECK(again.has_value());
-    CHECK(!again->created());
+    CHECK(again && !again->created());
 }

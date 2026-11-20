@@ -35,19 +35,18 @@ void writeStage(chain::StageWriter& stage, common::Outputs& outputs, const std::
 } // namespace
 
 TEST_CASE(parses_stage_names) {
-    const auto simple = chain::parseStageName("001-simplify-7xd2m");
-    CHECK(simple.has_value());
-    CHECK_EQ(simple->number, std::uint64_t{1});
-    CHECK_EQ(simple->command, std::string("simplify"));
-    CHECK_EQ(simple->id, std::string("7xd2m"));
-    CHECK_EQ(simple->text(), std::string("001-simplify-7xd2m"));
+    CHECK(chain::parseStageName("001-simplify-7xd2m").has_value());
+    const chain::StageName simple = chain::parseStageName("001-simplify-7xd2m").value_or(chain::StageName{});
+    CHECK_EQ(simple.number, std::uint64_t{1});
+    CHECK_EQ(simple.command, std::string("simplify"));
+    CHECK_EQ(simple.id, std::string("7xd2m"));
+    CHECK_EQ(simple.text(), std::string("001-simplify-7xd2m"));
     // A command name with hyphens: the number is before the first one, the
     // id after the last one.
-    const auto variant = chain::parseStageName("1000-simplify-qem-abcde");
-    CHECK(variant.has_value());
-    CHECK_EQ(variant->number, std::uint64_t{1000});
-    CHECK_EQ(variant->command, std::string("simplify-qem"));
-    CHECK_EQ(variant->text(), std::string("1000-simplify-qem-abcde"));
+    const chain::StageName variant = chain::parseStageName("1000-simplify-qem-abcde").value_or(chain::StageName{});
+    CHECK_EQ(variant.number, std::uint64_t{1000});
+    CHECK_EQ(variant.command, std::string("simplify-qem"));
+    CHECK_EQ(variant.text(), std::string("1000-simplify-qem-abcde"));
     // A killed run's leftover, and other names.
     CHECK(!chain::parseStageName("001-simplify-7xd2m.meshtinker-0123456789abcdef.tmp"));
     CHECK(!chain::parseStageName("01-simplify-7xd2m"));
@@ -90,7 +89,7 @@ TEST_CASE(creates_a_chain_and_adds_stages) {
     {
         common::Outputs outputs;
         auto stage = chain::StageWriter::add(chain, "simplify", outputs);
-        CHECK_EQ(stage->parentModel()->filename().string(), std::string("foo.gltf"));
+        CHECK_EQ(stage->parentModel().value_or(fs::path()).filename().string(), std::string("foo.gltf"));
         CHECK_EQ(stage->name().number, std::uint64_t{1});
         stage->lossy().addError("simplificationError", 0.001);
         stage->lossy().addRound("imageEncoding", Json{{"image", 0}, {"format", "image/ktx2"}}, &diagnostics);

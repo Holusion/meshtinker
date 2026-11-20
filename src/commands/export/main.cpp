@@ -37,8 +37,8 @@ int run(int argc, char** argv) {
     command.addInput();
     command.addOutput();
     bool remove_chain = false;
-    command.app().add_flag("--remove-chain", remove_chain,
-                           "Remove the chain once the output is written. Its directory stays if it holds other files");
+    command.addFlag("--remove-chain", remove_chain,
+                    "Remove the chain once the output is written. Its directory stays if it holds other files");
     command.addJsonOption();
     return command.run(argc, argv, [&] {
         const fs::path directory = command.outputDirectory();
