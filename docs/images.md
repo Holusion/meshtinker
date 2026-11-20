@@ -1,12 +1,13 @@
 # Images
 
-How commands that decode images (`uv`, `ktx`) read, hold, resize and write them. This is the design: the shared code will be the `image` namespace (`include/meshtinker/image/`, in `meshtinker-core`), and [uv.md](uv.md) and [ktx.md](ktx.md) build on it. Questions still open are at the end.
+How commands that decode images (`uv`, `ktx`) read, hold, resize and write them. This is the design: the shared code will be the `image` namespace (`include/meshtinker/image/`, in `meshtinker-core`), and [uv.md](uv.md) and [ktx.md](ktx.md) build on it.
 
 ## Formats
 
 - **PNG and JPEG are decoded** with stb_image (already vendored), from the mapped file (`stbi_load_from_memory`), so the compressed file is never copied.
 - **Other formats are copied unchanged** with one counted warning, as [normalized-profile.md](normalized-profile.md) says for every command that decodes images. WebP and AVIF are `image-format-unsupported`.
 - **KTX2 is the end of the line.** `ktx` runs after every other image command. A command that meets a KTX2 image leaves it as it is and warns with `image-already-compressed`, whose message says to run that command before `ktx`. A command that rewrites geometry handles data that was already compressed the same way: it doesn't re-encode it ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)). Decoding KTX2 to bake it again would add a second lossy round for no gain.
+- **8 bits per channel.** 16-bit PNG is reduced to 8 bits on decoding (`stbi_load_from_memory` does it). basisu's LDR modes take 8 bits, glTF renderers sample 8-bit textures, and nothing downstream can export more precision, so keeping it would only cost space.
 - **Pixels are passed as stored.** There is no color management: PNG `gAMA`/`iCCP` chunks and JPEG ICC profiles are ignored, as glTF renderers ignore them. The material slot alone decides whether the data is sRGB color or linear data (see [ktx.md](ktx.md#codec-per-slot)).
 
 ## Channel analysis
@@ -41,8 +42,3 @@ This sits under the "flexible memory management" item in TODO.md: commands decid
 - `uv`'s baked images are written as PNG with stb_image_write (already vendored), at a fast compression level (`stbi_write_png_compression_level` 1). PNG adds no lossy round, and `ktx` usually follows, so size matters less than writing time.
 - A file name keeps its stem and changes its extension (`wall.png` becomes `wall.ktx2`). Collisions are renamed as in [gltf-io.md](gltf-io.md#writing).
 - Encoding to JPEG or KTX2 is a lossy round. In a chain it goes into `lossy`, and a second round on the same image warns with `repeated-lossy-image-encoding` ([chaining.md](chaining.md)). In file mode there is no history, and a JPEG source isn't counted.
-
-## Open questions
-
-1. **16-bit PNG.** stb_image can decode it at 16 bits or reduce it to 8. basisu's LDR modes take 8 bits, so `ktx` reduces it to 8 either way. `uv` could write 16-bit PNG when its source was 16-bit, so as not to downgrade, at twice the size. Proposal: `uv` keeps 16 bits for normal maps only, and writes 8 bits otherwise.
-reduce to 8. Nothing should reach us with this kind of precision and if it does, we don't want it: we can't export that kind of things and don't want to.
