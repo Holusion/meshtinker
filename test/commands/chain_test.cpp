@@ -94,6 +94,25 @@ TEST_CASE(import_simplify_compress_inspect) {
     CHECK_EQ(third["simplificationError"], second_record["lossy"]["simplificationError"]);
     CHECK_EQ(chain.stages().size(), std::size_t{3});
 
+    // Files a stage writes identical to its parent's are linked: the image
+    // through every stage, and the .bin of a stage that changes nothing.
+    // Each stage has its own copy of the rest.
+    CHECK_EQ(run("compress", {work}).code, 0);
+    const std::vector<chain::StageName> stages = chain.stages();
+    const auto file = [&](std::size_t stage, const std::string& name) {
+        return fs::path(work) / stages[stage].text() / name;
+    };
+    const std::string image = "scan_texture_0.jpg";
+    for (std::size_t stage = 1; stage < stages.size(); ++stage) {
+        CHECK(fs::equivalent(file(stage, image), file(0, image)));
+        CHECK(!fs::equivalent(file(stage, "scan.gltf"), file(stage - 1, "scan.gltf")));
+    }
+    CHECK(!fs::equivalent(file(1, "scan.bin"), file(0, "scan.bin")));
+    CHECK(!fs::equivalent(file(2, "scan.bin"), file(1, "scan.bin")));
+    CHECK(fs::equivalent(file(3, "scan.bin"), file(2, "scan.bin")));
+    // Stage 000 holds copies, never links to the source.
+    CHECK_EQ(fs::hard_link_count(file(0, "scan.bin")), std::uintmax_t{1});
+
     // A chain takes no output, and a plain file needs one.
     CHECK_EQ(run("simplify", {work, (root / "out.gltf").string()}).code, 2);
     CHECK_EQ(run("simplify", {source.string()}).code, 2);
@@ -101,7 +120,7 @@ TEST_CASE(import_simplify_compress_inspect) {
     const Run again = run("import", {source.string(), work});
     CHECK_EQ(again.code, 4);
     CHECK_EQ(again.json["error"]["code"].get<std::string>(), std::string("output-exists"));
-    CHECK_EQ(chain.stages().size(), std::size_t{3});
+    CHECK_EQ(chain.stages().size(), std::size_t{4});
 }
 
 TEST_CASE(quantizing_again_warns) {

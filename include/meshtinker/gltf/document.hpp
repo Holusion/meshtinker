@@ -98,6 +98,9 @@ public:
     // The bytes of buffer `index`. Empty for a buffer that holds no data, such
     // as a meshopt fallback buffer.
     common::ByteView buffer(std::size_t index) const;
+    // The entry in files() that buffer `index` was read from, whole: none for
+    // a GLB chunk, a data URI or a buffer without data.
+    std::optional<std::size_t> bufferFile(std::size_t index) const;
     // The bytes of buffer view `index`. Empty if its buffer holds no data.
     common::ByteView bufferView(std::size_t index) const;
     const ImageData& image(std::size_t index) const;

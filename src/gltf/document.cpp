@@ -99,6 +99,8 @@ struct Document::State {
     // Decoded data URIs, which buffers and images point into.
     std::vector<std::vector<std::uint8_t>> decoded;
     std::vector<ImageData> images;
+    // The entry in files for each buffer read from a file.
+    std::vector<std::optional<std::size_t>> buffer_files;
     Json json;
     // The JSON text cgltf parsed, for a normalized document: cgltf keeps
     // pointers into it (extras offsets).
@@ -125,6 +127,7 @@ struct Document::State {
 
     void loadBuffers(const common::References& references, std::map<fs::path, std::size_t>& by_path) {
         cgltf_data& model = *data;
+        buffer_files.assign(model.buffers_count, std::nullopt);
         for (std::size_t i = 0; i < model.buffers_count; ++i) {
             cgltf_buffer& buffer = model.buffers[i];
             const std::string what = "buffer " + std::to_string(i);
@@ -152,6 +155,7 @@ struct Document::State {
                 const std::string reference = decodeUri(buffer.uri);
                 const std::size_t file = addFile(references, FileRole::buffer, reference, what, by_path);
                 bytes = mappings[file].bytes();
+                buffer_files[i] = file;
             }
             if (bytes.size < buffer.size) {
                 throw rejected("buffer-too-short", what + " holds " + std::to_string(bytes.size) +
@@ -311,6 +315,10 @@ Document Document::normalized(Document&& source_document, const Layout& layout) 
     state->mappings = std::move(source->mappings);
     state->decoded = std::move(source->decoded);
     state->images = std::move(images);
+    state->buffer_files.reserve(buffer_sources.size());
+    for (const std::size_t buffer : buffer_sources) {
+        state->buffer_files.push_back(buffer < source->buffer_files.size() ? source->buffer_files[buffer] : std::nullopt);
+    }
     state->parsed_text = json.dump();
     state->json = std::move(json);
 
@@ -340,6 +348,10 @@ const Json& Document::json() const { return state_->json; }
 Container Document::container() const { return state_->container; }
 const fs::path& Document::path() const { return state_->path; }
 const std::vector<InputFile>& Document::files() const { return state_->files; }
+
+std::optional<std::size_t> Document::bufferFile(std::size_t index) const {
+    return index < state_->buffer_files.size() ? state_->buffer_files[index] : std::nullopt;
+}
 
 ByteView Document::buffer(std::size_t index) const {
     const cgltf_buffer& buffer = state_->data->buffers[index];

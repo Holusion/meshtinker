@@ -1,5 +1,7 @@
 #include "meshtinker/common/failure.hpp"
 #include "meshtinker/gltf/document.hpp"
+#include "meshtinker/gltf/layout.hpp"
+#include "meshtinker/gltf/selection.hpp"
 #include "meshtinker/gltf/writer.hpp"
 #include "support/check.hpp"
 #include "support/fixtures.hpp"
@@ -104,6 +106,39 @@ TEST_CASE(names_images_without_collisions) {
     const auto kept = gltf::imageFileNames(escaped, "uri escaping");
     CHECK_EQ(kept[0], std::string("base color \xE2\x99\xBB.jpg"));
     CHECK_EQ(kept[1], std::string("100% #1.png"));
+}
+
+TEST_CASE(unchanged_files_are_linked_from_the_parent) {
+    // An imported file written again unchanged, as a chain stage that edits
+    // nothing: the .bin and the images are links to the input's files.
+    common::Diagnostics diagnostics;
+    for (const char* name : {"scan", "textured-glb", "meshopt", "draco", "cube"}) {
+        const test::Fixture& f = test::fixture(name);
+        const fs::path parent = test::workDirectory(std::string("writer-link/") + name + "/parent");
+        const fs::path child = test::workDirectory(std::string("writer-link/") + name + "/child");
+        {
+            const Document source = gltf::readNormalized(f.model, {}, diagnostics);
+            common::Outputs outputs;
+            gltf::writeSeparate(source, gltf::normalizedLayout(source, gltf::selectScene(source), diagnostics), parent,
+                                "model", outputs);
+            outputs.commit();
+            // Outside a chain, nothing is linked.
+            CHECK_EQ(outputs.linkedCount(), std::size_t{0});
+        }
+        const Document imported = gltf::readNormalized(parent / "model.gltf", {}, diagnostics);
+        common::Outputs outputs;
+        outputs.linkFrom(parent);
+        const std::vector<gltf::WrittenFile> files = gltf::writeSeparate(
+            imported, gltf::normalizedLayout(imported, gltf::selectScene(imported), diagnostics), child, "model", outputs);
+        outputs.commit();
+        CHECK_EQ(outputs.linkedCount(), files.size() - 1);
+        for (const gltf::WrittenFile& file : files) {
+            CHECK_EQ(fs::file_size(child / file.name), file.size);
+            if (file.role != gltf::FileRole::gltf) {
+                CHECK(fs::equivalent(child / file.name, parent / file.name));
+            }
+        }
+    }
 }
 
 TEST_CASE(existing_outputs_are_kept_and_partial_outputs_removed) {

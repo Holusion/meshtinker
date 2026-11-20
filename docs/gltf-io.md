@@ -57,6 +57,7 @@ All rejections are `common::Failure`s with exit code 1 and a stable `code`. Open
   - An image from a buffer view or a data URI is named `<stem>_texture_<index>.<ext>`, with the extension of its format.
   - A name that collides with an earlier one or with the output's own files, ignoring case, is renamed the same way.
   - Images that share a source file share one output file.
+- **Whole files.** An image read from a file, and a `.bin` that would come out identical to an input file (every view copied unchanged at the same offset, zero padding, the same length), are written with `Outputs::copy`. In a chain that is a hard link to the parent stage's file ([chaining.md](chaining.md#unchanged-files-are-linked-not-copied)); elsewhere a reflink or `copy_file_range`, so the bytes don't pass through the process. Importing an imported file therefore copies its `.bin` as a file.
 - **Large files.** Offsets and sizes are 64-bit. Bytes are copied from the mappings in large writes, so the heap never holds buffer data.
 
 ## Editing
