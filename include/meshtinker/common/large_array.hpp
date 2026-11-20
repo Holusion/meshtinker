@@ -1,0 +1,89 @@
+#pragma once
+
+#include "meshtinker/common/bytes.hpp"
+#include "meshtinker/common/workspace.hpp"
+
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <new>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+namespace meshtinker::common {
+
+// Arrays up to this size go on the heap, larger ones in workspace scratch
+// files (docs/files-and-memory.md). Small enough that the heap stays small
+// next to the model, large enough that small models make no scratch files.
+inline constexpr std::uint64_t heap_array_limit = std::uint64_t{4} << 20;
+
+// A zero-filled array of `count` trivially copyable elements, for per-vertex
+// or per-face working data: on the heap up to heap_array_limit bytes, else in
+// a scratch file of `workspace`, named `<name>-<n>`.
+template <typename T>
+class LargeArray {
+    static_assert(std::is_trivially_copyable_v<T>, "LargeArray holds plain data");
+
+public:
+    LargeArray() = default;
+    LargeArray(Workspace& workspace, const std::string& name, std::size_t count) : size_(count) {
+        if (count > std::numeric_limits<std::size_t>::max() / sizeof(T)) {
+            throw std::bad_alloc();
+        }
+        const std::uint64_t bytes = std::uint64_t{count} * sizeof(T);
+        if (bytes <= heap_array_limit) {
+            heap_.assign(count, T{});
+            data_ = heap_.data();
+        } else {
+            static std::atomic<std::uint64_t> next{0};
+            scratch_ = workspace.scratch(name + "-" + std::to_string(next++), bytes);
+            data_ = reinterpret_cast<T*>(scratch_.data());
+        }
+    }
+    LargeArray(LargeArray&& other) noexcept { *this = std::move(other); }
+    LargeArray& operator=(LargeArray&& other) noexcept {
+        if (this != &other) {
+            const bool on_heap = other.data_ != nullptr && other.data_ == other.heap_.data();
+            heap_ = std::move(other.heap_);
+            scratch_ = std::move(other.scratch_);
+            data_ = on_heap ? heap_.data() : reinterpret_cast<T*>(scratch_.data());
+            size_ = other.size_;
+            other.data_ = nullptr;
+            other.size_ = 0;
+        }
+        return *this;
+    }
+    LargeArray(const LargeArray&) = delete;
+    LargeArray& operator=(const LargeArray&) = delete;
+    ~LargeArray() = default;
+
+    T* data() { return data_; }
+    const T* data() const { return data_; }
+    std::size_t size() const { return size_; }
+    bool empty() const { return size_ == 0; }
+    T& operator[](std::size_t i) { return data_[i]; }
+    const T& operator[](std::size_t i) const { return data_[i]; }
+    T* begin() { return data_; }
+    T* end() { return data_ + size_; }
+    const T* begin() const { return data_; }
+    const T* end() const { return data_ + size_; }
+
+    // Keeps only the first `count` elements. The memory stays allocated.
+    void shrink(std::size_t count) {
+        if (count < size_) {
+            size_ = count;
+        }
+    }
+
+    ByteView bytes() const { return {reinterpret_cast<const std::uint8_t*>(data_), size_ * sizeof(T)}; }
+
+private:
+    std::vector<T> heap_;
+    ScratchMapping scratch_;
+    T* data_ = nullptr;
+    std::size_t size_ = 0;
+};
+
+} // namespace meshtinker::common

@@ -59,3 +59,11 @@ All rejections are `common::Failure`s with exit code 1 and a stable `code`. Open
   - Images that share a source file share one output file.
 - **Large files.** Offsets and sizes are 64-bit. Bytes are copied from the mappings in large writes, so the heap never holds buffer data.
 
+## Editing
+
+Commands that rewrite geometry edit the layout of their normalized input before writing it (`gltf/edit.hpp`). Starting from `normalizedLayout` of the normalized document, which renumbers nothing, an unedited layout writes exactly what `import` writes (`test/gltf/edit_test.cpp`, over every fixture).
+
+- **Added views.** `addView` appends a buffer view whose bytes the command holds (on the heap or in a scratch file), and `addAccessor` an accessor over it. `Layout::added` maps the view to its bytes, and `view_sources` marks it `added_view`. A view with an `EXT_meshopt_compression` or `KHR_meshopt_compression` extension holds compressed bytes: the writer puts them in the `.bin` and the view's own range in a new fallback buffer, one per extension, with no data and the length of the decoded views, as glTF-Transform and gltfpack write it.
+- **Replaced geometry.** `replaceGeometry` points a primitive at new attributes, indices and morph targets, and drops its `KHR_draco_mesh_compression` extension. Its material, extras and other extensions stay.
+- **Pruning.** `prune` drops the accessors and buffer views nothing refers to any more, renumbers the rest, and puts the `.bin` back in primitive order. It then drops `KHR_draco_mesh_compression`, the meshopt extensions and `KHR_mesh_quantization` from `extensionsUsed` and `extensionsRequired` once nothing uses them. Quantization is needed while an attribute has a component type core glTF doesn't allow for it (integer positions, normals and tangents, any integer morph target, signed or non-normalized texture coordinates).
+
