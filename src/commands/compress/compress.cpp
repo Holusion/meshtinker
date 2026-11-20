@@ -7,7 +7,6 @@
 #include "meshtinker/gltf/layout.hpp"
 #include "meshtinker/gltf/meshopt_memory.hpp"
 #include "meshtinker/gltf/primitive_data.hpp"
-#include "meshtinker/gltf/transform.hpp"
 
 #include <meshoptimizer.h>
 
@@ -239,8 +238,10 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
 
     // A mesh can take a grid when every primitive is rewritten, without
     // morph targets, from float positions it doesn't share with other
-    // meshes. Meshes drawn in one space (gltf::meshSpaces) share one grid,
-    // so that the borders between tiles quantize the same on both sides.
+    // meshes. They all share one grid over their positions as stored, as
+    // gltfpack's default and glTF-Transform's quantizationVolume "scene" do:
+    // the borders between tiles then quantize the same on both sides, however
+    // the tiles are split into meshes.
     std::vector<bool> eligible(data.meshes_count, false);
     for (std::size_t m = 0; m < data.meshes_count; ++m) {
         const cgltf_mesh& mesh = data.meshes[m];
@@ -253,22 +254,13 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
         }
         eligible[m] = can;
     }
-    const std::vector<std::size_t> spaces = gltf::meshSpaces(data);
-    const std::size_t space_count = spaces.empty() ? 0 : *std::max_element(spaces.begin(), spaces.end()) + 1;
-    std::vector<std::optional<PositionGrid>> grids(space_count);
-    for (std::size_t space = 0; space < space_count; ++space) {
-        bool can = true;
-        for (std::size_t m = 0; m < data.meshes_count; ++m) {
-            can = can && (spaces[m] != space || eligible[m]);
-        }
-        if (!can) {
-            continue;
-        }
+    std::optional<PositionGrid> scene_grid;
+    {
         std::array<double, 3> min{std::numeric_limits<double>::max(), std::numeric_limits<double>::max(),
                                   std::numeric_limits<double>::max()};
         std::array<double, 3> max{-min[0], -min[1], -min[2]};
         for (std::size_t m = 0; m < data.meshes_count; ++m) {
-            if (spaces[m] != space) {
+            if (!eligible[m]) {
                 continue;
             }
             for (std::size_t p = 0; p < data.meshes[m].primitives_count; ++p) {
@@ -286,7 +278,7 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
             }
         }
         if (min[0] <= max[0]) {
-            grids[space] = gridFor(min, max);
+            scene_grid = gridFor(min, max);
         }
     }
 
@@ -334,7 +326,7 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
             owned[p] = gltf::compactVertices(triangles, std::move(indices), workspace);
         }
 
-        const std::optional<PositionGrid> grid = grids[spaces[m]];
+        const std::optional<PositionGrid> grid = eligible[m] ? scene_grid : std::nullopt;
         if (grid) {
             ++report.quantized_meshes;
         } else {

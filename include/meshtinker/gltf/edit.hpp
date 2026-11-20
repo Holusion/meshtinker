@@ -51,9 +51,18 @@ void useExtension(Json& json, const std::string& name, bool required);
 // normalized ones.
 bool needsMeshQuantization(const Json& json);
 
-// Drops the accessors and buffer views that nothing refers to any more,
-// renumbers the rest (Layout::remap, view_sources and added follow), and puts
-// the .bin back in the profile's order (binOrder). Then drops
+// Removes primitive `primitive` of mesh `mesh`, such as one a command left
+// without geometry. prune then removes what nothing uses any more: a command
+// that empties a primitive removes it at once (AGENTS.md).
+void removePrimitive(Layout& layout, std::size_t mesh, std::size_t primitive);
+
+// Drops what the scene no longer reaches, as import selects it
+// (gltf::selectScene): meshes left without primitives (the nodes that drew
+// them keep their place, without mesh, morph weights or instancing, and their
+// weight animations go), then the materials, textures, samplers, images,
+// accessors and buffer views nothing uses. Renumbers the rest (Layout::remap,
+// view_sources, image_sources and added follow), and puts the .bin back in the
+// profile's order (binOrder). Then drops
 // KHR_draco_mesh_compression, EXT_meshopt_compression, KHR_meshopt_compression
 // and KHR_mesh_quantization from extensionsUsed and extensionsRequired when no
 // primitive, buffer view, buffer or attribute uses them any more.

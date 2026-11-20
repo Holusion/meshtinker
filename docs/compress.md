@@ -8,7 +8,7 @@ One preset, glTF-Transform's `meshopt({level: "high"})` with its `quantize` defa
 
 | Attribute | Stored as | Bits |
 | --- | --- | --- |
-| `POSITION` | signed shorts on the space's grid, not normalized (`KHR_mesh_quantization`) | 14 on the longest side |
+| `POSITION` | signed shorts on the scene's grid, not normalized (`KHR_mesh_quantization`) | 14 on the longest side |
 | `NORMAL`, `TANGENT` | signed bytes, meshopt's `OCTAHEDRAL` filter | 8 |
 | `TEXCOORD_n` in [0, 1] | normalized unsigned shorts | 12 |
 | `COLOR_n` in [0, 1] | normalized unsigned bytes | 8 |
@@ -24,7 +24,7 @@ A primitive whose accessors no other primitive uses is read as a triangle list (
 
 ## Positions and node transforms
 
-Positions are stored as `(p − center) / step`, rounded, on one grid per space: the meshes that `gltf::meshSpaces` puts together, because each is drawn once by nodes with the same world matrix, and the other meshes each alone. The grid spans the space's bounding box, with 2^13 − 1 steps on each side of the center along the longest axis, and the same step on every axis, so that normals need no correction. A shared grid makes the borders between tiles quantize to the same values on both sides: glTF-Transform's default quantizes each mesh on its own grid (`quantizationVolume: "mesh"`).
+Positions are stored as `(p − center) / step`, rounded, on one grid for the whole scene: every mesh that can take a grid shares it, over their positions as stored, as gltfpack does by default and glTF-Transform does with `quantizationVolume: "scene"`. The grid spans their joint bounding box, with 2^13 − 1 steps on each side of the center along the longest axis, and the same step on every axis, so that normals need no correction. A shared grid makes the borders between tiles quantize to the same values on both sides, however the tiles are split into meshes. glTF-Transform's default quantizes each mesh on its own grid (`quantizationVolume: "mesh"`), which can open sub-step cracks between tiles. The cost is precision for small meshes beside large ones: on a 10 m model, a step is about 1.2 mm for every mesh.
 
 The dequantization, translate(center) × scale(step), goes into each node that draws the mesh:
 
@@ -49,7 +49,7 @@ Positions stay float32, still compressed, when the node's transform can't carry 
 
 | Model | Geometry in | Out | glTF-Transform "high" | Time | Heap |
 | --- | --- | --- | --- | --- | --- |
-| 44-million-face scan, 4 meshes in one space | 1.32 GB | 207 MB (16 %) | | 20 s | 5.5 MB |
+| 44-million-face scan, 4 meshes | 1.32 GB | 207 MB (16 %) | | 20 s | 5.5 MB |
 | The same, simplified first (954,000 faces) | 40 MB | 8.2 MB | | 0.6 s | 6 MB |
 | Johannisfriedhof (local scan, 6 primitives) | 4.1 MB | 1.21 MB | 1.27 MB | | |
 | DamagedHelmet | | 175 KB | 184 KB | | |

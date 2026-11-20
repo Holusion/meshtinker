@@ -1,5 +1,7 @@
 #include "meshtinker/gltf/edit.hpp"
 
+#include "meshtinker/gltf/selection.hpp"
+
 #include <algorithm>
 #include <vector>
 
@@ -192,74 +194,108 @@ bool needsMeshQuantization(const Json& json) {
     return needed;
 }
 
+void removePrimitive(Layout& layout, std::size_t mesh, std::size_t primitive) {
+    Json& primitives = layout.json["meshes"][mesh]["primitives"];
+    primitives.erase(primitive);
+}
+
 void prune(Layout& layout) {
     Json& json = layout.json;
-    const std::size_t accessor_count = count(json, Kind::accessor);
-    const std::size_t view_count = count(json, Kind::buffer_view);
-    std::vector<bool> used_accessor(accessor_count, false);
-    std::vector<bool> used_view(view_count, false);
-    const auto mark = [&](Kind target, const Json& value) {
-        if (!value.is_number_unsigned()) {
-            return;
-        }
-        const auto index = value.get<std::size_t>();
-        if (target == Kind::accessor && index < accessor_count) {
-            used_accessor[index] = true;
-        } else if (target == Kind::buffer_view && index < view_count) {
-            used_view[index] = true;
-        }
-    };
-    for (std::size_t k = 0; k < kind_count; ++k) {
-        const auto kind = static_cast<Kind>(k);
-        if (kind == Kind::accessor || kind == Kind::buffer_view || kind == Kind::buffer) {
+
+    // A mesh without primitives is invalid glTF: it goes, and the nodes that
+    // drew it keep their place without it. Their morph weights, instancing
+    // and weight animations go with it.
+    std::vector<bool> empty_mesh(count(json, Kind::mesh), false);
+    for (std::size_t m = 0; m < empty_mesh.size(); ++m) {
+        const Json& mesh = json["meshes"][m];
+        empty_mesh[m] = !mesh.contains("primitives") || mesh["primitives"].empty();
+    }
+    std::vector<bool> lost_mesh(count(json, Kind::node), false);
+    for (std::size_t n = 0; n < lost_mesh.size(); ++n) {
+        Json& node = json["nodes"][n];
+        const auto mesh = node.find("mesh");
+        if (mesh == node.end() || !mesh->is_number_unsigned() || mesh->get<std::size_t>() >= empty_mesh.size() ||
+            !empty_mesh[mesh->get<std::size_t>()]) {
             continue;
         }
-        for (std::size_t i = 0; i < count(json, kind); ++i) {
-            forEachReference(kind, json[arrayName(kind)][i], mark);
+        lost_mesh[n] = true;
+        node.erase("mesh");
+        node.erase("weights");
+        if (node.contains("extensions")) {
+            node["extensions"].erase("EXT_mesh_gpu_instancing");
+            if (node["extensions"].empty()) {
+                node.erase("extensions");
+            }
         }
     }
-    for (std::size_t i = 0; i < accessor_count; ++i) {
-        if (used_accessor[i]) {
-            forEachReference(Kind::accessor, json["accessors"][i], mark);
+    for (std::size_t a = 0; a < count(json, Kind::animation); ++a) {
+        Json& animation = json["animations"][a];
+        if (!animation.contains("channels")) {
+            continue;
         }
+        Json channels = Json::array();
+        for (Json& channel : animation["channels"]) {
+            const Json& target = channel.value("target", Json::object());
+            const bool weights = target.value("path", "") == "weights";
+            const auto node = target.find("node");
+            const bool lost = weights && node != target.end() && node->is_number_unsigned() &&
+                              node->get<std::size_t>() < lost_mesh.size() && lost_mesh[node->get<std::size_t>()];
+            if (!lost) {
+                channels.push_back(std::move(channel));
+            }
+        }
+        // An animation left without channels targets nothing, and isn't reached below.
+        animation["channels"] = std::move(channels);
     }
 
-    // New indices; the arrays shrink in place.
-    const auto renumbering = [](const std::vector<bool>& used) {
-        std::vector<std::size_t> map(used.size(), Layout::dropped);
+    // What the scene still reaches stays, as import selects it
+    // (gltf::selectScene); buffers stay, since the writer places their data.
+    Selection selection = selectScene(json);
+    for (std::size_t m = 0; m < empty_mesh.size(); ++m) {
+        if (empty_mesh[m]) {
+            selection.kept[kindIndex(Kind::mesh)][m] = false;
+        }
+    }
+    std::fill(selection.kept[kindIndex(Kind::buffer)].begin(), selection.kept[kindIndex(Kind::buffer)].end(), true);
+
+    std::array<std::vector<std::size_t>, kind_count> maps;
+    for (std::size_t k = 0; k < kind_count; ++k) {
+        const std::vector<bool>& used = selection.kept[k];
+        maps[k].assign(used.size(), Layout::dropped);
         std::size_t next = 0;
         for (std::size_t i = 0; i < used.size(); ++i) {
             if (used[i]) {
-                map[i] = next++;
+                maps[k][i] = next++;
             }
         }
-        return map;
-    };
-    const std::vector<std::size_t> accessor_map = renumbering(used_accessor);
-    const std::vector<std::size_t> view_map = renumbering(used_view);
+    }
     for (std::size_t k = 0; k < kind_count; ++k) {
         const auto kind = static_cast<Kind>(k);
         for (std::size_t i = 0; i < count(json, kind); ++i) {
+            if (!selection.kept[k][i]) {
+                continue;
+            }
             forEachReference(kind, json[arrayName(kind)][i], [&](Kind target, Json& value) {
-                if (!value.is_number_unsigned()) {
+                // Buffer views keep naming their source buffers, for the writer.
+                if (target == Kind::buffer || !value.is_number_unsigned()) {
                     return;
                 }
                 const auto index = value.get<std::size_t>();
-                if (target == Kind::accessor && index < accessor_count) {
-                    value = accessor_map[index];
-                } else if (target == Kind::buffer_view && index < view_count) {
-                    value = view_map[index];
+                const std::vector<std::size_t>& map = maps[kindIndex(target)];
+                if (index < map.size()) {
+                    value = map[index];
                 }
             });
         }
     }
-    const auto filter = [&](Kind kind, const std::vector<bool>& used) {
-        if (count(json, kind) == 0) {
-            return;
+    for (std::size_t k = 0; k < kind_count; ++k) {
+        const auto kind = static_cast<Kind>(k);
+        if (kind == Kind::buffer || count(json, kind) == 0) {
+            continue;
         }
         Json kept = Json::array();
-        for (std::size_t i = 0; i < used.size(); ++i) {
-            if (used[i]) {
+        for (std::size_t i = 0; i < selection.kept[k].size(); ++i) {
+            if (selection.kept[k][i]) {
                 kept.push_back(std::move(json[arrayName(kind)][i]));
             }
         }
@@ -268,14 +304,16 @@ void prune(Layout& layout) {
         } else {
             json[arrayName(kind)] = std::move(kept);
         }
-    };
-    filter(Kind::accessor, used_accessor);
-    filter(Kind::buffer_view, used_view);
+    }
+    if (json.contains("scenes") && json.contains("scene")) {
+        json["scene"] = 0;
+    }
 
+    const std::vector<std::size_t>& view_map = maps[kindIndex(Kind::buffer_view)];
     std::vector<std::size_t> view_sources;
     std::map<std::size_t, common::ByteView> added;
-    for (std::size_t i = 0; i < view_count; ++i) {
-        if (used_view[i]) {
+    for (std::size_t i = 0; i < view_map.size(); ++i) {
+        if (view_map[i] != Layout::dropped) {
             view_sources.push_back(layout.view_sources[i]);
             if (const auto found = layout.added.find(i); found != layout.added.end()) {
                 added[view_map[i]] = found->second;
@@ -284,15 +322,24 @@ void prune(Layout& layout) {
     }
     layout.view_sources = std::move(view_sources);
     layout.added = std::move(added);
-    const auto compose = [&](Kind kind, const std::vector<std::size_t>& map) {
-        for (std::size_t& index : layout.remap[kindIndex(kind)]) {
-            if (index != Layout::dropped && index < map.size()) {
-                index = map[index];
+    const std::vector<std::size_t>& image_map = maps[kindIndex(Kind::image)];
+    std::vector<std::size_t> image_sources;
+    for (std::size_t i = 0; i < image_map.size(); ++i) {
+        if (image_map[i] != Layout::dropped) {
+            image_sources.push_back(layout.image_sources[i]);
+        }
+    }
+    layout.image_sources = std::move(image_sources);
+    for (std::size_t k = 0; k < kind_count; ++k) {
+        if (static_cast<Kind>(k) == Kind::buffer) {
+            continue;
+        }
+        for (std::size_t& index : layout.remap[k]) {
+            if (index != Layout::dropped && index < maps[k].size()) {
+                index = maps[k][index];
             }
         }
-    };
-    compose(Kind::accessor, accessor_map);
-    compose(Kind::buffer_view, view_map);
+    }
     layout.bin_order = binOrder(json);
 
     bool draco = false;

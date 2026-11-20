@@ -278,6 +278,37 @@ TEST_CASE(simplified_draco_is_written_plain) {
 TEST_CASE(points_and_lines_are_copied) {
     const Run result = run("modes", 0.5);
     CHECK_EQ(result.report.skipped, std::uint64_t{4});
-    CHECK_EQ(result.report.simplified + result.report.unchanged, std::uint64_t{3});
+    CHECK_EQ(result.report.simplified + result.report.unchanged + result.report.removed, std::uint64_t{3});
     CHECK_EQ(result.diagnostics.toJson()[0]["code"].get<std::string>(), std::string("points-and-lines-kept"));
 }
+
+// A primitive that loses every triangle is removed on the spot, and what only
+// it used goes with it: its material, texture and image. Its node stays.
+TEST_CASE(emptied_primitives_are_removed) {
+    const Run result = run("textured-glb", 1.0);
+    CHECK_EQ(result.report.removed, std::uint64_t{1});
+    CHECK_EQ(result.report.output.primitives, std::uint64_t{0});
+    CHECK_EQ(result.diagnostics.toJson()[0]["code"].get<std::string>(), std::string("primitive-removed"));
+    const Document output = Document::read(result.model);
+    const gltf::Json& json = output.json();
+    for (const char* kind : {"meshes", "materials", "textures", "images", "samplers", "accessors", "bufferViews"}) {
+        CHECK(!json.contains(kind));
+    }
+    CHECK_EQ(json["nodes"].size(), std::size_t{1});
+    CHECK(!json["nodes"][0].contains("mesh"));
+    for (const gltf::WrittenFile& file : result.report.files) {
+        CHECK(file.role == gltf::FileRole::gltf);
+    }
+}
+
+// The error is measured on the scene in world space, and converted to each
+// mesh's units through its node's scale: the same geometry drawn twice as
+// large loses the same share of its triangles.
+TEST_CASE(error_is_relative_to_the_scene) {
+    const Run tiles = run("scan-tiles", 0.01);
+    const Run meshes = run("scan-meshes", 0.01);
+    CHECK_EQ(tiles.report.output.faces, meshes.report.output.faces);
+    CHECK(tiles.report.achieved_error <= 0.01);
+    CHECK(tiles.report.achieved_error > 0.005);
+}
+

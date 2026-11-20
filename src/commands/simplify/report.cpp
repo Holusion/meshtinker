@@ -27,7 +27,10 @@ std::string percent(std::uint64_t part, std::uint64_t whole) {
 nlohmann::ordered_json toJson(const Report& report, nlohmann::ordered_json header, const common::Diagnostics& diagnostics) {
     Json json = std::move(header);
     json["error"] = {{"target", report.target_error}, {"achieved", report.achieved_error}};
-    json["primitives"] = {{"simplified", report.simplified}, {"unchanged", report.unchanged}, {"skipped", report.skipped}};
+    json["primitives"] = {{"simplified", report.simplified},
+                          {"unchanged", report.unchanged},
+                          {"removed", report.removed},
+                          {"skipped", report.skipped}};
     json["input"] = countsJson(report.input);
     Json files = Json::array();
     for (const gltf::WrittenFile& file : report.files) {
@@ -41,6 +44,9 @@ nlohmann::ordered_json toJson(const Report& report, nlohmann::ordered_json heade
 
 void printText(std::ostream& out, const Report& report) {
     out << "Simplified " << report.simplified << " of " << report.input.primitives << " triangle primitives";
+    if (report.removed > 0) {
+        out << ", removed " << report.removed;
+    }
     if (report.skipped > 0) {
         out << " (" << report.skipped << " other primitives copied)";
     }

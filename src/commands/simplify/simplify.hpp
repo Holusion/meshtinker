@@ -20,8 +20,8 @@ constexpr double default_error = 0.001;
 
 struct Options {
     // How far the surface may move, as meshoptimizer estimates it, as a
-    // fraction of the size of the meshes drawn in its space (the longest side
-    // of their bounding box; gltf::meshSpaces).
+    // fraction of the scene's size (the longest side of its bounding box in
+    // world space).
     double error = default_error;
     gltf::ReadOptions read;
 };
@@ -35,7 +35,7 @@ struct Counts {
 struct Report {
     double target_error = 0;
     // The largest error meshoptimizer reports for a simplified primitive,
-    // relative to its space's size.
+    // relative to the scene's size.
     double achieved_error = 0;
     // Triangle primitives that were read, each counted once however many
     // nodes show its mesh.
@@ -43,6 +43,8 @@ struct Report {
     Counts output;
     std::uint64_t simplified = 0;
     std::uint64_t unchanged = 0;
+    // Primitives that lost every triangle, and were removed.
+    std::uint64_t removed = 0;
     // Primitives copied as they are: points, lines, unreadable data.
     std::uint64_t skipped = 0;
     std::vector<gltf::WrittenFile> files;
