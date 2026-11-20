@@ -1,6 +1,6 @@
 # Chaining commands
 
-Commands can be run one after another on a *chain*: a directory that holds each step's result as a numbered *stage*. A user chains commands by hand with no file names to wire, and meta-commands such as `optimize` chain them the same way. This is the design. TODO.md tracks its implementation, and the README will document the commands once they support it.
+Commands can be run one after another on a *chain*: a directory that holds each step's result as a numbered *stage*. A user chains commands by hand with no file names to wire, and meta-commands such as `optimize` chain them the same way. The README documents the commands; this is how chains work and why. The code is `include/meshtinker/chain/` (records, stages, the lock), `cli::Command` (positionals by command kind) and `common::Outputs` (publishing, linking).
 
 ```bash
 meshtinker import foo.glb work/          # output is a directory: creates the chain, stage 000
@@ -23,10 +23,10 @@ work/
   002-compress-p0a4c/ ...
 ```
 
-- **The chain is a directory the user names.** It is not looked up from the input file's path in a cache directory, which would break on two pipelines over one file, relative paths and symlinks, and would hide state that nothing cleans. It is not created beside the source either, since source folders may be read-only or must not be touched. It goes where the user puts it, on a real disk ([files-and-memory.md](files-and-memory.md#workspaces)). `import` always takes the chain directory as its output: there is no default location.
-- **`chain.json` marks the directory as a chain.** A command treats its input as a chain when it is a directory holding `chain.json`. Its `format` is the chain format's version.
+- **The chain is a directory the user names.** It is not looked up from the input file's path in a cache directory, which would break on two pipelines over one file, relative paths and symlinks, and would hide state that nothing cleans. It is not created beside the source either, since source folders may be read-only or must not be touched. It goes where the user puts it, on a real disk ([files-and-memory.md](files-and-memory.md#workspaces)). `import` always takes the chain directory as its output: there is no default location. An output that doesn't end in `.gltf` is a chain (`.glb` is a command-line error, since `import` writes the profile): a new directory, whose parent must exist, or an existing empty one, such as a mounted volume. Anything else in it is refused (`output-exists`, 4). A directory `import` created is removed if it fails; an existing one is left empty.
+- **`chain.json` marks the directory as a chain.** A command treats its input as a chain when it is a directory holding `chain.json`. Its `format` is the chain format's version, and `source` the source file's name. `import` publishes it after stage 000, so a directory is a chain only once it has a stage. A directory without it, given to a command that reads chains, is rejected (`not-a-chain`, 1).
 - **A stage is a directory `NNN-<command>-<id>`**, numbered from 000 in decimal (three digits, more once past 999; they are compared as numbers). `<id>` is five random characters from `a-z0-9`. Today the lock makes numbers unique already; the id keeps names unique if a later feature runs a step again at a position that has a stage, and it makes the name the stage's identity, which `parent` refers to. A command name can contain hyphens (`simplify-qem`): the number is the part before the first hyphen, the id the part after the last one. A stage holds the model in the normalized profile ([normalized-profile.md](normalized-profile.md)) and `stage.json`. The model's stem is the source file's stem in every stage, so file names stay the same from stage to stage, and messages show the source's name.
-- **The last stage** is the one with the highest number. A directory that doesn't match `NNN-<command>-<id>` or has no `stage.json`, such as a killed run's `NNN-<command>-<id>.meshtinker-<random>.tmp`, is ignored. Which stage is last when two share a number is for the feature that makes it possible to decide.
+- **The last stage** is the one with the highest number. A directory that doesn't match `NNN-<command>-<id>` or has no `stage.json`, such as a killed run's `NNN-<command>-<id>.meshtinker-<random>.tmp`, is ignored. Which stage is last when two share a number is for the feature that makes it possible to decide; until then the lock prevents it, and readers take the last name in byte order.
 - **Every stage is kept.** A stage is never changed once published, and nothing removes stages except `export --remove-chain`, which removes the whole chain. A meta-command's chain lives in its workspace and goes with it.
 
 ## No log file: the stages are the log
@@ -47,8 +47,8 @@ This is also why the record is a plain JSON file and not a line appended to a te
   "argv": ["meshtinker-simplify", "--error", "0.001", "work/"],
   "report": { "...": "the command's --json output" },
   "lossy": {
-    "geometryQuantization": [{"stage": "000-import-k3v9q", "source": "KHR_draco_mesh_compression", "positionBits": 14}],
-    "simplificationError": 0.001,
+    "geometryQuantization": [{"stage": "000-import-k3v9q", "source": "KHR_draco_mesh_compression", "primitives": 4}],
+    "simplificationError": 0.00098,
     "imageEncoding": [{"stage": "000-import-k3v9q", "image": 0, "format": "image/jpeg"}]
   }
 }
@@ -57,7 +57,12 @@ This is also why the record is a plain JSON file and not a line appended to a te
 - **`stage` and `parent`** are directory names: the stage's own, and the one it was built from, always the previous stage for now (`null` for stage 000). Building a stage from an older one (`--from`, to compare two variants) is out of scope, but readers follow `parent` rather than assume the previous number, so adding it changes no format.
 - **`report`** is the command's JSON report. `import`'s is the `inspect` report ([inspect-report.md](inspect-report.md)), so stage 000 has the model's statistics without another pass. Later stages carry their own command's report, and a caller that needs fresh statistics runs `inspect` on the chain.
 - **`tool` and `argv`** make a chain reproducible by hand. A variant built from another branch writes stages too: readers ignore fields they don't know, and refuse a `format` newer than theirs.
-- **`lossy`** is the running total of lossy rounds, copied from the parent and extended by the stage. The file alone can't tell it once a stage has decoded Draco to float32 or re-encoded a JPEG. Errors add up ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)), so a command about to add a round warns, with a counted diagnostic, when one of the same kind is already there: `repeated-quantization`, `repeated-lossy-image-encoding`. A simplification adds its error to `simplificationError`. File mode has no history, and recording it in the model (`asset.extras`) was rejected for the same reasons as an import marker ([normalized-profile.md](normalized-profile.md#how-commands-get-normalized-input)).
+- **`lossy`** is the running total of lossy rounds, copied from the parent and extended by the stage. The file alone can't tell it once a stage has decoded Draco to float32 or re-encoded a JPEG. Errors add up ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)), so a command about to add a round warns, with a counted diagnostic, when an earlier stage recorded one of the same kind: `repeated-quantization`, `repeated-lossy-image-encoding`. The warning is in the stage's report too. Rounds of one stage don't warn about each other. The rounds recorded today:
+  - `import` records what the source went through, as far as the file tells: `geometryQuantization` entries for Draco primitives (`source`, `primitives`) and for `KHR_mesh_quantization`, and an `imageEncoding` entry (`image`, `format`) for each JPEG, WebP and KTX2 image. A WebP image may be lossless and is recorded anyway; Draco's bit depths aren't read.
+  - `compress` records one `geometryQuantization` round when it compresses primitives: `source: "EXT_meshopt_compression"`, `primitives`, its preset's `positionBits` (when a mesh went on the grid), `normalBits` and `texcoordBits`.
+  - `simplify` adds to `simplificationError` the largest error meshoptimizer reported (its `achievedError`), not the `--error` asked for, relative to the scene's size: the sum bounds how far the surface moved over the chain, as far as the estimate goes.
+
+  File mode has no history, and recording it in the model (`asset.extras`) was rejected for the same reasons as an import marker ([normalized-profile.md](normalized-profile.md#how-commands-get-normalized-input)).
 
 ## Command kinds
 
@@ -71,16 +76,17 @@ This is also why the record is a plain JSON file and not a line appended to a te
 | terminal | `export` | — | `export work/ out.glb` |
 
 - `placeholder` stays out of chains and reads files only. Commands that read a model and write something other than its next version may not stay, so chains aren't designed around them.
-- Only `import` creates a chain. A transform given a chain and an output is a command-line error (2): a stage's location is the chain's to decide.
+- Only `import` creates a chain. A transform given a chain and an output is a command-line error (2): a stage's location is the chain's to decide. So is a transform given a file and no output, and `export` given anything but a chain.
+- A command declares its kind when it creates its `cli::Command`, which resolves the positionals before the command's body runs: in chain mode `input()` is the last stage's model, `outputDirectory()` the pending stage directory, `outputStem()` the source's stem, and `stage()` the stage being written, for `lossy`. The body writes through `outputs()` and calls `publish(report)`, which writes `stage.json` and publishes the stage. A transform therefore needs no code of its own for chains beyond its `lossy` rounds.
 - In chain mode a command's input is always `import`'s output or a stage built on it, so it is in the profile and read front to back.
 - The workspace (`--tmp-dir`) defaults to the chain directory.
-- `export` writes the last stage as `.gltf` (with its `.bin` and images) or as `.glb`, depending on the output's extension. A GLB streams the images into its BIN chunk. It is the one command that writes outside the profile. `--remove-chain` removes the chain once the output is published.
+- `export` writes the last stage as `.gltf` (with its `.bin` and images) or as `.glb`, depending on the output's extension. A GLB streams the images into its BIN chunk. It is the one command that writes outside the profile. `--remove-chain` removes the chain once the output is published. It takes the lock first and reads the last stage under it, so that no stage is added and lost meanwhile, and the output's files are then hard links to the stage's, since the chain goes. It removes `chain.json` first, so that an interrupted removal leaves no half chain, then the stages, killed runs' leftovers and the lock. A directory holding anything else stays, with a warning (`chain-directory-kept`).
 
 ## Unchanged files are linked, not copied
 
 A texture-only stage must not copy a multi-gigabyte `.bin`, and a geometry stage must not copy the textures. When a stage writes a file identical to its parent's (an image it doesn't touch, or a `.bin` whose views it copies unchanged, in order), it hardlinks the parent's file, and copies it only if the link fails. Stages are never changed once published and inputs are mapped read-only, so sharing an inode is safe. Each stage stays self-contained: its files are in its own directory, so the [reference rules](../AGENTS.md#command-line-conventions) hold without `--trusted`. Referencing `../000-import/foo_texture_0.png` instead would break them.
 
-`import` copies from outside the chain, with a reflink (`FICLONE`, then `copy_file_range`) where the file system has one. It never hardlinks the source: an editor that rewrites the source in place would change the chain.
+`import` copies from outside the chain, with a reflink (`FICLONE`, then `copy_file_range`) where the file system has one. It never hardlinks the source: an editor that rewrites the source in place would change the chain. File-mode commands and `export` copy the same way. How the writer decides that a file is identical is in [gltf-io.md](gltf-io.md#writing).
 
 ## Concurrency
 
@@ -88,7 +94,7 @@ Two transforms on one chain would both build on the same stage. A command that w
 
 ## Meta-commands
 
-`optimize` and other presets are C++ subcommands (`meshtinker-optimize`) that run the individual subcommands, as AGENTS.md says. Scripts would need a runtime (a shell, Node.js) beside the static binaries. Presets decide from the JSON reports, which nlohmann reads, and a user who wants to experiment can script a chain by hand.
+Not built yet; this is how they will use chains. `optimize` and other presets are C++ subcommands (`meshtinker-optimize`) that run the individual subcommands, as AGENTS.md says. Scripts would need a runtime (a shell, Node.js) beside the static binaries. Presets decide from the JSON reports, which nlohmann reads, and a user who wants to experiment can script a chain by hand.
 
 1. Create a chain in its workspace, beside the output, so that failure and interruption cleanup come with the workspace, and `--keep-tmp` keeps the whole chain for debugging.
 2. Run `import in chain/`. Stage 000's report has the statistics.

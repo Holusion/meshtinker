@@ -57,6 +57,28 @@ Every command follows the same conventions:
   | 4 | Another problem with the machine: permissions, missing output directory, existing output |
   | 70 | Internal error: a bug in meshtinker |
 
+### Chains
+
+Commands can run one after another on a *chain*: a directory that keeps each command's result as a numbered stage, so that no file names need wiring.
+
+```sh
+meshtinker import scan.glb work/       # creates the chain, with stage 000
+meshtinker simplify work/              # adds a stage built on the last one
+meshtinker compress work/
+meshtinker inspect work/               # reads the last stage
+meshtinker export work/ scan-opt.glb   # writes the last stage as .glb or .gltf
+```
+
+- `import` creates a chain when its output isn't a `.gltf` file: a new directory, whose parent must exist, or an empty one. Any other command treats its input as a chain when it is a directory holding `chain.json`.
+- Commands that change the model (`simplify`, `compress`) take no output in chain mode: they add a stage. Giving one is a command-line error (2). Without a chain they read and write files as before.
+- `inspect` reads the last stage, and `export` writes it elsewhere. `placeholder` reads files only.
+- A stage is `work/NNN-<command>-<id>/`, with the model under the source's name and `stage.json`: the command, its arguments, its JSON report, and `lossy`, the running total of lossy rounds the model has been through (the source's Draco or JPEG, simplification error, quantization). A command that quantizes geometry quantized already warns (`repeated-quantization`). Stages are never changed once published, and every one is kept until `export --remove-chain`.
+- Files a stage would write identical to its parent's, such as the images of a geometry stage, are hard links to them rather than copies.
+- One command at a time writes a stage: another one fails at once with exit code 4 (`chain-in-use`). Readers can run meanwhile.
+- The workspace defaults to the chain's directory.
+
+[docs/chaining.md](docs/chaining.md) has the layout and the reasons for it.
+
 ## Operations
 
 ### inspect
@@ -70,6 +92,8 @@ Reports statistics about a `.gltf` or `.glb` file, for the scene it shows (the d
 - every image: format and size from its header, size in bytes, the material slots that use it, and its texture occupancy: the fraction of its texels a renderer actually samples, following [objtools' definition](https://github.com/sdumetz/objtools/wiki/Texture-occupancy).
 
 Bounds read every vertex the scene draws, and occupancy rasterizes every UV triangle into a coverage map kept in a workspace file. meshopt, Draco and `KHR_mesh_quantization` data are decoded.
+
+Given a [chain](#chains), `inspect` reports on its last stage, without taking the chain's lock.
 
 ```console
 $ meshtinker inspect --help
@@ -107,6 +131,8 @@ Rewrites a `.gltf` or `.glb` file in the [normalized profile](docs/normalized-pr
 
 `import` reports the same statistics as `inspect`, for the files it wrote. Both run the same pipeline, so they accept and reject the same files, and `inspect` on `import`'s output gives `import`'s report.
 
+Given a directory instead of a `.gltf` output, `import` creates a [chain](#chains) there, with the model as stage 000 and its report in `stage.json`. A directory that exists must be empty; one that `import` created is removed if it fails. Stage 000 records in `lossy` what the source was already through: Draco or `KHR_mesh_quantization` geometry, and JPEG, WebP and KTX2 images. Image files and a `.bin` that `import` would write unchanged are copied with a reflink where the file system has one, and never linked to the source.
+
 ```console
 $ meshtinker import --help
 Rewrite a glTF or GLB file in the normalized profile
@@ -143,7 +169,7 @@ Builds a low-poly, untextured stand-in for a model, to display while the model i
 
 The placeholder is deliberately approximate. It may cut slightly into the model, and bevels sharp edges by about one cell. Enclosed interior geometry is left out, holes stay open down to a few cells, and open surfaces become thin sheets. Small parts far from the model, such as scan noise, are left out with a warning (`small-parts-left-out`), and so are points and lines. A part that fits inside a single cell disappears, so a scene of objects far apart may need a higher `--resolution`. [docs/placeholder.md](docs/placeholder.md) explains how it is built and where it sits.
 
-It writes `<output>.gltf` and `<output>.bin`, in the normalized profile. The report gives the source's face count, the grid (`resolution`, `cells`, `cellSize`, refit `passes`, `droppedParts`) and the output's vertices, faces and files.
+It writes `<output>.gltf` and `<output>.bin`, in the normalized profile. It reads and writes files only, not [chains](#chains): its output is not the next version of its input. The report gives the source's face count, the grid (`resolution`, `cells`, `cellSize`, refit `passes`, `droppedParts`) and the output's vertices, faces and files.
 
 ```console
 $ meshtinker placeholder --help
@@ -180,6 +206,8 @@ OPTIONS:
 Quantizes and compresses the geometry with `EXT_meshopt_compression`, in the preset of glTF-Transform's `meshopt({level: "high"})`: 14-bit positions, 8-bit octahedral normals, 12-bit texture coordinates, 8-bit colors and weights, with primitives reordered for the vertex cache first. Positions go on one grid for the whole scene, so that the tiles of a scan quantize their shared borders the same way, and the grid's scale goes into the node transforms, or a new child node when the node's transform can't take it. Skinned, instanced and morphed meshes keep float positions. Draco primitives are copied as they are, with a warning (`draco-kept`), and so are primitives already compressed with meshopt, so compressing twice changes nothing. [docs/compress.md](docs/compress.md) has the details and figures.
 
 The report gives the primitives compressed and kept, the meshes whose positions were quantized or kept float, the nodes added, the bytes of the geometry's buffer views before and after, and the files written. A 44-million-face scan's 1.32 GB of geometry becomes 207 MB in 20 s, with a heap under 6 MB.
+
+Given a [chain](#chains), `compress` adds a stage, and records its quantization in `lossy.geometryQuantization`, with the bits of positions, normals and texture coordinates. It warns `repeated-quantization` when an earlier stage, or the source, quantized geometry already: a chain from a Draco source through `simplify` quantizes twice. The images are links to the parent stage's.
 
 ```console
 $ meshtinker compress --help
@@ -218,6 +246,8 @@ Reduces the triangles of every mesh with [meshoptimizer](https://github.com/zeux
 Simplified primitives are written uncompressed (float32 attributes), as every command that rewrites geometry writes them; the others, compressed or not, are copied. Points and lines are copied with a warning (`points-and-lines-kept`). The report gives the error asked for and the largest one meshoptimizer reached, the primitives simplified, unchanged, removed and skipped, the input's and output's primitives, vertices and faces (each primitive once, however many nodes show it), and the files written.
 
 A 44-million-face scan in 4 meshes takes about 70 s at the default error, down to 937,000 faces, with a heap under 5 MB.
+
+Given a [chain](#chains), `simplify` adds a stage, and adds the largest error it reached to `lossy.simplificationError`, so that the total over several runs stays known. The images are links to the parent stage's.
 
 ```console
 $ meshtinker simplify --help
