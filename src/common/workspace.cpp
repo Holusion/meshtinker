@@ -6,6 +6,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <limits>
 #include <random>
 #include <system_error>
@@ -99,6 +100,28 @@ const fs::path& Workspace::directory() {
     }
     path_ = std::move(path);
     return *path_;
+}
+
+ScratchBlock Workspace::block(std::uint64_t size) {
+    constexpr std::uint64_t chunk_size = std::uint64_t{64} << 20;
+    constexpr std::uint64_t own_chunk = std::uint64_t{16} << 20;
+    constexpr std::uint64_t alignment = 16;
+    size = (size + alignment - 1) / alignment * alignment;
+    if (size > own_chunk) {
+        auto chunk = std::make_shared<ScratchMapping>(scratch("block-" + std::to_string(next_name_++), size));
+        std::uint8_t* data = chunk->data();
+        return {std::move(chunk), data};
+    }
+    if (size == 0) {
+        return {};
+    }
+    if (!chunk_ || chunk_used_ + size > chunk_->size()) {
+        chunk_ = std::make_shared<ScratchMapping>(scratch("blocks-" + std::to_string(next_name_++), chunk_size));
+        chunk_used_ = 0;
+    }
+    std::uint8_t* data = chunk_->data() + chunk_used_;
+    chunk_used_ += size;
+    return {chunk_, data};
 }
 
 ScratchMapping Workspace::scratch(const std::string& name, std::uint64_t size) {

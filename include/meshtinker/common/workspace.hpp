@@ -34,6 +34,20 @@ private:
     std::size_t size_ = 0;
 };
 
+// Part of a shared scratch file: many small working arrays share one file
+// and one mapping, which is released when its last block is.
+class ScratchBlock {
+public:
+    ScratchBlock() = default;
+    ScratchBlock(std::shared_ptr<ScratchMapping> chunk, std::uint8_t* data) : chunk_(std::move(chunk)), data_(data) {}
+
+    std::uint8_t* data() const { return data_; }
+
+private:
+    std::shared_ptr<ScratchMapping> chunk_;
+    std::uint8_t* data_ = nullptr;
+};
+
 // A private directory for a command's temporary files, after mesh2gltf's
 // disk.rs. It goes on a real disk: by default the output's directory, or the
 // input's for read-only commands, since the OS temporary directory is often
@@ -58,6 +72,12 @@ public:
     // if the disk is full (exit code 3) or the directory can't be written (4).
     ScratchMapping scratch(const std::string& name, std::uint64_t size);
 
+    // `size` zero-filled bytes, 16-byte aligned, in a scratch file shared with
+    // other blocks: 64 MiB files, or one of its own for a block over 16 MiB.
+    // Space isn't reused within a file: it comes back when every block in it
+    // is released.
+    ScratchBlock block(std::uint64_t size);
+
     // The directory, once created.
     const std::optional<std::filesystem::path>& path() const { return path_; }
 
@@ -68,6 +88,9 @@ private:
     bool keep_;
     std::optional<std::filesystem::path> path_;
     std::unique_ptr<CleanupRegistration> cleanup_;
+    std::shared_ptr<ScratchMapping> chunk_;
+    std::uint64_t chunk_used_ = 0;
+    std::uint64_t next_name_ = 0;
 };
 
 } // namespace meshtinker::common

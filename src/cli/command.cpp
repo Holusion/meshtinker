@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <utility>
 
 namespace meshtinker::cli {
@@ -22,8 +23,8 @@ Command::Command(std::string name, std::string summary, const std::string& descr
 void Command::addInput() { app_.add_option("input", input_, "The .gltf or .glb file")->required(); }
 
 void Command::addOutput() {
-    output_.emplace();
-    app_.add_option("output", *output_, "The .gltf file to write. Its directory must exist; no file is overwritten")
+    std::filesystem::path& output = output_.emplace();
+    app_.add_option("output", output, "The .gltf file to write. Its directory must exist; no file is overwritten")
         ->required()
         ->check([](const std::string& value) {
             return std::filesystem::u8path(value).extension() == ".gltf" ? std::string()
@@ -48,7 +49,10 @@ void Command::addWorkspaceOptions() {
 }
 
 std::filesystem::path Command::outputDirectory() const {
-    std::filesystem::path directory = output_.value().parent_path();
+    if (!output_) {
+        throw std::logic_error("outputDirectory() without addOutput()");
+    }
+    std::filesystem::path directory = output_->parent_path();
     if (directory.empty()) {
         directory = ".";
     }
@@ -60,7 +64,12 @@ std::filesystem::path Command::outputDirectory() const {
     return directory;
 }
 
-std::string Command::outputStem() const { return output_.value().stem().u8string(); }
+std::string Command::outputStem() const {
+    if (!output_) {
+        throw std::logic_error("outputStem() without addOutput()");
+    }
+    return output_->stem().u8string();
+}
 
 common::Workspace Command::workspace() const {
     if (tmp_dir_) {
