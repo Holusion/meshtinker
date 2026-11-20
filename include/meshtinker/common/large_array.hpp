@@ -8,56 +8,63 @@
 #include <cstdint>
 #include <limits>
 #include <new>
-#include <string>
 #include <type_traits>
 #include <vector>
 
 namespace meshtinker::common {
 
-// Arrays up to this size go on the heap, larger ones in workspace scratch
-// files (docs/files-and-memory.md). Small enough that the heap stays small
-// next to the model, large enough that small models make no scratch files.
+// Working arrays go on the heap while they hold this much in all, and in
+// workspace scratch files beyond (docs/files-and-memory.md). Small enough that
+// the heap stays small next to the model, large enough that small models make
+// no scratch files.
 inline constexpr std::uint64_t heap_array_limit = std::uint64_t{4} << 20;
 
+// Bytes LargeArrays hold on the heap, in all.
+std::atomic<std::uint64_t>& largeArrayHeapBytes();
+
 // A zero-filled array of `count` trivially copyable elements, for per-vertex
-// or per-face working data: on the heap up to heap_array_limit bytes, else in
-// a scratch file of `workspace`, named `<name>-<n>`.
+// or per-face working data: on the heap while all LargeArrays hold at most
+// heap_array_limit bytes there, else in a scratch block of `workspace`.
 template <typename T>
 class LargeArray {
     static_assert(std::is_trivially_copyable_v<T>, "LargeArray holds plain data");
 
 public:
     LargeArray() = default;
-    LargeArray(Workspace& workspace, const std::string& name, std::size_t count) : size_(count) {
+    LargeArray(Workspace& workspace, std::size_t count) : size_(count) {
         if (count > std::numeric_limits<std::size_t>::max() / sizeof(T)) {
             throw std::bad_alloc();
         }
         const std::uint64_t bytes = std::uint64_t{count} * sizeof(T);
-        if (bytes <= heap_array_limit) {
+        std::atomic<std::uint64_t>& heap_bytes = largeArrayHeapBytes();
+        if (heap_bytes.fetch_add(bytes) + bytes <= heap_array_limit) {
             heap_.assign(count, T{});
             data_ = heap_.data();
+            heap_held_ = bytes;
         } else {
-            static std::atomic<std::uint64_t> next{0};
-            scratch_ = workspace.scratch(name + "-" + std::to_string(next++), bytes);
-            data_ = reinterpret_cast<T*>(scratch_.data());
+            heap_bytes.fetch_sub(bytes);
+            block_ = workspace.block(bytes);
+            data_ = reinterpret_cast<T*>(block_.data());
         }
     }
     LargeArray(LargeArray&& other) noexcept { *this = std::move(other); }
     LargeArray& operator=(LargeArray&& other) noexcept {
         if (this != &other) {
-            const bool on_heap = other.data_ != nullptr && other.data_ == other.heap_.data();
+            release();
             heap_ = std::move(other.heap_);
-            scratch_ = std::move(other.scratch_);
-            data_ = on_heap ? heap_.data() : reinterpret_cast<T*>(scratch_.data());
+            block_ = std::move(other.block_);
+            data_ = other.data_;
             size_ = other.size_;
+            heap_held_ = other.heap_held_;
             other.data_ = nullptr;
             other.size_ = 0;
+            other.heap_held_ = 0;
         }
         return *this;
     }
     LargeArray(const LargeArray&) = delete;
     LargeArray& operator=(const LargeArray&) = delete;
-    ~LargeArray() = default;
+    ~LargeArray() { release(); }
 
     T* data() { return data_; }
     const T* data() const { return data_; }
@@ -80,8 +87,16 @@ public:
     ByteView bytes() const { return {reinterpret_cast<const std::uint8_t*>(data_), size_ * sizeof(T)}; }
 
 private:
+    void release() noexcept {
+        largeArrayHeapBytes().fetch_sub(heap_held_);
+        heap_held_ = 0;
+        heap_ = {};
+        block_ = {};
+    }
+
     std::vector<T> heap_;
-    ScratchMapping scratch_;
+    ScratchBlock block_;
+    std::uint64_t heap_held_ = 0;
     T* data_ = nullptr;
     std::size_t size_ = 0;
 };
