@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <vector>
 
 namespace meshtinker::gltf {
 
@@ -28,6 +29,17 @@ std::array<double, 3> apply(const Matrix& m, const std::array<double, 3>& p);
 // The inverse of an affine matrix, or nothing when it flattens space (its
 // linear part's determinant is zero, relative to its scale).
 std::optional<Matrix> invertAffine(const Matrix& m);
+
+// A node's world matrix: its local matrix through every parent's.
+Matrix worldMatrix(const cgltf_node& node);
+
+// Meshes that are drawn in one space, by mesh index: the same number for
+// meshes whose positions compare directly, because each is drawn once, by a
+// node with the same world matrix as the others', neither skinned nor
+// instanced. Tiled scans are often written as one mesh per tile, all in the
+// same space, with borders the tiles share. Every other mesh is alone in its
+// space. Numbers run from 0, in the order of each space's first mesh.
+std::vector<std::size_t> meshSpaces(const cgltf_data& data);
 
 // The EXT_mesh_gpu_instancing attributes of a node, and how many instances they give.
 struct Instancing {

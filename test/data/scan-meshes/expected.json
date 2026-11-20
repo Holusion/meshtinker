@@ -1,0 +1,34 @@
+{
+  "description": "scan-tiles with each tile its own mesh and node, every node with the same transform: borders shared between meshes drawn in one space.",
+  "geometry": {
+    "meshes": 4,
+    "primitives": 4,
+    "vertices": 4900,
+    "faces": 9216
+  },
+  "bounds": {
+    "min": [
+      -0.5435614585876465,
+      0.49267083406448364,
+      -0.49213123321533203
+    ],
+    "max": [
+      0.5425480008125305,
+      1.52525132894516,
+      0.49213123321533203
+    ],
+    "tolerance": 0.000001
+  },
+  "images": [
+    {
+      "name": "atlas",
+      "mimeType": "image/jpeg",
+      "width": 128,
+      "height": 128
+    }
+  ],
+  "notes": [
+    "Bounds are the generator's float32 positions through the node transform.",
+    "Occupancy is not stated: this fixture is for geometry."
+  ]
+}

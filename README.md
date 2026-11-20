@@ -30,6 +30,7 @@ Usage: meshtinker <command> [args...]
        meshtinker --version
 
 Commands:
+  compress      Compress the geometry of a glTF or GLB model with meshopt
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   placeholder   Build a low-poly stand-in for a glTF or GLB model
@@ -171,21 +172,56 @@ OPTIONS:
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
+### compress
+
+Quantizes and compresses the geometry with `EXT_meshopt_compression`, in the preset of glTF-Transform's `meshopt({level: "high"})`: 14-bit positions, 8-bit octahedral normals, 12-bit texture coordinates, 8-bit colors and weights, with primitives reordered for the vertex cache first. Positions go on one grid per space (the meshes drawn together, such as the tiles of a scan), whose scale goes into the node transforms, or a new child node when the node's transform can't take it. Skinned, instanced and morphed meshes keep float positions. Draco primitives are copied as they are, with a warning (`draco-kept`), and so are primitives already compressed with meshopt, so compressing twice changes nothing. [docs/compress.md](docs/compress.md) has the details and figures.
+
+The report gives the primitives compressed and kept, the meshes whose positions were quantized or kept float, the nodes added, the bytes of the geometry's buffer views before and after, and the files written. A 44-million-face scan's 1.32 GB of geometry becomes 207 MB in 20 s, with a heap under 6 MB.
+
+```console
+$ meshtinker compress --help
+Compress the geometry of a glTF or GLB model with meshopt
+
+Reorders, quantizes and encodes every primitive with EXT_meshopt_compression, as
+glTF-Transform's meshopt "high" level does: 14-bit positions, 8-bit octahedral
+normals, 12-bit texture coordinates. Draco and meshopt primitives are copied as
+they are.
+
+
+meshtinker compress [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
+                                overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
 ### simplify
 
-Reduces the triangles of every mesh with [meshoptimizer](https://github.com/zeux/meshoptimizer)'s simplifier, until its estimate of how far the surface moved reaches `--error`, a fraction of the mesh's size (the longest side of its bounding box). There is no target face count: each primitive loses what the error allows and no more, and one that can't lose anything is copied as it is. It keeps UV seams, and the borders between a mesh's primitives, so that tiled scans don't crack. [docs/simplify.md](docs/simplify.md) says how, and how far the estimate can be from the actual distance.
+Reduces the triangles of every mesh with [meshoptimizer](https://github.com/zeux/meshoptimizer)'s simplifier, until its estimate of how far the surface moved reaches `--error`, a fraction of the size of the meshes drawn in one space (the longest side of their bounding box). There is no target face count: each primitive loses what the error allows and no more, and one that can't lose anything is copied as it is. It keeps UV seams, and the borders between primitives drawn in one space (a mesh's primitives, or meshes each drawn once by nodes with the same world matrix), so that tiled scans don't crack. [docs/simplify.md](docs/simplify.md) says how, and how far the estimate can be from the actual distance.
 
 Simplified primitives are written uncompressed (float32 attributes), as every command that rewrites geometry writes them; the others, compressed or not, are copied. Points and lines are copied with a warning (`points-and-lines-kept`). The report gives the error asked for and the largest one meshoptimizer reached, the primitives simplified, unchanged and skipped, the input's and output's primitives, vertices and faces (each primitive once, however many nodes show it), and the files written.
 
-A 44-million-face scan in 4 primitives takes 76 s at the default error, down to 491,000 faces, with a heap under 5 MB.
+A 44-million-face scan in 4 meshes takes 77 s at the default error, down to 954,000 faces, with a heap under 5 MB.
 
 ```console
 $ meshtinker simplify --help
 Reduce the triangles of a glTF or GLB model
 
 Collapses edges with meshoptimizer until its estimate of how far the surface
-moved reaches the error, keeping UV seams and the borders between a mesh's
-primitives. Simplified primitives are written uncompressed; others are copied as
+moved reaches the error, keeping UV seams and the borders between tiles drawn in
+one space. Simplified primitives are written uncompressed; others are copied as
 they are.
 
 
@@ -200,8 +236,8 @@ POSITIONALS:
 OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
-          --error E             How far the surface may move, as a fraction of its mesh's size
-                                (default 0.001)
+          --error E             How far the surface may move, as a fraction of the size of the
+                                meshes drawn with it (default 0.001)
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

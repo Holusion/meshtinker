@@ -142,38 +142,55 @@ std::map<std::string, std::string> filesIn(const fs::path& directory) {
 } // namespace
 
 // Positions two primitives share in the input are in both after
-// simplification: the borders between tiles stay sealed.
+// simplification: the borders between tiles stay sealed, whether the tiles
+// are primitives of one mesh or meshes drawn in one space.
 TEST_CASE(borders_between_primitives_stay_sealed) {
-    const Document input = Document::read(test::fixture("scan-tiles").model);
-    const Run result = run("scan-tiles", 0.01);
-    const Document output = Document::read(result.model);
-    CHECK_EQ(result.report.simplified, std::uint64_t{4});
-    CHECK(result.report.output.faces < result.report.input.faces / 2);
-    const cgltf_mesh& source = input.data().meshes[0];
-    std::map<std::array<float, 3>, std::set<std::size_t>> owners;
-    for (std::size_t p = 0; p < source.primitives_count; ++p) {
-        for (const auto& position : positions(source.primitives[p])) {
-            owners[position].insert(p);
+    for (const char* fixture : {"scan-tiles", "scan-meshes"}) {
+        const Document input = Document::read(test::fixture(fixture).model);
+        const Run result = run(fixture, 0.01);
+        const Document output = Document::read(result.model);
+        CHECK_EQ(result.report.simplified, std::uint64_t{4});
+        CHECK(result.report.output.faces < result.report.input.faces / 2);
+        // Every node has the same transform: positions compare directly.
+        const auto all = [](const Document& document) {
+            std::vector<const cgltf_primitive*> primitives;
+            for (std::size_t m = 0; m < document.data().meshes_count; ++m) {
+                for (std::size_t p = 0; p < document.data().meshes[m].primitives_count; ++p) {
+                    primitives.push_back(&document.data().meshes[m].primitives[p]);
+                }
+            }
+            return primitives;
+        };
+        const std::vector<const cgltf_primitive*> before = all(input);
+        const std::vector<const cgltf_primitive*> after = all(output);
+        std::map<std::array<float, 3>, std::set<std::size_t>> owners;
+        for (std::size_t p = 0; p < before.size(); ++p) {
+            for (const auto& position : positions(*before[p])) {
+                owners[position].insert(p);
+            }
+        }
+        std::vector<std::set<std::array<float, 3>>> kept(after.size());
+        for (std::size_t p = 0; p < after.size(); ++p) {
+            for (const auto& position : positions(*after[p])) {
+                kept[p].insert(position);
+            }
+        }
+        std::size_t shared = 0;
+        for (const auto& [position, primitives] : owners) {
+            if (primitives.size() < 2) {
+                continue;
+            }
+            ++shared;
+            for (const std::size_t p : primitives) {
+                CHECK(kept[p].count(position) == 1);
+            }
+        }
+        CHECK(shared > 0);
+        if (test::failureCount() > 0) {
+            std::fprintf(stderr, "  in fixture %s\n", fixture);
+            return;
         }
     }
-    std::size_t shared = 0;
-    const cgltf_mesh& simplified = output.data().meshes[0];
-    std::vector<std::set<std::array<float, 3>>> kept(simplified.primitives_count);
-    for (std::size_t p = 0; p < simplified.primitives_count; ++p) {
-        for (const auto& position : positions(simplified.primitives[p])) {
-            kept[p].insert(position);
-        }
-    }
-    for (const auto& [position, primitives] : owners) {
-        if (primitives.size() < 2) {
-            continue;
-        }
-        ++shared;
-        for (const std::size_t p : primitives) {
-            CHECK(kept[p].count(position) == 1);
-        }
-    }
-    CHECK(shared > 0);
 }
 
 // Simplification only removes vertices: each output vertex is an input

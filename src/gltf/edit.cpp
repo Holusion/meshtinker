@@ -137,6 +137,18 @@ void replaceGeometry(Layout& layout, std::size_t mesh, std::size_t primitive, co
     }
 }
 
+void copyAccessorProperties(const Layout& layout, std::size_t source, Json& accessor) {
+    if (source >= count(layout.json, Kind::accessor)) {
+        return;
+    }
+    const Json& from = layout.json["accessors"][source];
+    for (const char* key : {"name", "extras", "extensions"}) {
+        if (from.contains(key)) {
+            accessor[key] = from[key];
+        }
+    }
+}
+
 void useExtension(Json& json, const std::string& name, bool required) {
     std::vector<const char*> lists{"extensionsUsed"};
     if (required) {

@@ -19,8 +19,9 @@ namespace meshtinker::simplify {
 constexpr double default_error = 0.001;
 
 struct Options {
-    // The largest distance a surface may move, as a fraction of its mesh's
-    // size (the longest side of the mesh's bounding box).
+    // How far the surface may move, as meshoptimizer estimates it, as a
+    // fraction of the size of the meshes drawn in its space (the longest side
+    // of their bounding box; gltf::meshSpaces).
     double error = default_error;
     gltf::ReadOptions read;
 };
@@ -34,7 +35,7 @@ struct Counts {
 struct Report {
     double target_error = 0;
     // The largest error meshoptimizer reports for a simplified primitive,
-    // relative to its mesh's size.
+    // relative to its space's size.
     double achieved_error = 0;
     // Triangle primitives that were read, each counted once however many
     // nodes show its mesh.

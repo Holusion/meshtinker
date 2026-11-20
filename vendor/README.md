@@ -7,7 +7,7 @@ Third-party code compiled into the binaries. It builds as the `meshtinker-vendor
 | [cgltf](https://github.com/jkuhlmann/cgltf) | 1.15 | MIT, notice in `cgltf.h` | glTF and GLB parsing |
 | [CLI11](https://github.com/CLIUtils/CLI11) | 2.7.2 | BSD 3-Clause, `CLI11-LICENSE` | Command-line parsing and generated help |
 | [Draco](https://github.com/google/draco/tree/1.5.9) | 1.5.9, decoder only (`draco/src/`) | Apache 2.0, `draco/LICENSE` | `KHR_draco_mesh_compression` decoding |
-| [meshoptimizer](https://github.com/zeux/meshoptimizer/tree/v1.2) | 1.2 (`src/` only) | MIT, `meshoptimizer/LICENSE.md` | `EXT_meshopt_compression` and `KHR_meshopt_compression` decoding; later, optimization |
+| [meshoptimizer](https://github.com/zeux/meshoptimizer/tree/v1.2) | 1.2 (`src/` only) | MIT, `meshoptimizer/LICENSE.md` | `EXT_meshopt_compression` and `KHR_meshopt_compression` decoding, `simplify`, and `compress`'s reordering, filters and encoding |
 | [JSON for Modern C++](https://github.com/nlohmann/json/tree/v3.11.3) | 3.11.3 | MIT, notice in `nlohmann/json.hpp` | Passing the glTF JSON through, report output |
 | [stb](https://github.com/nothings/stb) | stb_image 2.30, stb_image_write 1.16 | MIT or public domain, notice in each header | PNG and JPEG decoding and PNG writing, for texture work |
 
