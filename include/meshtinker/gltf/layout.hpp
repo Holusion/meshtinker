@@ -1,11 +1,13 @@
 #pragma once
 
+#include "meshtinker/common/bytes.hpp"
 #include "meshtinker/common/diagnostics.hpp"
 #include "meshtinker/gltf/document.hpp"
 #include "meshtinker/gltf/selection.hpp"
 
 #include <cstddef>
 #include <filesystem>
+#include <map>
 #include <vector>
 
 namespace meshtinker::gltf {
@@ -24,8 +26,19 @@ struct Layout {
     std::vector<std::size_t> bin_order;
     // By kind, then by source index: the output index, or `dropped`.
     std::array<std::vector<std::size_t>, kind_count> remap;
+    // The bytes of each output buffer view a command added (gltf/edit.hpp),
+    // whose view_sources entry is `added`. They must outlive the write. For a
+    // view with an EXT_ or KHR_meshopt_compression extension, they are the
+    // compressed bytes, and the view's own range goes in a fallback buffer.
+    std::map<std::size_t, common::ByteView> added;
     static constexpr std::size_t dropped = static_cast<std::size_t>(-1);
+    static constexpr std::size_t added_view = dropped - 1;
 };
+
+// The .bin order of the profile for `json`'s buffer views: those primitives
+// use, in primitive order (meshes in order, then their primitives: indices,
+// attributes, morph targets, Draco data), then every other view in index order.
+std::vector<std::size_t> binOrder(const Json& json);
 
 // Every object kept, indices unchanged, buffer views in source order.
 Layout identityLayout(const Document& document);

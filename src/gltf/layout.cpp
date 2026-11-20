@@ -82,6 +82,10 @@ std::vector<std::size_t> primitiveOrder(const Json& json, const std::vector<bool
 
 } // namespace
 
+std::vector<std::size_t> binOrder(const Json& json) {
+    return primitiveOrder(json, std::vector<bool>(count(json, Kind::buffer_view), true));
+}
+
 Layout identityLayout(const Document& document) {
     Layout layout;
     layout.json = document.json();
