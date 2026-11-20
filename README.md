@@ -285,7 +285,7 @@ OPTIONS:
 
 Writes the last stage of a [chain](#chains) as one `.gltf` file with its `.bin` and images beside it, or as one `.glb` file, by the output's extension. The model is written as the stage holds it, in the normalized profile. A `.glb` puts the images into its binary chunk after the buffer views, each in a buffer view of its own with its `mimeType`. A GLB can't exceed 4 GiB: a larger model fails with `glb-too-large` and can be written as `.gltf`. The output's files are copies (reflinks where the file system has them), never links to the chain's.
 
-`--remove-chain` removes the chain once the output is published, under the chain's lock: `chain.json` first, then the stages and the lock. The chain's files then become the output's by hard link, rather than by copy. A directory that holds other files is kept, with them (`chain-directory-kept`).
+`--remove-chain` removes the chain once the output is published, under the chain's lock: `chain.json` first, then everything else in the chain's directory, other files included, and the directory itself. The chain's files then become the output's by hard link, rather than by copy. An output inside the chain's directory is refused (exit code 2). A directory that can't be removed, such as a mount point, is left empty, with a warning (`chain-directory-kept`).
 
 The report gives the stage written and the files, with their sizes.
 
@@ -309,8 +309,8 @@ POSITIONALS:
 OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
-          --remove-chain        Remove the chain once the output is written. Its directory stays
-                                if it holds other files
+          --remove-chain        Remove the chain's directory, with everything in it, once the
+                                output is written
           --json                Print the result as one JSON object on stdout, even on failure
 ```
 

@@ -214,25 +214,26 @@ void Chain::remove(const common::FileLock& /*lock*/, common::Diagnostics& diagno
     if (!fs::remove(directory_ / chain_file, error) && error) {
         throw failed(error, directory_ / chain_file);
     }
+    // Everything in the directory goes, other files too: the directory is the
+    // chain's, and `export` refuses an output inside it.
     std::vector<fs::path> entries;
     for (const fs::directory_entry& entry : fs::directory_iterator(directory_, error)) {
-        const std::string name = entry.path().filename().u8string();
-        const bool leftover = name.find(".meshtinker-") != std::string::npos && name.size() > 4 &&
-                              name.compare(name.size() - 4, 4, ".tmp") == 0;
-        if (parseStageName(name) || leftover) {
-            entries.push_back(entry.path());
-        }
+        entries.push_back(entry.path());
+    }
+    if (error) {
+        throw failed(error, directory_);
     }
     for (const fs::path& entry : entries) {
+        // remove_all removes a symlink itself, never what it leads to.
         fs::remove_all(entry, error);
         if (error) {
             throw failed(error, entry);
         }
     }
-    fs::remove(directory_ / lock_file, error);
     if (!fs::remove(directory_, error)) {
-        diagnostics.warn("chain-directory-kept",
-                         "the chain's directory holds files that aren't the chain's, and was kept", quoted(directory_));
+        // A mount point, for instance: import accepts an existing empty one.
+        diagnostics.warn("chain-directory-kept", "the chain's directory is empty but couldn't be removed",
+                         quoted(directory_));
     }
 }
 

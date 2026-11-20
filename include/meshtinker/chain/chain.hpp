@@ -107,9 +107,9 @@ public:
     // Failure (exit code 4, `chain-in-use`) if another command holds it.
     common::FileLock lock() const;
     // Removes the chain, under its lock: chain.json first, so that it is no
-    // longer a chain, then its stages, killed runs' leftovers and the lock.
-    // The directory goes too if nothing else is in it; otherwise it stays,
-    // with a warning (`chain-directory-kept`).
+    // longer a chain, then everything else in the directory, and the
+    // directory. A directory that can't be removed (a mount point) stays
+    // empty, with a warning (`chain-directory-kept`).
     void remove(const common::FileLock& lock, common::Diagnostics& diagnostics) const;
 
 private:

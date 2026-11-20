@@ -199,19 +199,21 @@ TEST_CASE(export_writes_the_last_stage) {
     CHECK(!fs::exists(work));
     CHECK_EQ(run("inspect", {(root / "out" / "final.glb").string()}).json["geometry"], last.json["geometry"]);
 
-    // A directory with other files in it stays, with them.
-    const std::string kept = (root / "kept").string();
-    CHECK_EQ(run("import", {test::fixture("cube").model.string(), kept}).code, 0);
-    std::ofstream(fs::path(kept) / "notes.txt") << "mine";
-    const Run partly = run("export", {"--remove-chain", kept, (root / "out" / "cube.gltf").string()});
-    CHECK_EQ(partly.code, 0);
-    CHECK_EQ(partly.json["diagnostics"][0]["code"].get<std::string>(), std::string("chain-directory-kept"));
-    CHECK(!chain::isChain(kept));
-    std::size_t entries = 0;
-    for ([[maybe_unused]] const auto& entry : fs::directory_iterator(kept)) {
-        ++entries;
-    }
-    CHECK_EQ(entries, std::size_t{1});
+    // The whole directory goes, other files in it too.
+    const std::string other = (root / "other").string();
+    CHECK_EQ(run("import", {test::fixture("cube").model.string(), other}).code, 0);
+    std::ofstream(fs::path(other) / "notes.txt") << "mine";
+    fs::create_directory(fs::path(other) / "sub");
+    std::ofstream(fs::path(other) / "sub" / "more.txt") << "mine";
+    // An output inside the chain would go with it, so it is refused.
+    const Run inside = run("export", {"--remove-chain", other + "/", (fs::path(other) / "sub" / "cube.glb").string()});
+    CHECK_EQ(inside.code, 2);
+    CHECK(chain::isChain(other));
+    CHECK(!fs::exists(fs::path(other) / "sub" / "cube.glb"));
+    const Run everything = run("export", {"--remove-chain", other, (root / "out" / "cube.gltf").string()});
+    CHECK_EQ(everything.code, 0);
+    CHECK(everything.json["diagnostics"].empty());
+    CHECK(!fs::exists(other));
     // The output's files outlive the chain they were linked from.
     CHECK_EQ(run("inspect", {(root / "out" / "cube.gltf").string()}).code, 0);
 }

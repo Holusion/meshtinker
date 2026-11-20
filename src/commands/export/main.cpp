@@ -6,6 +6,10 @@
 #include "meshtinker/gltf/selection.hpp"
 #include "meshtinker/gltf/writer.hpp"
 
+#include "meshtinker/common/failure.hpp"
+
+#include <algorithm>
+#include <filesystem>
 #include <iostream>
 
 // `export` is a C++ keyword, hence the namespace name.
@@ -28,6 +32,18 @@ const char* roleName(gltf::FileRole role) {
     return "";
 }
 
+// Whether `path` is `directory` or lies inside it, symlinks resolved.
+bool isWithin(const fs::path& path, const fs::path& directory) {
+    const auto resolved = [](const fs::path& p) {
+        fs::path canonical = fs::weakly_canonical(p);
+        // `work/` ends in an empty element, which `work/out` doesn't have.
+        return canonical.filename().empty() ? canonical.parent_path() : canonical;
+    };
+    const fs::path inner = resolved(path);
+    const fs::path outer = resolved(directory);
+    return std::mismatch(outer.begin(), outer.end(), inner.begin(), inner.end()).first == outer.end();
+}
+
 int run(int argc, char** argv) {
     cli::Command command("export", "Write the last stage of a chain as a .gltf or .glb file",
                          "A .gltf output gets its .bin and images beside it, as in the stage. A .glb output holds "
@@ -38,11 +54,14 @@ int run(int argc, char** argv) {
     command.addOutput();
     bool remove_chain = false;
     command.addFlag("--remove-chain", remove_chain,
-                    "Remove the chain once the output is written. Its directory stays if it holds other files");
+                    "Remove the chain's directory, with everything in it, once the output is written");
     command.addJsonOption();
     return command.run(argc, argv, [&] {
         const fs::path directory = command.outputDirectory();
         const chain::Chain& chain = *command.chain();
+        if (remove_chain && isWithin(directory, chain.directory())) {
+            throw common::usageError("usage", "--remove-chain removes the chain's directory: write OUTPUT outside it");
+        }
         // Removing the chain needs its lock, and the last stage read under it.
         std::optional<common::FileLock> lock;
         if (remove_chain) {
