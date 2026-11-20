@@ -6,6 +6,7 @@
 #include "meshtinker/gltf/layout.hpp"
 #include "meshtinker/gltf/meshopt_memory.hpp"
 #include "meshtinker/gltf/primitive_data.hpp"
+#include "meshtinker/gltf/transform.hpp"
 
 #include <meshoptimizer.h>
 
@@ -36,9 +37,9 @@ struct KeyedVertex {
     std::uint32_t primitive;
 };
 
-// The longest side of the bounding box of every primitive's positions, as
-// meshopt_simplifyScale measures one primitive.
-float meshScale(const std::vector<std::optional<gltf::TriangleData>>& primitives) {
+// The longest side of the bounding box of every primitive's positions in a
+// space, as meshopt_simplifyScale measures one primitive.
+float spaceScale(const std::vector<std::optional<gltf::TriangleData>>& primitives) {
     std::array<float, 3> min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
                              std::numeric_limits<float>::max()};
     std::array<float, 3> max{-min[0], -min[1], -min[2]};
@@ -61,7 +62,7 @@ float meshScale(const std::vector<std::optional<gltf::TriangleData>>& primitives
     return scale;
 }
 
-// Positions that the triangles of two or more primitives of a mesh share,
+// Positions that the triangles of two or more primitives of a space share,
 // sorted. Locking them keeps the borders between primitives sealed: each
 // primitive is simplified on its own, and would otherwise collapse a shared
 // border its own way.
@@ -116,42 +117,6 @@ common::LargeArray<PositionKey> sharedPositions(const std::vector<std::optional<
     return result;
 }
 
-// Keeps the vertices `indices` use, in the order they first appear, and
-// renumbers `indices` to match (meshopt_optimizeVertexFetchRemap).
-gltf::TriangleData compact(const gltf::TriangleData& source, common::LargeArray<std::uint32_t>&& indices,
-                           common::Workspace& workspace) {
-    common::LargeArray<std::uint32_t> remap(workspace, source.vertex_count);
-    const std::size_t unique =
-        meshopt_optimizeVertexFetchRemap(remap.data(), indices.data(), indices.size(), source.vertex_count);
-    meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
-    gltf::TriangleData result;
-    result.vertex_count = unique;
-    result.indices = std::move(indices);
-    const auto remapAttribute = [&](const gltf::AttributeData& attribute) {
-        gltf::AttributeData out;
-        out.name = attribute.name;
-        out.components = attribute.components;
-        out.source_component_type = attribute.source_component_type;
-        out.values = common::LargeArray<float>(workspace, unique * attribute.components);
-        meshopt_remapVertexBuffer(out.values.data(), attribute.values.data(), source.vertex_count,
-                                  attribute.components * sizeof(float), remap.data());
-        return out;
-    };
-    result.attributes.reserve(source.attributes.size());
-    for (const gltf::AttributeData& attribute : source.attributes) {
-        result.attributes.push_back(remapAttribute(attribute));
-    }
-    for (const std::vector<gltf::AttributeData>& target : source.targets) {
-        std::vector<gltf::AttributeData> out;
-        out.reserve(target.size());
-        for (const gltf::AttributeData& attribute : target) {
-            out.push_back(remapAttribute(attribute));
-        }
-        result.targets.push_back(std::move(out));
-    }
-    return result;
-}
-
 std::string primitiveName(std::size_t mesh, std::size_t primitive) {
     return "mesh " + std::to_string(mesh) + " primitive " + std::to_string(primitive);
 }
@@ -171,30 +136,41 @@ Report simplify(const std::filesystem::path& input, const std::filesystem::path&
     // Simplified primitives, whose arrays the written views read.
     std::deque<gltf::TriangleData> written;
     const cgltf_data& data = document.data();
-    for (std::size_t m = 0; m < data.meshes_count; ++m) {
-        const cgltf_mesh& mesh = data.meshes[m];
-        std::vector<std::optional<gltf::TriangleData>> primitives(mesh.primitives_count);
-        for (std::size_t p = 0; p < mesh.primitives_count; ++p) {
-            gltf::TriangleData triangles;
-            switch (gltf::readTriangles(document, reader, workspace, m, p, triangles)) {
-            case gltf::TriangleReadStatus::ok:
-                primitives[p] = std::move(triangles);
-                break;
-            case gltf::TriangleReadStatus::not_triangles:
-                ++report.skipped;
-                diagnostics.warn("points-and-lines-kept", "Points and lines were copied without simplification",
-                                 primitiveName(m, p));
-                break;
-            case gltf::TriangleReadStatus::unsupported:
-            case gltf::TriangleReadStatus::unreadable:
-                ++report.skipped;
-                diagnostics.warn("primitive-not-simplified",
-                                 "Primitives whose geometry can't be read were copied as they are",
-                                 primitiveName(m, p));
-                break;
+    // Meshes in one space are simplified together: tiles written as one mesh
+    // each share their borders and their error scale.
+    const std::vector<std::size_t> spaces = gltf::meshSpaces(data);
+    const std::size_t space_count = spaces.empty() ? 0 : *std::max_element(spaces.begin(), spaces.end()) + 1;
+    for (std::size_t space = 0; space < space_count; ++space) {
+        std::vector<std::pair<std::size_t, std::size_t>> members;
+        std::vector<std::optional<gltf::TriangleData>> primitives;
+        for (std::size_t m = 0; m < data.meshes_count; ++m) {
+            if (spaces[m] != space) {
+                continue;
+            }
+            for (std::size_t p = 0; p < data.meshes[m].primitives_count; ++p) {
+                gltf::TriangleData triangles;
+                members.emplace_back(m, p);
+                primitives.emplace_back();
+                switch (gltf::readTriangles(document, reader, workspace, m, p, triangles)) {
+                case gltf::TriangleReadStatus::ok:
+                    primitives.back() = std::move(triangles);
+                    break;
+                case gltf::TriangleReadStatus::not_triangles:
+                    ++report.skipped;
+                    diagnostics.warn("points-and-lines-kept", "Points and lines were copied without simplification",
+                                     primitiveName(m, p));
+                    break;
+                case gltf::TriangleReadStatus::unsupported:
+                case gltf::TriangleReadStatus::unreadable:
+                    ++report.skipped;
+                    diagnostics.warn("primitive-not-simplified",
+                                     "Primitives whose geometry can't be read were copied as they are",
+                                     primitiveName(m, p));
+                    break;
+                }
             }
         }
-        const float scale = meshScale(primitives);
+        const float scale = spaceScale(primitives);
         const float error = static_cast<float>(options.error) * scale;
         std::size_t read = 0;
         for (const auto& primitive : primitives) {
@@ -203,11 +179,12 @@ Report simplify(const std::filesystem::path& input, const std::filesystem::path&
         const common::LargeArray<PositionKey> shared =
             read > 1 ? sharedPositions(primitives, workspace) : common::LargeArray<PositionKey>();
 
-        for (std::size_t p = 0; p < primitives.size(); ++p) {
-            const std::optional<gltf::TriangleData>& entry = primitives[p];
+        for (std::size_t i = 0; i < primitives.size(); ++i) {
+            const std::optional<gltf::TriangleData>& entry = primitives[i];
             if (!entry) {
                 continue;
             }
+            const auto [m, p] = members[i];
             const gltf::TriangleData& source = *entry;
             const common::LargeArray<float>& positions = source.position().values;
             ++report.input.primitives;
@@ -238,7 +215,7 @@ Report simplify(const std::filesystem::path& input, const std::filesystem::path&
                 continue;
             }
             indices.shrink(count);
-            written.push_back(compact(source, std::move(indices), workspace));
+            written.push_back(gltf::compactVertices(source, std::move(indices), workspace));
             gltf::TriangleData& result = written.back();
             ++report.simplified;
             ++report.output.primitives;

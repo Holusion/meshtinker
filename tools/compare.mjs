@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Semantic equivalence of two glTF models: what a renderer would see, plus the data meshtinker promises to keep.
 //
-//   node tools/compare.mjs A B [--geometry exact|triangles] [--tolerance T] [--max N]
+//   node tools/compare.mjs A B [--geometry exact|triangles|world] [--tolerance T] [--attribute-tolerance T] [--max N]
 //
 // Both models are read with gltf-transform (Draco and EXT_meshopt decoded, quantized values dequantized),
 // and only the scene the profile keeps is compared (the default scene, or scene 0), as docs/normalized-profile.md says.
@@ -12,6 +12,12 @@
 //     triangles  the multiset of triangles with all their corner attributes, rounded to the tolerance:
 //                ignores vertex order, welding and index layout (reindexing, lossless meshopt). The tolerance
 //                absorbs float noise only: lossy changes (Draco, quantization) are checked with renders.
+//     world      for lossy geometry encodings (quantization, meshopt filters) that move data between
+//                accessors and node transforms: the scene is compared as the list of primitives it draws, in
+//                traversal order, and each triangle list (strips and fans expanded) as the multiset of its
+//                triangles in world space.
+//                Corners match when positions are within --tolerance (world units) and the other attributes
+//                (normals in world space) within --attribute-tolerance. The node tree itself isn't compared.
 // - Materials and textures: every factor, texture-info setting and known extension. Textures compare by
 //   image bytes and MIME type, never by URI or file name.
 // - Animations targeting kept nodes.
@@ -105,9 +111,18 @@ function compareAccessors(a, b, path, tolerance, report) {
 }
 
 /** Each node of the scene, by its position in a depth-first traversal. */
-function nodeOrder(scene) {
+function nodeOrder(scene, byName = false) {
   const order = new Map();
-  scene?.traverse((n) => order.set(n, order.size));
+  const seen = new Map();
+  scene?.traverse((n) => {
+    // In world mode a command may add nodes (compress moves a mesh to a child): named nodes are matched by
+    // name and occurrence instead of by position.
+    if (byName && n.getName()) {
+      const k = seen.get(n.getName()) ?? 0;
+      seen.set(n.getName(), k + 1);
+      order.set(n, `${n.getName()}#${k}`);
+    } else order.set(n, order.size);
+  });
   return order;
 }
 
@@ -266,8 +281,136 @@ function rawKeptData(json) {
   return items;
 }
 
+function multiply(m, p, w) {
+  return [0, 1, 2].map((i) => m[i] * p[0] + m[4 + i] * p[1] + m[8 + i] * p[2] + m[12 + i] * w);
+}
+
+/** The inverse transpose of a 4×4 matrix's upper 3×3, for normals. */
+function normalMatrix(m) {
+  const [a, b, c, d, e, f, g, h, i] = [m[0], m[4], m[8], m[1], m[5], m[9], m[2], m[6], m[10]];
+  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  const inv = [(e * i - f * h), -(b * i - c * h), (b * f - c * e), -(d * i - f * g), (a * i - c * g), -(a * f - c * d), (d * h - e * g), -(a * h - b * g), (a * e - b * d)].map((x) => x / det);
+  // Transposed, as a column-major 4×4 without translation.
+  return [inv[0], inv[1], inv[2], 0, inv[3], inv[4], inv[5], 0, inv[6], inv[7], inv[8], 0, 0, 0, 0, 1];
+}
+
+function normalize(v) {
+  const l = Math.hypot(...v);
+  return l > 0 ? v.map((x) => x / l) : v;
+}
+
+/** Every primitive the scene draws, in traversal order, with its corners in world space. */
+function worldDraws(scene) {
+  const draws = [];
+  scene?.traverse((node) => {
+    const mesh = node.getMesh();
+    if (!mesh) return;
+    const world = node.getWorldMatrix();
+    const normals = normalMatrix(world);
+    mesh.listPrimitives().forEach((prim, i) => {
+      const semantics = prim.listSemantics().sort();
+      const data = Object.fromEntries(semantics.map((s) => [s, elements(prim.getAttribute(s))]));
+      const count = prim.getAttribute('POSITION').getCount();
+      const corner = (v) => {
+        const at = (s) => Array.from(data[s].values.subarray(v * data[s].size, (v + 1) * data[s].size));
+        const position = multiply(world, at('POSITION'), 1);
+        const attributes = [];
+        for (const s of semantics) {
+          if (s === 'POSITION') continue;
+          if (s === 'NORMAL') attributes.push(...normalize(multiply(normals, at(s), 0)));
+          else if (s === 'TANGENT') attributes.push(...normalize(multiply(world, at(s).slice(0, 3), 0)), at(s)[3]);
+          else attributes.push(...at(s));
+        }
+        return { position, attributes };
+      };
+      const indices = prim.getIndices() ? elements(prim.getIndices()).values : null;
+      let corners = indices ? Array.from(indices, corner) : Array.from({ length: count }, (_, v) => corner(v));
+      // Strips and fans as the triangle lists they draw, with their winding.
+      let mode = prim.getMode();
+      if (mode === 5 || mode === 6) {
+        const list = [];
+        for (let t = 0; t + 2 < corners.length; t++) {
+          const c = mode === 6 ? [0, t + 1, t + 2] : t % 2 ? [t + 1, t, t + 2] : [t, t + 1, t + 2];
+          list.push(...c.map((k) => corners[k]));
+        }
+        corners = list;
+        mode = 4;
+      }
+      draws.push({ path: `${node.getName() || 'node'}.mesh.primitives[${i}]`, prim, mode, semantics, corners });
+    });
+  });
+  return draws;
+}
+
+/** How far two corners are, relative to the tolerances (1 at the limit), or Infinity when they don't match. */
+function cornerDistance(a, b, options) {
+  let d = 0;
+  for (let k = 0; k < 3; k++) d = Math.max(d, Math.abs(a.position[k] - b.position[k]) / (options.tolerance || 1e-12));
+  if (a.attributes.length !== b.attributes.length) return Infinity;
+  for (let k = 0; k < a.attributes.length; k++) d = Math.max(d, Math.abs(a.attributes[k] - b.attributes[k]) / (options.attributeTolerance || 1e-12));
+  return d <= 1 ? d : Infinity;
+}
+
+function cornersMatch(a, b, options) {
+  return cornerDistance(a, b, options) <= 1;
+}
+
+/** Matches B's triangles to A's, each once, with the winding kept. Returns the counts left unmatched. */
+function matchTriangles(ca, cb, options) {
+  const cell = Math.max(4 * options.tolerance, 1e-9);
+  const key = (t) => [0, 1, 2].map((k) => Math.floor((t[0].position[k] + t[1].position[k] + t[2].position[k]) / 3 / cell));
+  const triangles = (c) => Array.from({ length: Math.floor(c.length / 3) }, (_, t) => [c[3 * t], c[3 * t + 1], c[3 * t + 2]]);
+  const [ta, tb] = [triangles(ca), triangles(cb)];
+  const bins = new Map();
+  ta.forEach((t, i) => {
+    const k = key(t).join(',');
+    if (!bins.has(k)) bins.set(k, []);
+    bins.get(k).push(i);
+  });
+  const used = new Uint8Array(ta.length);
+  let added = 0;
+  for (const t of tb) {
+    const [x, y, z] = key(t);
+    // The closest unused candidate: on dense meshes several triangles can be within the tolerance, and taking the
+    // first one would use up another triangle's own match.
+    let best = -1;
+    let bestDistance = Infinity;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      for (const i of bins.get(`${x + dx},${y + dy},${z + dz}`) ?? []) {
+        if (used[i]) continue;
+        const a = ta[i];
+        for (let r = 0; r < 3; r++) {
+          const d = Math.max(...[0, 1, 2].map((k) => cornerDistance(a[(k + r) % 3], t[k], options)));
+          if (d < bestDistance) [best, bestDistance] = [i, d];
+        }
+      }
+    }
+    if (best >= 0) used[best] = 1;
+    else added++;
+  }
+  return { missing: used.reduce((n, u) => n + (u ? 0 : 1), 0), added };
+}
+
+function compareWorld(sa, sb, options, report) {
+  const [da, db] = [worldDraws(sa), worldDraws(sb)];
+  if (da.length !== db.length) return report('scene.draws', `${da.length} ≠ ${db.length}`);
+  da.forEach((a, i) => {
+    const b = db[i];
+    const path = `draws[${i}](${a.path})`;
+    if (a.mode !== b.mode) return report(`${path}.mode`, `${a.prim.getMode()} ≠ ${b.prim.getMode()}`);
+    diffJSON(canonical(a.prim.getMaterial()), canonical(b.prim.getMaterial()), `${path}.material`, report);
+    if (a.semantics.join() !== b.semantics.join()) return report(`${path}.attributes`, `${a.semantics} ≠ ${b.semantics}`);
+    if (a.mode === 4) {
+      const { missing, added } = matchTriangles(a.corners, b.corners, options);
+      if (missing || added) report(`${path}.triangles`, `${missing} triangles of A missing from B, ${added} in B not in A`);
+    } else if (a.corners.length !== b.corners.length || a.corners.some((c, k) => !cornersMatch(c, b.corners[k], options))) {
+      report(`${path}.corners`, 'differ');
+    }
+  });
+}
+
 export async function compare(fileA, fileB, options = {}) {
-  options = { geometry: 'exact', tolerance: 0, max: 50, ...options };
+  options = { geometry: 'exact', tolerance: 0, attributeTolerance: 0.02, max: 50, ...options };
   const differences = [];
   let truncated = 0;
   const report = (path, message) => (differences.length < options.max ? differences.push({ path, message }) : truncated++);
@@ -279,6 +422,8 @@ export async function compare(fileA, fileB, options = {}) {
   const [sa, sb] = [keptScene(da), keptScene(db)];
   if (!sa || !sb) {
     if (!!sa !== !!sb) report('scene', sa ? 'no scene in B' : 'no scene in A');
+  } else if (options.geometry === 'world') {
+    compareWorld(sa, sb, options, report);
   } else {
     diffJSON(canonical(sa.getExtras()), canonical(sb.getExtras()), 'scene.extras', report);
     if (sa.getName() !== sb.getName()) report('scene.name', `${sa.getName()} ≠ ${sb.getName()}`);
@@ -296,7 +441,8 @@ export async function compare(fileA, fileB, options = {}) {
   else {
     // Not Animation.equals: it follows accessors to their Buffer, whose uri
     // changes whenever files are repackaged.
-    const [ia, ib] = [nodeOrder(sa), nodeOrder(sb)];
+    const byName = options.geometry === 'world';
+    const [ia, ib] = [nodeOrder(sa, byName), nodeOrder(sb, byName)];
     aa.forEach((a, i) => compareAnimation(a, ab[i], `animations[${i}]${a.getName() ? `(${a.getName()})` : ''}`, ia, ib, options, report));
   }
 
@@ -314,14 +460,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     return i >= 0 ? args.splice(i, 2)[1] : def;
   };
   const geometry = opt('--geometry', 'exact');
-  const tolerance = Number(opt('--tolerance', geometry === 'triangles' ? '1e-5' : '0'));
+  const tolerance = Number(opt('--tolerance', geometry === 'exact' ? '0' : '1e-5'));
+  const attributeTolerance = Number(opt('--attribute-tolerance', '0.02'));
   const max = Number(opt('--max', '50'));
-  if (args.length !== 2 || !['exact', 'triangles'].includes(geometry)) {
-    console.error('Usage: node tools/compare.mjs A B [--geometry exact|triangles] [--tolerance T] [--max N]');
+  if (args.length !== 2 || !['exact', 'triangles', 'world'].includes(geometry)) {
+    console.error('Usage: node tools/compare.mjs A B [--geometry exact|triangles|world] [--tolerance T] [--attribute-tolerance T] [--max N]');
     process.exit(2);
   }
   try {
-    const result = await compare(args[0], args[1], { geometry, tolerance, max });
+    const result = await compare(args[0], args[1], { geometry, tolerance, attributeTolerance, max });
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.equal ? 0 : 1;
   } catch (e) {

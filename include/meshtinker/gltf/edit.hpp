@@ -37,6 +37,11 @@ struct PrimitiveGeometry {
 // extension is dropped. Its material, extras and other extensions stay.
 void replaceGeometry(Layout& layout, std::size_t mesh, std::size_t primitive, const PrimitiveGeometry& geometry);
 
+// Copies what an accessor holds besides its data (`name`, `extras` and
+// `extensions`) from accessor `source` of `layout` onto `accessor`, so that a
+// rewritten accessor keeps them. Nothing if `source` is out of range.
+void copyAccessorProperties(const Layout& layout, std::size_t source, Json& accessor);
+
 // Adds `name` to extensionsUsed, and to extensionsRequired if `required`.
 void useExtension(Json& json, const std::string& name, bool required);
 

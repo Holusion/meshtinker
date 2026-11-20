@@ -15,7 +15,7 @@ namespace {
 int run(int argc, char** argv) {
     cli::Command command("simplify", "Reduce the triangles of a glTF or GLB model",
                          "Collapses edges with meshoptimizer until its estimate of how far the surface moved reaches "
-                         "the error, keeping UV seams and the borders between a mesh's primitives. Simplified "
+                         "the error, keeping UV seams and the borders between tiles drawn in one space. Simplified "
                          "primitives are written uncompressed; others are copied as they are.");
     Options options;
     command.addInput();
@@ -24,7 +24,7 @@ int run(int argc, char** argv) {
     default_error_text << default_error;
     command.app()
         .add_option("--error", options.error,
-                    "How far the surface may move, as a fraction of its mesh's size (default " +
+                    "How far the surface may move, as a fraction of the size of the meshes drawn with it (default " +
                         default_error_text.str() + ")")
         ->type_name("E")
         ->check([](const std::string& value) {

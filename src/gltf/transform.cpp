@@ -1,5 +1,7 @@
 #include "meshtinker/gltf/transform.hpp"
 
+#include <algorithm>
+
 #include <cmath>
 #include <string>
 
@@ -38,6 +40,50 @@ Matrix trsMatrix(const double t[3], const double q[4], const double scale[3]) {
     m[14] = tz;
     m[15] = 1;
     return m;
+}
+
+Matrix worldMatrix(const cgltf_node& node) {
+    Matrix world = localMatrix(node);
+    for (const cgltf_node* parent = node.parent; parent != nullptr; parent = parent->parent) {
+        world = multiply(localMatrix(*parent), world);
+    }
+    return world;
+}
+
+std::vector<std::size_t> meshSpaces(const cgltf_data& data) {
+    // Nodes drawing each mesh, and whether one can share its space.
+    std::vector<std::size_t> draws(data.meshes_count, 0);
+    std::vector<const cgltf_node*> drawer(data.meshes_count, nullptr);
+    std::vector<bool> alone(data.meshes_count, false);
+    for (std::size_t n = 0; n < data.nodes_count; ++n) {
+        const cgltf_node& node = data.nodes[n];
+        if (node.mesh == nullptr) {
+            continue;
+        }
+        const auto m = static_cast<std::size_t>(node.mesh - data.meshes);
+        ++draws[m];
+        drawer[m] = &node;
+        alone[m] = alone[m] || node.skin != nullptr || node.has_mesh_gpu_instancing != 0;
+    }
+    std::vector<std::size_t> spaces(data.meshes_count, 0);
+    std::vector<std::pair<Matrix, std::size_t>> shared;
+    std::size_t next = 0;
+    for (std::size_t m = 0; m < data.meshes_count; ++m) {
+        if (draws[m] != 1 || alone[m]) {
+            spaces[m] = next++;
+            continue;
+        }
+        const Matrix world = worldMatrix(*drawer[m]);
+        const auto found = std::find_if(shared.begin(), shared.end(),
+                                        [&](const std::pair<Matrix, std::size_t>& s) { return s.first == world; });
+        if (found != shared.end()) {
+            spaces[m] = found->second;
+        } else {
+            spaces[m] = next;
+            shared.emplace_back(world, next++);
+        }
+    }
+    return spaces;
 }
 
 Matrix localMatrix(const cgltf_node& node) {

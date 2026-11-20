@@ -4,10 +4,10 @@ How `meshtinker simplify` reduces a model's triangles, and why. The code is `src
 
 ## What it does
 
-For each mesh, every triangle primitive is read as a triangle list (`gltf::readTriangles`: strips and fans become lists with their winding, degenerate triangles from strips are dropped), then simplified on its own with `meshopt_simplifyWithAttributes`, from meshoptimizer 1.2:
+Meshes are simplified by space (`gltf::meshSpaces`): a mesh's primitives, together with those of the other meshes drawn in the same space, which is where each of them is drawn once, by nodes with the same world matrix, neither skinned nor instanced. Every triangle primitive of a space is read as a triangle list (`gltf::readTriangles`: strips and fans become lists with their winding, degenerate triangles from strips are dropped), then simplified on its own with `meshopt_simplifyWithAttributes`, from meshoptimizer 1.2:
 
 - **Error, no target count.** The target index count is 0, so meshoptimizer collapses edges until its error reaches the limit, as far as the limit allows and no further. A primitive that loses nothing, or would lose everything, is copied as it is. This is the "best effort" mode: no fallback that forces a count, unlike eCorpus's presets, which add a ratio (`optimizeGlb.ts`).
-- **Measured on the mesh.** The limit is `--error` × the longest side of the bounding box of all the mesh's primitives, passed as an absolute distance (`meshopt_SimplifyErrorAbsolute`). meshoptimizer's default would measure each primitive against its own size, so the tiles of one scan would each get a different limit. glTF-Transform's `simplify`, which eCorpus runs, measures per primitive. Meshes in different nodes are measured separately, in their own units: node transforms aren't applied.
+- **Measured on the space.** The limit is `--error` × the longest side of the bounding box of all the space's primitives, passed as an absolute distance (`meshopt_SimplifyErrorAbsolute`). meshoptimizer's default would measure each primitive against its own size, so the tiles of one scan would each get a different limit. glTF-Transform's `simplify`, which eCorpus runs, measures per primitive. Meshes in different spaces are measured separately, in their own units: node transforms aren't applied.
 - **Positions only.** Normals, texture coordinates and colors don't weigh in the error, as with glTF-Transform's `simplify`. meshoptimizer keeps attribute seams on its own: vertices at the same position with different attributes collapse together or not at all.
 - **No pruning, no permissive mode.** Small disconnected parts stay (`meshopt_SimplifyPrune` is off), and seams are never crossed (`meshopt_SimplifyPermissive` is off).
 
@@ -15,11 +15,11 @@ The output keeps the vertices the simplified triangles use, in the order they fi
 
 ## Borders between primitives
 
-Each primitive is simplified alone, so a border that two primitives share would be collapsed differently on each side and open a crack. Tiled scans have such borders: several local scans are one mesh in up to 634 primitives, each tile with its own vertices along the seams. Vertices whose exact position the triangles of another primitive of the same mesh also use are locked (`vertex_lock`): they stay, and so do the border edges between them.
+Each primitive is simplified alone, so a border that two primitives share would be collapsed differently on each side and open a crack. Tiled scans have such borders: several local scans are one mesh in up to 634 primitives, each tile with its own vertices along the seams, and the 44-million-face scan is 4 meshes, one per UDIM tile, on 4 nodes without transforms, which share 10,000 to 77,000 border positions pairwise. Vertices whose exact position the triangles of another primitive of the same space also use are locked (`vertex_lock`): they stay, and so do the border edges between them. On the 44-million-face scan, every shared position is still shared after simplification.
 
 - Positions compare bit for bit, with −0 as 0. Only vertices the primitive's triangles use count, so primitives that share one vertex accessor lock only what both draw.
-- Borders between different meshes aren't locked: their vertices are in different spaces once node transforms apply.
-- Locking costs simplification along the borders. On a tiled scan with many small tiles (634 primitives, 672,000 faces), only 3 % of the faces go at the default error, against 92 % on the same kind of scan in 16 tiles.
+- Meshes drawn by nodes with different world matrices, by several nodes, or skinned or instanced are in spaces of their own: their borders aren't locked against other meshes.
+- Locking costs simplification along the borders. On a tiled scan with many small tiles (634 primitives, 672,000 faces), only 3 % of the faces go at the default error, against 92 % on the same kind of scan in 16 tiles. The 44-million-face scan keeps 954,000 faces, where it kept 491,000 with its borders between meshes left free to crack.
 
 ## How far the error is from the distance
 
@@ -27,4 +27,4 @@ meshoptimizer's error is a quadric estimate: the distance from the moved vertice
 
 ## Memory
 
-A mesh's primitives are read at once, into `common::LargeArray`s, to find their shared borders. Simplified primitives stay in memory until the model is written. Both go on the heap only while all working arrays hold 4 MiB, and in scratch blocks beyond, and meshoptimizer's own allocations share that budget (`gltf::MeshoptMemory`). On the 44-million-face scan, the heap peaks at 4.5 MB. The workspace holds the mesh being simplified, decoded to float32, and the simplified primitives until the write.
+A space's primitives are read at once, into `common::LargeArray`s, to find their shared borders. Simplified primitives stay in memory until the model is written. Both go on the heap only while all working arrays hold 4 MiB, and in scratch blocks beyond, and meshoptimizer's own allocations share that budget (`gltf::MeshoptMemory`). A whole space is held at once: on the 44-million-face scan, the whole model. Its heap peaks at 4.3 MB, in 77 s. The workspace holds the mesh being simplified, decoded to float32, and the simplified primitives until the write.

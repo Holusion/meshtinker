@@ -1,5 +1,7 @@
 #include "meshtinker/gltf/primitive_data.hpp"
 
+#include <meshoptimizer.h>
+
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -31,9 +33,10 @@ const char* typeName(std::size_t components) {
     }
 }
 
-bool readAttribute(const cgltf_attribute& attribute, std::size_t vertex_count, common::Workspace& workspace,
-                   AttributeData& out) {
+bool readAttribute(const cgltf_data& data, const cgltf_attribute& attribute, std::size_t vertex_count,
+                   common::Workspace& workspace, AttributeData& out) {
     const cgltf_accessor& accessor = *attribute.data;
+    out.source_accessor = static_cast<std::size_t>(&accessor - data.accessors);
     const std::size_t components = cgltf_num_components(accessor.type);
     if (accessor.count != vertex_count || components < 1 || components > 4) {
         return false;
@@ -91,6 +94,7 @@ std::size_t addAttribute(Layout& layout, AttributeData& attribute, bool morph_ta
     const std::size_t view = addView(layout, Json{{"byteLength", byte_length}, {"target", array_buffer}}, bytes);
     Json accessor{{"bufferView", view}, {"componentType", component_type}, {"count", count},
                   {"type", typeName(attribute.components)}};
+    copyAccessorProperties(layout, attribute.source_accessor, accessor);
     if (attribute.name == "POSITION") {
         std::array<float, 3> min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
                                  std::numeric_limits<float>::max()};
@@ -148,6 +152,9 @@ TriangleReadStatus readTriangles(Document& document, GeometryReader& reader, com
     }
 
     data.vertex_count = position->count;
+    if (source.indices != nullptr) {
+        data.indices_source = static_cast<std::size_t>(source.indices - document.data().accessors);
+    }
     const std::uint64_t corners = cornerCount(source);
     common::LargeArray<std::uint32_t> corner_indices(workspace, static_cast<std::size_t>(corners));
     readCorners(source, corners, corner_indices);
@@ -184,7 +191,7 @@ TriangleReadStatus readTriangles(Document& document, GeometryReader& reader, com
 
     for (std::size_t a = 0; a < source.attributes_count; ++a) {
         AttributeData attribute;
-        if (!readAttribute(source.attributes[a], data.vertex_count, workspace, attribute)) {
+        if (!readAttribute(document.data(), source.attributes[a], data.vertex_count, workspace, attribute)) {
             return TriangleReadStatus::unsupported;
         }
         data.attributes.push_back(std::move(attribute));
@@ -193,7 +200,8 @@ TriangleReadStatus readTriangles(Document& document, GeometryReader& reader, com
         std::vector<AttributeData> target;
         for (std::size_t a = 0; a < source.targets[t].attributes_count; ++a) {
             AttributeData attribute;
-            if (!readAttribute(source.targets[t].attributes[a], data.vertex_count, workspace, attribute)) {
+            if (!readAttribute(document.data(), source.targets[t].attributes[a], data.vertex_count, workspace,
+                               attribute)) {
                 return TriangleReadStatus::unsupported;
             }
             target.push_back(std::move(attribute));
@@ -201,6 +209,50 @@ TriangleReadStatus readTriangles(Document& document, GeometryReader& reader, com
         data.targets.push_back(std::move(target));
     }
     return TriangleReadStatus::ok;
+}
+
+TriangleData compactVertices(const TriangleData& source, common::LargeArray<std::uint32_t>&& indices,
+                             common::Workspace& workspace) {
+    common::LargeArray<std::uint32_t> remap(workspace, source.vertex_count);
+    const std::size_t unique =
+        meshopt_optimizeVertexFetchRemap(remap.data(), indices.data(), indices.size(), source.vertex_count);
+    meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
+    TriangleData result;
+    result.vertex_count = unique;
+    result.indices = std::move(indices);
+    result.indices_source = source.indices_source;
+    const auto remapAttribute = [&](const AttributeData& attribute) {
+        AttributeData out;
+        out.name = attribute.name;
+        out.components = attribute.components;
+        out.source_component_type = attribute.source_component_type;
+        out.source_accessor = attribute.source_accessor;
+        out.values = common::LargeArray<float>(workspace, unique * attribute.components);
+        meshopt_remapVertexBuffer(out.values.data(), attribute.values.data(), source.vertex_count,
+                                  attribute.components * sizeof(float), remap.data());
+        return out;
+    };
+    result.attributes.reserve(source.attributes.size());
+    for (const AttributeData& attribute : source.attributes) {
+        result.attributes.push_back(remapAttribute(attribute));
+    }
+    for (const std::vector<AttributeData>& target : source.targets) {
+        std::vector<AttributeData> out;
+        out.reserve(target.size());
+        for (const AttributeData& attribute : target) {
+            out.push_back(remapAttribute(attribute));
+        }
+        result.targets.push_back(std::move(out));
+    }
+    return result;
+}
+
+bool readAccessor(const cgltf_data& data, const cgltf_accessor& accessor, const std::string& name,
+                  common::Workspace& workspace, AttributeData& out) {
+    cgltf_attribute attribute{};
+    attribute.name = const_cast<char*>(name.c_str());
+    attribute.data = const_cast<cgltf_accessor*>(&accessor);
+    return readAttribute(data, attribute, accessor.count, workspace, out);
 }
 
 PrimitiveGeometry addPlainGeometry(Layout& layout, TriangleData& data) {
@@ -231,10 +283,12 @@ PrimitiveGeometry addPlainGeometry(Layout& layout, TriangleData& data) {
                                  static_cast<std::size_t>(byte_length)};
     const std::size_t view =
         addView(layout, Json{{"byteLength", byte_length}, {"target", element_array_buffer}}, bytes);
-    geometry.indices = addAccessor(layout, Json{{"bufferView", view},
-                                                {"componentType", short_indices ? unsigned_short_type : unsigned_int_type},
-                                                {"count", data.indices.size()},
-                                                {"type", "SCALAR"}});
+    Json indices{{"bufferView", view},
+                 {"componentType", short_indices ? unsigned_short_type : unsigned_int_type},
+                 {"count", data.indices.size()},
+                 {"type", "SCALAR"}};
+    copyAccessorProperties(layout, data.indices_source, indices);
+    geometry.indices = addAccessor(layout, std::move(indices));
     geometry.mode = 4;
     return geometry;
 }

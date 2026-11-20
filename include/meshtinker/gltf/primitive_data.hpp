@@ -21,6 +21,9 @@ struct AttributeData {
     common::LargeArray<float> values;
     // What the source stored, for attributes written back as integers (JOINTS).
     int source_component_type = 0;
+    // The accessor it was read from, whose name, extras and extensions the
+    // rewritten accessor keeps (copyAccessorProperties).
+    std::size_t source_accessor = static_cast<std::size_t>(-1);
 };
 
 // A triangle primitive read into working arrays (common::LargeArray), so a
@@ -32,6 +35,8 @@ struct TriangleData {
     // every triangle kept, and degenerate triangles dropped; a primitive
     // without indices gets 0..n−1.
     common::LargeArray<std::uint32_t> indices;
+    // The index accessor read, if any.
+    std::size_t indices_source = static_cast<std::size_t>(-1);
     // In the source's attribute order. POSITION is always there.
     std::vector<AttributeData> attributes;
     // Morph targets, each with the attributes it displaces.
@@ -54,6 +59,18 @@ enum class TriangleReadStatus : std::uint8_t {
 // Reads primitive `primitive` of mesh `mesh`, decoding it with `reader` first.
 TriangleReadStatus readTriangles(Document& document, GeometryReader& reader, common::Workspace& workspace,
                                  std::size_t mesh, std::size_t primitive, TriangleData& data);
+
+// The vertices `indices` use, in the order they first appear
+// (meshopt_optimizeVertexFetchRemap), with every attribute and morph target
+// remapped, and `indices` renumbered to match.
+TriangleData compactVertices(const TriangleData& source, common::LargeArray<std::uint32_t>&& indices,
+                             common::Workspace& workspace);
+
+// Reads every element of `accessor` as floats into `out`, named `name`. The
+// accessor must be readable (GeometryReader::prepare). False if it has more
+// than 4 components.
+bool readAccessor(const cgltf_data& data, const cgltf_accessor& accessor, const std::string& name,
+                  common::Workspace& workspace, AttributeData& out);
 
 // Adds `data` to `layout` as plain accessors, in the profile's form for
 // rewritten geometry (docs/normalized-profile.md, "Commands that rewrite
