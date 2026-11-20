@@ -30,6 +30,7 @@ Usage: meshtinker <command> [args...]
        meshtinker --version
 
 Commands:
+  compress      Compress the geometry of a glTF or GLB model with meshopt
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   placeholder   Build a low-poly stand-in for a glTF or GLB model
@@ -163,6 +164,41 @@ OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
           --resolution N        Cells along the model's longest axis, 2 to 128 (default 16)
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### compress
+
+Quantizes and compresses the geometry with `EXT_meshopt_compression`, in the preset of glTF-Transform's `meshopt({level: "high"})`: 14-bit positions, 8-bit octahedral normals, 12-bit texture coordinates, 8-bit colors and weights, with primitives reordered for the vertex cache first. Positions go on one grid for the whole scene, so that the tiles of a scan quantize their shared borders the same way, and the grid's scale goes into the node transforms, or a new child node when the node's transform can't take it. Skinned, instanced and morphed meshes keep float positions. Draco primitives are copied as they are, with a warning (`draco-kept`), and so are primitives already compressed with meshopt, so compressing twice changes nothing. [docs/compress.md](docs/compress.md) has the details and figures.
+
+The report gives the primitives compressed and kept, the meshes whose positions were quantized or kept float, the nodes added, the bytes of the geometry's buffer views before and after, and the files written. A 44-million-face scan's 1.32 GB of geometry becomes 207 MB in 20 s, with a heap under 6 MB.
+
+```console
+$ meshtinker compress --help
+Compress the geometry of a glTF or GLB model with meshopt
+
+Reorders, quantizes and encodes every primitive with EXT_meshopt_compression, as
+glTF-Transform's meshopt "high" level does: 14-bit positions, 8-bit octahedral
+normals, 12-bit texture coordinates. Draco and meshopt primitives are copied as
+they are.
+
+
+meshtinker compress [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
+                                overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

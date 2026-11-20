@@ -633,6 +633,28 @@ fixtures.skinned = (dir) => {
   });
 };
 
+fixtures['rigid-hierarchy'] = (dir) => {
+  // Three rigid mesh nodes: one with a child, one whose translation an animation sets, one alone. A command that
+  // moves a mesh's dequantization into its node (compress) can fold it into the last one only.
+  const b = new Builder();
+  const mesh = (name) => b.add('meshes', { name, primitives: [quad(b)] });
+  const child = b.add('nodes', { name: 'Animated', mesh: mesh('ChildQuad'), translation: [2, 0, 0] });
+  const parent = b.add('nodes', { name: 'Parent', mesh: mesh('ParentQuad'), children: [child] });
+  const plain = b.add('nodes', { name: 'Plain', mesh: mesh('PlainQuad'), translation: [0, 3, 0], scale: [2, 2, 2] });
+  const times = b.accessor(b.view(Float32Array.from([0, 1])), FLOAT, 'SCALAR', 2);
+  b.json.accessors[times].min = [0];
+  b.json.accessors[times].max = [1];
+  const values = b.accessor(b.view(Float32Array.from([2, 0, 0, 2, 1, 0])), FLOAT, 'VEC3', 2);
+  b.add('animations', { name: 'Lift', samplers: [{ input: times, output: values }], channels: [{ sampler: 0, target: { node: child, path: 'translation' } }] });
+  b.json.scene = b.scene([parent, plain]);
+  b.write(path.join(dir, 'rigid-hierarchy.gltf'));
+  writeExpected(dir, {
+    description: 'Three unit quads on rigid nodes: Parent (with a child), Animated (its translation animated, from x = 2 up by 1) and Plain (translated to y = 3, scaled by 2).',
+    geometry: { meshes: 3, primitives: 3, vertices: 12, faces: 6 }, bounds: { min: [0, 0, 0], max: [3, 5, 0] },
+    notes: ['Bounds are in the rest pose: Animated at x = 2..3, Plain at x = 0..2, y = 3..5.'],
+  });
+};
+
 /** Deterministic PRNG (mulberry32), so generated models are identical on every run. */
 function prng(seed) {
   return () => {

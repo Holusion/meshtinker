@@ -48,6 +48,7 @@
     { "id": "fixture/floater", "source": "fixture", "path": "floater/floater.gltf", "covers": ["floaters"] },
     { "id": "fixture/noise", "source": "fixture", "path": "noise/noise.gltf", "covers": ["floaters"] },
     { "id": "fixture/skinned", "source": "fixture", "path": "skinned/skinned.gltf", "covers": ["skins", "node-transforms"] },
+    { "id": "fixture/rigid-hierarchy", "source": "fixture", "path": "rigid-hierarchy/rigid-hierarchy.gltf", "covers": ["node-transforms", "animation"] },
 
     { "id": "khronos/BoxTextured", "source": "khronos", "path": "BoxTextured/glTF/BoxTextured.gltf", "covers": ["gltf", "png"] },
     { "id": "khronos/BoxTextured-glb", "source": "khronos", "path": "BoxTextured/glTF-Binary/BoxTextured.glb", "covers": ["glb", "glb-images", "png"] },
