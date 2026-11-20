@@ -22,7 +22,7 @@ Each subcommand is its own executable, `meshtinker-<name>`, in the style of git.
 - `meshtinker <name> [args...]` looks for `meshtinker-<name>` in the wrapper's own directory, then on `PATH`, and runs the first match with the remaining arguments (`exec` on POSIX, spawn and wait elsewhere), passing its exit code through.
 - `meshtinker --help` prints its usage and lists the subcommands it finds, with a one-line summary for each. `meshtinker` alone prints the same on stderr and exits with 2, the code for a wrong command line, as GNU tools do: 1 would read as a rejected input. Every subcommand prints its summary when given a hidden `--summary` flag (`cli::Command` handles it). `meshtinker help <name>` is `meshtinker-<name> --help`.
 - An experimental variant is a subcommand with its own name, such as `meshtinker-simplify-qem`. It can be built from another branch or checkout and put on `PATH` next to the others.
-- Each optimization (weld, simplify, meshopt compression, texture compression...) is its own subcommand. Meta-subcommands chain them into sensible defaults, such as eCorpus's quality presets, by running the individual subcommands.
+- Each optimization (weld, simplify, meshopt compression, texture compression...) is its own subcommand. Meta-subcommands chain them into sensible defaults, such as eCorpus's quality presets, by running the individual subcommands on a chain ([docs/chaining.md](docs/chaining.md)).
 
 Builds are mostly static: vendored libraries are compiled in, and libstdc++ and libgcc are linked statically. Only the system C library is linked dynamically. Any other shared-library dependency, or any external program called at runtime, needs explicit approval.
 
