@@ -4,7 +4,7 @@
 
 ```bash
 meshtinker ktx in.gltf out/                    # default quality
-meshtinker ktx in.gltf out/ --quality Low --max-size 2048 --fast
+meshtinker ktx in.gltf out/ --quality Low --max-size 2048
 ```
 
 ## Encoder
@@ -49,7 +49,6 @@ The rule is the one eCorpus uses and the spec's implementation note recommends: 
 The aim is few options:
 
 - `--quality <Highest|High|Medium|Low|Thumb>` (default `High`), the same names as `optimize`, so that it passes its own straight through.
-- `--fast`, only if it can be about ten times faster than the default ([below](#the-fast-preset)).
 - `--max-size N` ([images.md](images.md#resizing)).
 
 eCorpus's settings are the baseline:
@@ -59,36 +58,11 @@ eCorpus's settings are the baseline:
 
 `--max-size` stays explicit: `optimize` maps its quality to a size, as eCorpus does, but `ktx` alone doesn't resize unless asked.
 
-The benchmark (below) fills in the settings table for each quality, and decides what `--fast` changes (basisu's `-effort` and `-quality`, the UASTC level, the Zstd level, RDO), with the time, size and PSNR of each against eCorpus's settings.
+The benchmark fills in the settings table for each quality, with the time, size and PSNR of each against eCorpus's settings.
 
-### The fast preset
+### No fast mode
 
-A fast preset exists to produce a temporary model, about 80 % as good, while the final asset is being made. It is only worth having if it is about an order of magnitude faster than the default: a speedup of 1.5 or 2 is a slower default, not a fast preset. If no setting gets there, `ktx` has no fast mode, and fast pipelines skip KTX2 for something else, such as a quick JPEG placeholder command.
-
-Only a smaller image gets there: no encoder setting at full size does. These are measured with basisu v2.50, 4 threads, on two scan color maps. PSNR is against the full-size source, after decoding to RGBA8 and scaling back up, so it includes the loss from resizing. Times were taken while another session was loading the machine: compare them as ratios within one image, not across tables.
-
-| Image | Setting | Time | Speedup | Size | PSNR | Peak RSS |
-| --- | --- | --- | --- | --- | --- | --- |
-| 4k | ETC1S `-q 240 -comp_level 1` (default) | 16.9 s | 1 | 2.56 MB | 32.8 dB | 882 MiB |
-| 4k | ETC1S `-comp_level 0` | 8.8 s | 1.9 | 2.44 MB | 32.3 dB | 843 MiB |
-| 4k | ETC1S `-comp_level 0`, no RDO, `-q 128` | 7.5 s | 2.3 | 2.23 MB | 31.4 dB | 835 MiB |
-| 4k | UASTC level 0, Zstd 1 | 3.3 s | 5 | 17.3 MB | 45.8 dB | 331 MiB |
-| 4k | ETC1S `-comp_level 0`, half size | 2.7 s | 6 | 0.72 MB | 28.9 dB | 242 MiB |
-| 4k | UASTC level 0, Zstd 1, half size | 1.05 s | 16 | 4.93 MB | 30.9 dB | 103 MiB |
-| 4k | ETC1S `-comp_level 0`, quarter size | 0.93 s | 18 | 0.24 MB | 26.9 dB | 93 MiB |
-| 8k | ETC1S `-q 240 -comp_level 1` (default) | 132 s | 1 | 11.7 MB | 36.3 dB | 3.5 GiB |
-| 8k | ETC1S `-comp_level 0` | 76 s | 1.7 | 11.1 MB | 35.8 dB | 3.4 GiB |
-| 8k | UASTC level 0, Zstd 1 | 11.2 s | 12 | 79.6 MB | 52.8 dB | 1.3 GiB |
-| 8k | ETC1S `-comp_level 0`, half size | 10.3 s | 13 | 3.0 MB | 33.7 dB | 1.0 GiB |
-| 8k | UASTC level 0, Zstd 1, half size | 3.0 s | 43 | 20.6 MB | 36.6 dB | 347 MiB |
-| 8k | ETC1S `-comp_level 0`, quarter size | 2.9 s | 46 | 0.82 MB | 31.5 dB | 307 MiB |
-
-- ETC1S settings at full size gain 2 at best. ETC1S's codebook search is the cost, and only fewer texels cut it.
-- UASTC level 0 at half size is 16 to 43 times faster than the default. Its PSNR is 1.9 dB below the default on the 4k image and 0.3 dB above it on the 8k one. Its files are about 1.8 times larger. On the GPU it takes half the memory of the full-size ETC1S image: BC7 or ASTC at 8 bits per texel over a quarter of the texels, against BC1 or ETC1 at 4.
-- ETC1S at half size is 6 to 13 times faster with files 4 times smaller, at 2.7 to 3.9 dB below the default.
-- An 8k ETC1S encode peaks at 3.5 GiB, about 13 times the decoded RGBA image. UASTC needs about a third of that.
-
-The candidate for `--fast` is UASTC level 0, Zstd 1, at half the size `--quality` and `--max-size` would give. Whether it is "80 % as good" is not settled (TODO.md).
+`ktx` has no fast mode for now. A fast preset produces a temporary model, about 80 % as good, while the final asset is being made, and is only worth having if it is about an order of magnitude faster than the default. No basisu setting at full size gets there: the only candidates encode a smaller image. Whether one of them, or a downscaled WebP, AVIF or JPEG instead, should make fast textures is the experiment in [experiments/fast-textures.md](experiments/fast-textures.md), which holds the measurements so far.
 
 <!-- benchmark results go here -->
 
