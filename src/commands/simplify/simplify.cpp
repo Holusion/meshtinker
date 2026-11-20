@@ -43,12 +43,13 @@ float spaceScale(const std::vector<std::optional<gltf::TriangleData>>& primitive
     std::array<float, 3> min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
                              std::numeric_limits<float>::max()};
     std::array<float, 3> max{-min[0], -min[1], -min[2]};
-    for (const auto& data : primitives) {
-        if (!data) {
+    for (const auto& entry : primitives) {
+        if (!entry) {
             continue;
         }
-        const common::LargeArray<float>& positions = data->position().values;
-        for (std::size_t v = 0; v < data->vertex_count; ++v) {
+        const gltf::TriangleData& data = *entry;
+        const common::LargeArray<float>& positions = data.position().values;
+        for (std::size_t v = 0; v < data.vertex_count; ++v) {
             for (std::size_t k = 0; k < 3; ++k) {
                 min[k] = std::min(min[k], positions[3 * v + k]);
                 max[k] = std::max(max[k], positions[3 * v + k]);
