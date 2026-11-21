@@ -17,10 +17,24 @@ namespace meshtinker::common {
 // workspace scratch files beyond (docs/files-and-memory.md). Small enough that
 // the heap stays small next to the model, large enough that small models make
 // no scratch files.
+#ifdef MESHTINKER_HEAP_ARRAY_LIMIT
+inline constexpr std::uint64_t heap_array_limit = MESHTINKER_HEAP_ARRAY_LIMIT;
+#else
 inline constexpr std::uint64_t heap_array_limit = std::uint64_t{4} << 20;
+#endif
 
 // Bytes LargeArrays hold on the heap, in all.
 std::atomic<std::uint64_t>& largeArrayHeapBytes();
+
+// Measurements only (docs/experiments/heap-budget.md): with
+// MESHTINKER_ARRAY_STATS defined, records the most the heap budget held, and
+// writes it at exit to the file the environment variable
+// MESHTINKER_ARRAY_STATS_FILE names. A no-op otherwise.
+#ifdef MESHTINKER_ARRAY_STATS
+void noteLargeArrayHeapBytes();
+#else
+inline void noteLargeArrayHeapBytes() {}
+#endif
 
 // A zero-filled array of `count` trivially copyable elements, for per-vertex
 // or per-face working data: on the heap while all LargeArrays hold at most
@@ -41,6 +55,7 @@ public:
             heap_.assign(count, T{});
             data_ = heap_.data();
             heap_held_ = bytes;
+            noteLargeArrayHeapBytes();
         } else {
             heap_bytes.fetch_sub(bytes);
             block_ = workspace.block(bytes);
