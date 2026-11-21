@@ -126,7 +126,7 @@ Notes:
 
 - `heap_array_limit` can be set at compile time (`-DMESHTINKER_HEAP_ARRAY_LIMIT=<bytes>ULL`), as the handoff suggested. Nothing changes by default.
 - `MESHTINKER_ARRAY_STATS` records the most the heap budget ever held, and writes it at exit to the file `MESHTINKER_ARRAY_STATS_FILE` names. Built with an unlimited budget, it gives a model's whole working set, which is how the "fit" columns above were measured. Nothing changes by default.
-- The default stays 4 MiB on this branch: changing it is for the branch that merges these results.
+- The default is now 256 MiB, as recommended.
 
 The punch-hole patch that was measured, not committed:
 

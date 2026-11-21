@@ -14,13 +14,14 @@
 namespace meshtinker::common {
 
 // Working arrays go on the heap while they hold this much in all, and in
-// workspace scratch files beyond (docs/files-and-memory.md). Small enough that
-// the heap stays small next to the model, large enough that small models make
-// no scratch files.
+// workspace scratch files beyond (docs/files-and-memory.md). 256 MiB: 93 % of
+// the local collection simplifies without scratch, and 4 to 8 commands run in
+// parallel keep at most 1 to 2 GiB on the heap; large models still spill
+// (docs/experiments/heap-budget-results.md).
 #ifdef MESHTINKER_HEAP_ARRAY_LIMIT
 inline constexpr std::uint64_t heap_array_limit = MESHTINKER_HEAP_ARRAY_LIMIT;
 #else
-inline constexpr std::uint64_t heap_array_limit = std::uint64_t{4} << 20;
+inline constexpr std::uint64_t heap_array_limit = std::uint64_t{256} << 20;
 #endif
 
 // Bytes LargeArrays hold on the heap, in all.
