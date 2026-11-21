@@ -1,0 +1,41 @@
+{
+  "description": "The synthetic scan as a triangle soup (no indices, three vertices per triangle, 2 charts), and two indexed triangles whose corners only an exact weld can tell apart: one pair differs by the sign of a zero, another only in a morph target.",
+  "geometry": {
+    "meshes": 2,
+    "primitives": 2,
+    "vertices": 774,
+    "faces": 258
+  },
+  "bounds": {
+    "min": [
+      -0.5404853820800781,
+      0,
+      -0.5524192452430725
+    ],
+    "max": [
+      4,
+      1.5057359337806702,
+      0.5524192452430725
+    ],
+    "tolerance": 0.000001
+  },
+  "weld": {
+    "vertices": {
+      "Soup": 162,
+      "Quads": 5
+    },
+    "why": "Soup: the indexed scan it was unrolled from, whose seam vertices differ in UV. Quads: corners 2 and 5 merge (−0 is 0), 1 and 3 stay apart (the target moves 3)."
+  },
+  "images": [
+    {
+      "name": "atlas",
+      "mimeType": "image/jpeg",
+      "width": 64,
+      "height": 64
+    }
+  ],
+  "notes": [
+    "Bounds are the generator's float32 positions through the node transforms.",
+    "Occupancy is not stated: this fixture is for geometry."
+  ]
+}

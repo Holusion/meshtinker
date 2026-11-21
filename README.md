@@ -38,6 +38,7 @@ Commands:
   placeholder   Build a low-poly stand-in for a glTF or GLB model
   simplify      Reduce the triangles of a glTF or GLB model
   uv            Pack the UV charts of a glTF or GLB model tighter, and bake its textures
+  weld          Merge identical vertices in a glTF or GLB model
 
 Commands are the meshtinker-<command> executables next to meshtinker, then on PATH.
 ```
@@ -222,6 +223,44 @@ they are.
 
 
 meshtinker compress [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### weld
+
+Merges the vertices of each triangle primitive that are equal in every attribute and morph target, bit for bit, with −0 equal to 0, as glTF-Transform's `weld` does. Every triangle still draws the same values, so nothing changes for a viewer that follows the spec. Scans written three vertices per triangle, or with duplicated vertices, shrink most: by 81 % on a 4.7-million-face scan. And `simplify` can only collapse edges between vertices that are shared. Vertices are never moved or averaged: two vertices at one position with different normals or texture coordinates stay apart. [docs/weld.md](docs/weld.md) says why, and how Voyager draws welded primitives that have no normals.
+
+Welded primitives are written uncompressed (float32 attributes), as every command that rewrites geometry writes them, and primitives where nothing merges are copied as they are. Draco and meshopt primitives are copied: their encoders already merged their vertices. Primitives that share vertex data with another primitive are copied with a warning (`shared-vertices-kept`), as are points and lines (`points-and-lines-kept`). The report gives the primitives welded, unchanged, compressed and skipped, the input's and output's primitives, vertices and faces, and the files written.
+
+Given a [chain](#chains), `weld` adds a stage, and records no lossy round. The images are links to the parent stage's.
+
+```console
+$ meshtinker weld --help
+Merge identical vertices in a glTF or GLB model
+
+Merges the vertices of each triangle primitive that are equal in every attribute
+and morph target, bit for bit. Welded primitives are written uncompressed; Draco
+and meshopt primitives, and those that share vertices or can't be read, are
+copied as they are.
+
+
+meshtinker weld [OPTIONS] input [output]
 
 
 POSITIONALS:

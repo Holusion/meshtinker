@@ -27,6 +27,27 @@ std::uint64_t triangleCount(cgltf_primitive_type type, std::uint64_t corners);
 // without indices).
 std::array<std::uint64_t, 3> triangleCorners(cgltf_primitive_type type, std::uint64_t t);
 
+// Calls `visit` on every accessor the primitive reads: its indices, its
+// attributes and its morph targets' attributes.
+template <typename Visit>
+void forEachAccessor(const cgltf_primitive& primitive, Visit visit) {
+    if (primitive.indices != nullptr) {
+        visit(*primitive.indices);
+    }
+    for (std::size_t a = 0; a < primitive.attributes_count; ++a) {
+        visit(*primitive.attributes[a].data);
+    }
+    for (std::size_t t = 0; t < primitive.targets_count; ++t) {
+        for (std::size_t a = 0; a < primitive.targets[t].attributes_count; ++a) {
+            visit(*primitive.targets[t].attributes[a].data);
+        }
+    }
+}
+
+// Whether `accessor` reads a meshopt-compressed buffer view
+// (EXT_meshopt_compression), its sparse views included.
+bool usesMeshopt(const cgltf_accessor& accessor);
+
 // Why an accessor can't be read.
 enum class Readability : std::uint8_t {
     readable,

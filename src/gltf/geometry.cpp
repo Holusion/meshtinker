@@ -330,6 +330,18 @@ std::uint64_t triangleCount(cgltf_primitive_type type, std::uint64_t corners) {
     }
 }
 
+namespace {
+
+bool compressedView(const cgltf_buffer_view* view) { return view != nullptr && view->has_meshopt_compression != 0; }
+
+} // namespace
+
+bool usesMeshopt(const cgltf_accessor& accessor) {
+    return compressedView(accessor.buffer_view) ||
+           (accessor.is_sparse != 0 &&
+            (compressedView(accessor.sparse.indices_buffer_view) || compressedView(accessor.sparse.values_buffer_view)));
+}
+
 std::array<std::uint64_t, 3> triangleCorners(cgltf_primitive_type type, std::uint64_t t) {
     switch (type) {
     case cgltf_primitive_type_triangle_strip:

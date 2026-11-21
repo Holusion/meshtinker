@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs the whole pipeline as a chain on each model and checks the result:
 #   tools/experiments/e2e/pipeline.sh BUILD_DIR OUT_DIR MODEL...
-# import -> simplify -> uv -> ktx -> compress -> export as GLB. Prints each command's exit code, time and
+# import -> weld -> simplify -> uv -> ktx -> compress -> export as GLB. Prints each command's exit code, time and
 # warnings, then validates the GLB against the input (tools/validate.mjs) and compares it with the chain's
 # last stage (tools/compare.mjs), which export must write unchanged. OUT_DIR must be on a real disk.
 set -u
@@ -14,7 +14,7 @@ for model in "$@"; do
   work="$dir/work"
   echo "== $name"
   status=0
-  for step in "import $model $work" "simplify $work" "uv $work" "ktx $work" "compress $work" "export $work $dir/out.glb"; do
+  for step in "import $model $work" "weld $work" "simplify $work" "uv $work" "ktx $work" "compress $work" "export $work $dir/out.glb"; do
     cmd=${step%% *}
     start=$(date +%s.%N)
     "$BUILD/meshtinker" ${step%% *} --json ${step#* } > "$dir/$cmd.json" 2> "$dir/$cmd.err"

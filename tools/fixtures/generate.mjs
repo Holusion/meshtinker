@@ -877,6 +877,51 @@ fixtures['scan-meshes'] = async (dir) => {
   });
 };
 
+fixtures.soup = async (dir) => {
+  // The synthetic scan written three vertices per triangle, without indices, as some scan exports write it, and a
+  // second mesh for the edge cases of an exact weld: −0 against 0, and a morph target that keeps two otherwise
+  // equal vertices apart.
+  const { b: scan, primitive, transform, bounds, vertices, faces } = scanBuilder({ rings: 8, segments: 16, charts: 2, seed: 3 });
+  const b = new Builder();
+  const read = (builder, accessor) => {
+    const a = builder.json.accessors[accessor];
+    const view = builder.json.bufferViews[a.bufferView];
+    const bytes = Buffer.concat(builder.chunks[view.buffer]).subarray(view.byteOffset, view.byteOffset + view.byteLength);
+    const Type = a.componentType === UINT ? Uint32Array : Float32Array;
+    return new Type(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  };
+  const idx = read(scan, primitive.indices);
+  const corners = (accessor, n) => {
+    const values = read(scan, accessor);
+    return Array.from(idx).flatMap((i) => Array.from(values.subarray(n * i, n * i + n)));
+  };
+  const atlas = b.image('atlas.jpg', await jpeg(64, 64, 0), 'image/jpeg');
+  const material = b.add('materials', { name: 'Scan', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(atlas) }, metallicFactor: 0 } });
+  const soup = b.meshNode([{
+    attributes: { POSITION: b.floats(corners(primitive.attributes.POSITION, 3), 'VEC3'), NORMAL: b.floats(corners(primitive.attributes.NORMAL, 3), 'VEC3'), TEXCOORD_0: b.floats(corners(primitive.attributes.TEXCOORD_0, 2), 'VEC2') },
+    material,
+  }], transform, 'Soup');
+  // Two triangles sharing an edge, six corners: 1 and 3 are equal but for the morph target, 2 and 5 only differ by
+  // the sign of a zero.
+  const quadPositions = [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, -0, 1, 0];
+  const quads = b.meshNode([{
+    attributes: { POSITION: b.floats(quadPositions, 'VEC3'), NORMAL: b.floats(Array(6).fill([0, 0, 1]).flat(), 'VEC3') },
+    targets: [{ POSITION: b.floats([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0], 'VEC3') }],
+    indices: b.indices([0, 1, 2, 3, 4, 5]),
+  }], { translation: [3, 0, 0] }, 'Quads');
+  b.json.meshes[quads.mesh].weights = [0];
+  b.json.scene = b.scene([soup.node, quads.node]);
+  b.write(path.join(dir, 'soup.gltf'));
+  writeExpected(dir, {
+    description: 'The synthetic scan as a triangle soup (no indices, three vertices per triangle, 2 charts), and two indexed triangles whose corners only an exact weld can tell apart: one pair differs by the sign of a zero, another only in a morph target.',
+    geometry: { meshes: 2, primitives: 2, vertices: 3 * faces + 6, faces: faces + 2 },
+    bounds: { min: bounds.min.map((v, i) => Math.min(v, [3, 0, 0][i])), max: bounds.max.map((v, i) => Math.max(v, [4, 1, 0][i])), tolerance: 1e-6 },
+    weld: { vertices: { Soup: vertices, Quads: 5 }, why: 'Soup: the indexed scan it was unrolled from, whose seam vertices differ in UV. Quads: corners 2 and 5 merge (−0 is 0), 1 and 3 stay apart (the target moves 3).' },
+    images: [{ name: 'atlas', mimeType: 'image/jpeg', width: 64, height: 64 }],
+    notes: ['Bounds are the generator\'s float32 positions through the node transforms.', 'Occupancy is not stated: this fixture is for geometry.'],
+  });
+};
+
 fixtures.meshopt = (dir) => {
   // EXT_meshopt_compression with float32 positions and no quantization (gltfpack always quantizes, so
   // this isolates the decoder), and a fallback buffer that holds no data.
