@@ -35,6 +35,7 @@ Commands:
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   ktx           Encode the images of a glTF or GLB model as KTX2
+  normals       Write smooth normals where a glTF or GLB model has none or flat ones
   placeholder   Build a low-poly stand-in for a glTF or GLB model
   simplify      Reduce the triangles of a glTF or GLB model
   uv            Pack the UV charts of a glTF or GLB model tighter, and bake its textures
@@ -234,6 +235,51 @@ POSITIONALS:
 OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### normals
+
+Writes smooth normals on the triangle primitives that have no `NORMAL`, or only flat ones: the three normals of every triangle equal, one per face. Both are usually a mistake made upstream, and normals default to smooth ([AGENTS.md](AGENTS.md#constraints)): most local scans have no normals, which the spec renders flat, and some store one normal per face. Primitives with their own normals, smooth or split along authored hard edges, are kept as they are, and so are flat ones with `--keep-flat`.
+
+Normals are summed over positions, not vertices, so UV seams leave no crease. They are also summed across the primitives that share a border and are drawn with the same transforms, so tiles leave no seam. Each face's normal is weighted by its corner's angle, as Blender does. Edges whose faces meet at more than `--crease-angle` (30° by default, as in Blender) stay hard: boxes and walls stay square, while noisy scans look more faceted than with a larger angle. A vertex on both sides of a hard edge is split in two. Every vertex at one position, on one side of its hard edges, gets the same normal, bit for bit, so that `weld` can merge them afterwards: run `normals` before `weld`. [docs/normals.md](docs/normals.md) says how, and compares 30° with 80°.
+
+Rewritten primitives are written uncompressed (float32 attributes), as every command that rewrites geometry writes them, and lose their `TANGENT`: tangents follow the normals they were made with, and viewers compute their own when there are none. Primitives with an unlit material (`KHR_materials_unlit`) are left without normals, since no viewer shades them. Points and lines are copied as they are. Primitives with morph targets are copied with a warning (`morph-targets-kept`), as are those that can't be read (`normals-not-written`). The report gives the crease angle, the primitives whose normals were added, smoothed, kept, unlit or skipped, the vertices and faces of the rewritten primitives before and after, and the files written.
+
+Given a [chain](#chains), `normals` adds a stage, and records no lossy round. The images are links to the parent stage's.
+
+```console
+$ meshtinker normals --help
+Write smooth normals where a glTF or GLB model has none or flat ones
+
+Computes smooth normals for the triangle primitives that have no NORMAL, or one
+normal per face, summed over positions and across the primitives that share
+them, with edges sharper than the crease angle kept hard. Authored normals are
+kept. Rewritten primitives are written uncompressed.
+
+
+meshtinker normals [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --crease-angle DEGREES 
+                                Edges whose faces meet at more than this angle, in degrees, stay
+                                hard: 0 keeps every edge hard, 180 none (default 30)
+          --keep-flat           Keep flat normals (one per face) as they are: only primitives
+                                without normals get them
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

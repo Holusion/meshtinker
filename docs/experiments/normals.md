@@ -1,8 +1,8 @@
 # Experiment: how real models store normals, and what welding them gains
 
-This is the groundwork for `weld`, and for a command that writes normals. The rule it applies comes from AGENTS.md: **normals default to smooth**. Flat normals, and missing ones, are presumed to be a mistake made upstream, unless the data shows the hard edges are meant.
+This is the groundwork for `weld` and `normals` ([weld.md](../weld.md), [normals.md](../normals.md)). The rule it applies comes from AGENTS.md: **normals default to smooth**. Flat normals, and missing ones, are presumed to be a mistake made upstream, unless the data shows the hard edges are meant.
 
-The script is `tools/experiments/normals/survey.mjs`. It ran on every model of `test/corpus.json` (fixtures, Khronos samples, local models), plus the large local models from [heap-budget.md](heap-budget.md). The figures per model are in [normals-survey.csv](normals-survey.csv): 136 files, 70 of them local.
+The script is `tools/experiments/normals/survey.mjs`. It ran on every model of `test/corpus.json` (fixtures, Khronos samples, local models), plus the large local models from [heap-budget.md](heap-budget.md). The figures per model are in [normals-survey.csv](normals-survey.csv): 136 files, 70 of them local. Its last three columns split the edges above 60°, for the local models with more than 1,000 triangles.
 
 ## What the survey measures
 
@@ -18,7 +18,7 @@ Per triangle primitive:
   - every attribute but `NORMAL`;
   - `POSITION` alone;
   - every attribute rounded on `compress`'s grids (`quantized`): 14-bit positions on the scene's grid, 8-bit normals, and 12-bit texture coordinates over their range.
-- **Dihedral angles.** For each edge two triangles share (by position), the angle between their faces, in buckets: ≤1°, ≤10°, ≤30°, ≤60°, more.
+- **Dihedral angles.** For each edge two triangles share (by position), the angle between their faces, in buckets: ≤1°, ≤10°, ≤30°, ≤60°, more. Edges above 60° are split again: ≤80°, ≤90°, more (on the local models with more than 1,000 triangles).
 - **Split positions.** For each position, the largest angle between its vertices' normals, in the same buckets.
 
 ## Where normals come from
@@ -63,17 +63,19 @@ What "smooth" means there:
 
 - **Sum over positions, not vertex indices.** Otherwise UV seams leave creases, as Voyager's normals do today.
 - **Sum across the primitives that share a border**, as `simplify` already finds them (shared positions, same node transform). Otherwise the 634 tiles of the campus scan would show their borders.
-- **Keep edges sharper than a crease angle hard.** Boxes have 90° edges. On scans with more than 1,000 triangles, 0 to 8 % of edges are above 60°, mostly noise, and 29 % on `34-johannisfriedhof`. A high crease angle, around 80°, keeps boxes square and leaves scans smooth.
+- **Keep edges sharper than a crease angle hard.** Boxes have 90° edges. On scans with more than 1,000 triangles, 0 to 9.4 % of edges are above 60°, mostly noise, and 22 to 34 % on four of them (`33-liege-1730-ruhl`, the campus, `34-johannisfriedhof`, `08-perrusson`). Any crease angle up to 90° keeps boxes square; a higher one leaves more of a scan smooth.
+  - Above 80°: a median of 1.6 % of edges, and 0 to 4.8 % on all but those four (11.5 to 20 %).
+  - Above 90°: a median of 0.95 %.
   - Blender's auto-smooth default of 30° would crease up to 27 % of a scan's edges (59 % on `34-johannisfriedhof`).
-  - three.js's `toCreasedNormals` default of 60° would crease up to 8 %.
-  - The survey's buckets stop at 60°, so the share above 80° isn't measured yet.
-- **Weighting:** by corner angle or by face area. three.js, and therefore Voyager, weights by area.
+  - three.js's `toCreasedNormals` default of 60° would crease up to 9.4 % on all but those four.
+  - `normals` uses Blender's 30°, to be revisited on real use; [normals.md](../normals.md#creases) compares it with 80° on renders.
+- **Weighting:** by corner angle or by face area. three.js, and therefore Voyager, weights by area. `normals` weights by angle, as Blender does: it doesn't depend on how a surface is cut into triangles.
 
 ## What it means for `weld`
 
 - **`weld` stays exact.** It merges vertices equal in every attribute, and doesn't touch normals. On the files where that gains anything, the gains are large: 81 % on Lascaux, 83 % on `24-998`, 82 % on the kintsugi cup, 78 % on the dragon.
 - **In Voyager, welding still changes how a no-normal primitive looks.** Its computed normals follow shared vertices, so a welded soup goes from flat to smooth. That is the direction the rule asks for. Spec-compliant viewers still render it flat.
-- **Normals are better written by a command of their own than computed by the viewer.** It would apply to cases 1 and 2 only, by default, with an option to keep flat normals. It goes before `weld` in a chain: once it has written smooth normals, the campus scan's vertices become identical, and an exact weld takes it from 2.0 M vertices toward the 0.77 M of the weld without normals (a little above, for its creases). It goes before `simplify` too, so that `simplify` sees welded geometry.
+- **Normals are better written by a command of their own than computed by the viewer.** `normals` applies to cases 1 and 2 only, by default, with `--keep-flat` to keep flat normals. It goes before `weld` in a chain: once it has written smooth normals, the campus scan's vertices become identical, and an exact weld takes it from 2.0 M vertices to 0.9 M, a little above the 0.77 M of the weld without normals, for its creases. It goes before `simplify` too, so that `simplify` sees welded geometry.
 
 ## Welding within a tolerance
 

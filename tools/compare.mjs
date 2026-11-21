@@ -2,12 +2,14 @@
 // Semantic equivalence of two glTF models: what a renderer would see, plus the data meshtinker promises to keep.
 //
 //   node tools/compare.mjs A B [--geometry exact|triangles|world] [--tolerance T] [--attribute-tolerance T] [--max N]
+//                              [--ignore ATTRIBUTE,...]
 //
 // Both models are read with gltf-transform (Draco and EXT_meshopt decoded, quantized values dequantized),
 // and only the scene the profile keeps is compared (the default scene, or scene 0), as docs/normalized-profile.md says.
 //
 // - Node tree: names, local transforms, extras, known extensions, cameras, skins, mesh references.
-// - Primitives: mode, material, morph targets, and vertex data:
+// - Primitives: mode, material, morph targets, and vertex data, without the attributes --ignore names (NORMAL,TANGENT
+//   to check `normals`):
 //     exact      every accessor's decoded values in order, and the same indices (repackaging: `import`)
 //     triangles  the multiset of triangles with all their corner attributes, rounded to the tolerance:
 //                ignores vertex order, welding and index layout (reindexing, lossless meshopt). The tolerance
@@ -145,8 +147,8 @@ function compareAnimation(a, b, path, orderA, orderB, options, report) {
 }
 
 /** Multiset of triangles: each corner is every attribute's value, rounded; corners rotated, winding kept. */
-function triangleSet(prim, tolerance) {
-  const semantics = prim.listSemantics().sort();
+function triangleSet(prim, tolerance, ignore) {
+  const semantics = prim.listSemantics().filter((s) => !ignore.has(s)).sort();
   const data = semantics.map((s) => elements(prim.getAttribute(s)));
   const indices = prim.getIndices() ? elements(prim.getIndices()).values : null;
   const count = indices ? indices.length : prim.getAttribute('POSITION').getCount();
@@ -167,10 +169,11 @@ function comparePrimitive(pa, pb, path, options, report) {
   if (pa.getMode() !== pb.getMode()) return report(`${path}.mode`, `${pa.getMode()} ≠ ${pb.getMode()}`);
   diffJSON(canonical(pa.getMaterial()), canonical(pb.getMaterial()), `${path}.material`, report);
   diffJSON(canonical(pa.getExtras()), canonical(pb.getExtras()), `${path}.extras`, report);
-  const [sa, sb] = [pa.listSemantics().sort(), pb.listSemantics().sort()];
+  const kept = (p) => p.listSemantics().filter((s) => !options.ignore.has(s)).sort();
+  const [sa, sb] = [kept(pa), kept(pb)];
   if (sa.join() !== sb.join()) return report(`${path}.attributes`, `${sa} ≠ ${sb}`);
   if (options.geometry === 'triangles' && pa.getMode() === 4) {
-    const [ta, tb] = [triangleSet(pa, options.tolerance), triangleSet(pb, options.tolerance)];
+    const [ta, tb] = [triangleSet(pa, options.tolerance, options.ignore), triangleSet(pb, options.tolerance, options.ignore)];
     let missing = 0;
     let added = 0;
     for (const [k, n] of ta.set) missing += Math.max(0, n - (tb.set.get(k) ?? 0));
@@ -308,7 +311,7 @@ function worldDraws(scene) {
     const world = node.getWorldMatrix();
     const normals = normalMatrix(world);
     mesh.listPrimitives().forEach((prim, i) => {
-      const semantics = prim.listSemantics().sort();
+      const semantics = prim.listSemantics().filter((s) => !options.ignore.has(s)).sort();
       const data = Object.fromEntries(semantics.map((s) => [s, elements(prim.getAttribute(s))]));
       const count = prim.getAttribute('POSITION').getCount();
       const corner = (v) => {
@@ -411,6 +414,7 @@ function compareWorld(sa, sb, options, report) {
 
 export async function compare(fileA, fileB, options = {}) {
   options = { geometry: 'exact', tolerance: 0, attributeTolerance: 0.02, max: 50, ...options };
+  options.ignore = new Set(options.ignore ?? []);
   const differences = [];
   let truncated = 0;
   const report = (path, message) => (differences.length < options.max ? differences.push({ path, message }) : truncated++);
@@ -463,12 +467,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const tolerance = Number(opt('--tolerance', geometry === 'exact' ? '0' : '1e-5'));
   const attributeTolerance = Number(opt('--attribute-tolerance', '0.02'));
   const max = Number(opt('--max', '50'));
+  const ignore = opt('--ignore', '').split(',').filter(Boolean);
   if (args.length !== 2 || !['exact', 'triangles', 'world'].includes(geometry)) {
-    console.error('Usage: node tools/compare.mjs A B [--geometry exact|triangles|world] [--tolerance T] [--attribute-tolerance T] [--max N]');
+    console.error('Usage: node tools/compare.mjs A B [--geometry exact|triangles|world] [--tolerance T] [--attribute-tolerance T] [--max N] [--ignore ATTRIBUTE,...]');
     process.exit(2);
   }
   try {
-    const result = await compare(args[0], args[1], { geometry, tolerance, attributeTolerance, max });
+    const result = await compare(args[0], args[1], { geometry, tolerance, attributeTolerance, max, ignore });
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.equal ? 0 : 1;
   } catch (e) {

@@ -80,6 +80,9 @@ function generator(path) {
 
 const angleBuckets = [1, 10, 30, 60, 180];
 const bucket = (deg) => angleBuckets.findIndex((b) => deg <= b);
+// Edges above 60°, for the crease angle: ≤80°, ≤90°, more.
+const sharpBuckets = [80, 90, 180];
+const sharpBucket = (deg) => sharpBuckets.findIndex((b) => deg <= b);
 
 for (const path of models) {
   if (done.has(path)) continue;
@@ -108,6 +111,8 @@ for (const path of models) {
     splitPositions: [0, 0, 0, 0, 0], positions: 0,
     // Dihedral angles of edges shared by two triangles (by position), same buckets.
     dihedral: [0, 0, 0, 0, 0],
+    // The last dihedral bucket (above 60°), split into ≤80°, ≤90° and more.
+    dihedralSharp: [0, 0, 0],
     // Stored normal against the area-weighted normal of the position's triangles, same buckets.
     vsSmooth: [0, 0, 0, 0, 0],
     normalMap: 0, tangents: 0, morphNormals: 0,
@@ -174,7 +179,12 @@ for (const path of models) {
         const key = a < b ? a * 2 ** 26 + b : b * 2 ** 26 + a;
         const o = edges.get(key);
         if (o === undefined) edges.set(key, t);
-        else if (o >= 0) { r.dihedral[bucket(angle(face[3 * o], face[3 * o + 1], face[3 * o + 2], face[3 * t], face[3 * t + 1], face[3 * t + 2]))]++; edges.set(key, -1); }
+        else if (o >= 0) {
+          const d = angle(face[3 * o], face[3 * o + 1], face[3 * o + 2], face[3 * t], face[3 * t + 1], face[3 * t + 2]);
+          r.dihedral[bucket(d)]++;
+          if (d > 60) r.dihedralSharp[sharpBucket(d)]++;
+          edges.set(key, -1);
+        }
       }
     }
 

@@ -46,6 +46,8 @@
     { "id": "fixture/scan", "source": "fixture", "path": "scan/scan.glb", "covers": ["photogrammetry", "glb", "glb-images", "jpeg", "node-transforms"] },
     { "id": "fixture/scan-tiles", "source": "fixture", "path": "scan-tiles/scan-tiles.gltf", "covers": ["photogrammetry", "gltf", "jpeg", "node-transforms", "tiled-primitives"] },
     { "id": "fixture/soup", "source": "fixture", "path": "soup/soup.gltf", "covers": ["photogrammetry", "gltf", "jpeg", "node-transforms", "triangle-soup", "morph"] },
+    { "id": "fixture/flat-tiles", "source": "fixture", "path": "flat-tiles/flat-tiles.gltf", "covers": ["photogrammetry", "gltf", "node-transforms", "flat-normals"] },
+    { "id": "fixture/bare", "source": "fixture", "path": "bare/bare.gltf", "covers": ["photogrammetry", "gltf", "node-transforms", "no-normals", "unlit", "morph"] },
     { "id": "fixture/scan-meshes", "source": "fixture", "path": "scan-meshes/scan-meshes.gltf", "covers": ["photogrammetry", "gltf", "jpeg", "node-transforms", "tiled-meshes"] },
     { "id": "fixture/cube", "source": "fixture", "path": "cube/cube.gltf", "covers": ["closed-surface", "hidden-interior"] },
     { "id": "fixture/floater", "source": "fixture", "path": "floater/floater.gltf", "covers": ["floaters"] },

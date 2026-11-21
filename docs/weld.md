@@ -25,13 +25,13 @@ Welded primitives are written as every command that rewrites geometry writes the
 
 ## Normals, and how Voyager draws welded primitives
 
-`weld` doesn't write, remove or compare normals in any special way: `NORMAL` is one attribute among the others. Primitives with flat normals, one per face, therefore merge almost nothing: on the 634-primitive campus scan, 2.0 M vertices become 1.997 M. Smoothing them is the job of a `normals` step before `weld`, by the rule that normals default to smooth (AGENTS.md, [experiments/normals.md](experiments/normals.md)).
+`weld` doesn't write, remove or compare normals in any special way: `NORMAL` is one attribute among the others. Primitives with flat normals, one per face, therefore merge almost nothing: on the 634-primitive campus scan, 2.0 M vertices become 1.997 M. Smoothing them is the job of `normals`, run before `weld`, by the rule that normals default to smooth (AGENTS.md, [normals.md](normals.md)).
 
 A primitive without normals renders flat in a viewer that follows the spec, welded or not. eCorpus's viewer, Voyager, doesn't follow it: it computes normals with three.js's `computeVertexNormals`, which averages over the vertices a primitive shares. So in Voyager, welding a primitive without normals changes how it looks.
 - A soup, flat before, becomes smooth.
 - A mesh whose vertices were duplicated becomes smoother along its former duplicates.
 
-That is the direction the smooth-normals rule asks for. Writing the normals ourselves makes the result the same in every viewer.
+That is the direction the smooth-normals rule asks for. `normals` writes them, smooth across UV seams, which makes the result the same in every viewer.
 
 ## In a chain
 
@@ -54,7 +54,7 @@ Release build, inputs on a spinning disk and in the page cache, outputs on an SS
 
 - **On triangle soups, `simplify` does nothing without `weld`.** Every edge of a soup is a border, which meshoptimizer keeps. With `weld` first, the same error takes them to 2.5 to 12 % of their faces.
 - **`compress` alone gains 4 to 5 times from it**, through fewer vertices and meshopt's index codec.
-- **The campus scan doesn't merge**: its normals are per face. Besides, 18 of its 634 primitives share vertex data with another and are skipped (`shared-vertices-kept`). It waits on the `normals` step.
+- **The campus scan doesn't merge**: its normals are per face. Besides, 18 of its 634 primitives share vertex data with another and are skipped (`shared-vertices-kept`). After `normals`, which gives each of them its own vertices, it welds to 1.1 M vertices ([normals.md](normals.md#results)).
 - **The peak RSS** of `weld` is 0.1 to 0.8 GB, mostly the mapped input: every page of the buffers is read once.
 - **Checks:** `validate.mjs --against` finds no new issue on any output, and `compare.mjs --geometry triangles` finds each one equal to its input.
 

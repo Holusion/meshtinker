@@ -1,0 +1,32 @@
+{
+  "description": "Primitives without normals: the synthetic scan (indexed, 2 charts, seam vertices duplicated), a quad with an unlit material, and a quad with a morph target.",
+  "geometry": {
+    "meshes": 3,
+    "primitives": 3,
+    "vertices": 3242,
+    "faces": 6148
+  },
+  "bounds": {
+    "min": [
+      -0.5346975922584534,
+      0,
+      -0.4906177818775177
+    ],
+    "max": [
+      6,
+      1.470385730266571,
+      0.4906177818775177
+    ],
+    "tolerance": 0.000001
+  },
+  "normals": {
+    "vertices": {
+      "Scan": 3234
+    },
+    "why": "No edge of the scan is sharper than the crease angle, so no vertex is split; seam vertices keep their own UV."
+  },
+  "notes": [
+    "Bounds are the generator's float32 positions through the node transforms.",
+    "The scan's triangles are wound clockwise seen from outside, as in every fixture scanBuilder makes: normals computed from the winding point inward."
+  ]
+}
