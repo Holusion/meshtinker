@@ -1,0 +1,34 @@
+{
+  "description": "Three charts spread over a 128×128 base color and a 64×64 normal map, and a second material sharing the base color, for uv.",
+  "geometry": {
+    "primitives": 4,
+    "vertices": 16,
+    "faces": 8
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      7,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "atlas-color",
+      "mimeType": "image/png",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "atlas-normal",
+      "mimeType": "image/png",
+      "width": 64,
+      "height": 64
+    }
+  ]
+}

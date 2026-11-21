@@ -1,0 +1,429 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "meshtinker test fixtures"
+  },
+  "images": [
+    {
+      "name": "atlas-color",
+      "uri": "atlas-color.png"
+    },
+    {
+      "name": "atlas-normal",
+      "uri": "atlas-normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 0
+    }
+  ],
+  "materials": [
+    {
+      "name": "Charted",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        }
+      },
+      "normalTexture": {
+        "index": 1
+      }
+    },
+    {
+      "name": "Sharing",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 48,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96,
+      "byteLength": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 128,
+      "byteLength": 12,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 140,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 188,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 236,
+      "byteLength": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 268,
+      "byteLength": 12,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 280,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 328,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 376,
+      "byteLength": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 408,
+      "byteLength": 12,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 420,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 468,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 516,
+      "byteLength": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 548,
+      "byteLength": 12,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ],
+      "bufferView": 0
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "bufferView": 1
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2",
+      "min": [
+        0.05000000074505806,
+        0.05000000074505806
+      ],
+      "max": [
+        0.25,
+        0.30000001192092896
+      ],
+      "bufferView": 2
+    },
+    {
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "bufferView": 3
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        2,
+        0,
+        0
+      ],
+      "max": [
+        3,
+        1,
+        0
+      ],
+      "bufferView": 4
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "bufferView": 5
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2",
+      "min": [
+        0.6000000238418579,
+        0.10000000149011612
+      ],
+      "max": [
+        0.8999999761581421,
+        0.3499999940395355
+      ],
+      "bufferView": 6
+    },
+    {
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "bufferView": 7
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        4,
+        0,
+        0
+      ],
+      "max": [
+        5,
+        1,
+        0
+      ],
+      "bufferView": 8
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "bufferView": 9
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2",
+      "min": [
+        0.30000001192092896,
+        0.699999988079071
+      ],
+      "max": [
+        0.550000011920929,
+        0.949999988079071
+      ],
+      "bufferView": 10
+    },
+    {
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "bufferView": 11
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        6,
+        0,
+        0
+      ],
+      "max": [
+        7,
+        1,
+        0
+      ],
+      "bufferView": 12
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "bufferView": 13
+    },
+    {
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2",
+      "min": [
+        0.699999988079071,
+        0.6000000238418579
+      ],
+      "max": [
+        0.949999988079071,
+        0.8999999761581421
+      ],
+      "bufferView": 14
+    },
+    {
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "bufferView": 15
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Charted",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 8,
+            "NORMAL": 9,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Sharing",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 12,
+            "NORMAL": 13,
+            "TEXCOORD_0": 14
+          },
+          "indices": 15,
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Charted",
+      "mesh": 0
+    },
+    {
+      "name": "Sharing",
+      "mesh": 1
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "scene": 0,
+  "buffers": [
+    {
+      "byteLength": 560,
+      "uri": "atlas.bin"
+    }
+  ]
+}

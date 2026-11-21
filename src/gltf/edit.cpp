@@ -106,6 +106,15 @@ std::size_t addView(Layout& layout, Json view, common::ByteView bytes) {
     return index;
 }
 
+std::size_t addImage(Layout& layout, Json image, std::string name, std::uint64_t size) {
+    Json& images = array(layout.json, Kind::image);
+    const std::size_t index = images.size();
+    images.push_back(std::move(image));
+    layout.image_sources.push_back(Layout::added_image);
+    layout.added_images[index] = {std::move(name), size};
+    return index;
+}
+
 std::size_t addAccessor(Layout& layout, Json accessor) {
     Json& accessors = array(layout.json, Kind::accessor);
     accessors.push_back(std::move(accessor));
@@ -324,12 +333,17 @@ void prune(Layout& layout) {
     layout.added = std::move(added);
     const std::vector<std::size_t>& image_map = maps[kindIndex(Kind::image)];
     std::vector<std::size_t> image_sources;
+    std::map<std::size_t, Layout::AddedImage> added_images;
     for (std::size_t i = 0; i < image_map.size(); ++i) {
         if (image_map[i] != Layout::dropped) {
             image_sources.push_back(layout.image_sources[i]);
+            if (const auto found = layout.added_images.find(i); found != layout.added_images.end()) {
+                added_images[image_map[i]] = found->second;
+            }
         }
     }
     layout.image_sources = std::move(image_sources);
+    layout.added_images = std::move(added_images);
     for (std::size_t k = 0; k < kind_count; ++k) {
         if (static_cast<Kind>(k) == Kind::buffer) {
             continue;

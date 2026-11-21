@@ -31,10 +31,13 @@ Usage: meshtinker <command> [args...]
 
 Commands:
   compress      Compress the geometry of a glTF or GLB model with meshopt
+  export        Write the last stage of a chain as a .gltf or .glb file
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
+  ktx           Encode the images of a glTF or GLB model as KTX2
   placeholder   Build a low-poly stand-in for a glTF or GLB model
   simplify      Reduce the triangles of a glTF or GLB model
+  uv            Pack the UV charts of a glTF or GLB model tighter, and bake its textures
 
 Commands are the meshtinker-<command> executables next to meshtinker, then on PATH.
 ```
@@ -56,6 +59,28 @@ Every command follows the same conventions:
   | 4 | Another problem with the machine: permissions, missing output directory, existing output |
   | 70 | Internal error: a bug in meshtinker |
 
+### Chains
+
+Commands can run one after another on a *chain*: a directory that keeps each command's result as a numbered stage, so that no file names need wiring.
+
+```sh
+meshtinker import scan.glb work/       # creates the chain, with stage 000
+meshtinker simplify work/              # adds a stage built on the last one
+meshtinker compress work/
+meshtinker inspect work/               # reads the last stage
+meshtinker export work/ scan-opt.glb   # writes the last stage as .glb or .gltf
+```
+
+- `import` creates a chain when its output isn't a `.gltf` file: a new directory, whose parent must exist, or an empty one. Any other command treats its input as a chain when it is a directory holding `chain.json`.
+- Commands that change the model (`simplify`, `compress`) take no output in chain mode: they add a stage. Giving one is a command-line error (2). Without a chain they read and write files as before.
+- `inspect` reads the last stage, and `export` writes it elsewhere. `placeholder` reads files only.
+- A stage is `work/NNN-<command>-<id>/`, with the model under the source's name and `stage.json`: the command, its arguments, its JSON report, and `lossy`, the running total of lossy rounds the model has been through (the source's Draco or JPEG, simplification error, quantization). A command that quantizes geometry quantized already warns (`repeated-quantization`). Stages are never changed once published, and every one is kept until `export --remove-chain`.
+- Files a stage would write identical to its parent's, such as the images of a geometry stage, are hard links to them rather than copies.
+- One command at a time writes a stage: another one fails at once with exit code 4 (`chain-in-use`). Readers can run meanwhile.
+- The workspace defaults to the chain's directory.
+
+[docs/chaining.md](docs/chaining.md) has the layout and the reasons for it.
+
 ## Operations
 
 ### inspect
@@ -70,19 +95,22 @@ Reports statistics about a `.gltf` or `.glb` file, for the scene it shows (the d
 
 Bounds read every vertex the scene draws, and occupancy rasterizes every UV triangle into a coverage map kept in a workspace file. meshopt, Draco and `KHR_mesh_quantization` data are decoded.
 
+Given a [chain](#chains), `inspect` reports on its last stage, without taking the chain's lock.
+
 ```console
 $ meshtinker inspect --help
 Report statistics about a glTF or GLB file
 
 Sizes, geometry, bounds, images and texture occupancy of the scene the file
-shows. Only the default scene counts, as `import` keeps only that one.
+shows. Only the default scene counts, as `import` keeps only that one. Given a
+chain, reads its last stage.
 
 
 meshtinker inspect [OPTIONS] input
 
 
 POSITIONALS:
-  input TEXT REQUIRED           The .gltf or .glb file
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -90,8 +118,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the input's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the input's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
@@ -105,6 +133,8 @@ Rewrites a `.gltf` or `.glb` file in the [normalized profile](docs/normalized-pr
 
 `import` reports the same statistics as `inspect`, for the files it wrote. Both run the same pipeline, so they accept and reject the same files, and `inspect` on `import`'s output gives `import`'s report.
 
+Given a directory instead of a `.gltf` output, `import` creates a [chain](#chains) there, with the model as stage 000 and its report in `stage.json`. A directory that exists must be empty; one that `import` created is removed if it fails. Stage 000 records in `lossy` what the source was already through: Draco or `KHR_mesh_quantization` geometry, and JPEG, WebP and KTX2 images. Image files and a `.bin` that `import` would write unchanged are copied with a reflink where the file system has one, and never linked to the source.
+
 ```console
 $ meshtinker import --help
 Rewrite a glTF or GLB file in the normalized profile
@@ -112,7 +142,8 @@ Rewrite a glTF or GLB file in the normalized profile
 Writes the output .gltf, one .bin beside it and the images as files, keeping
 only the default scene. Geometry and image encodings, unknown extensions and
 extras are kept. Prints the same statistics as `inspect`, measured on what was
-written.
+written. Given a directory, creates a chain there, with the model as its first
+stage.
 
 
 meshtinker import [OPTIONS] input output
@@ -120,8 +151,8 @@ meshtinker import [OPTIONS] input output
 
 POSITIONALS:
   input TEXT REQUIRED           The .gltf or .glb file
-  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
-                                overwritten
+  output TEXT REQUIRED          The .gltf file to write, or a chain to create: a directory, new
+                                or empty. Its parent must exist; no file is overwritten
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -129,8 +160,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
@@ -140,7 +171,7 @@ Builds a low-poly, untextured stand-in for a model, to display while the model i
 
 The placeholder is deliberately approximate. It may cut slightly into the model, and bevels sharp edges by about one cell. Enclosed interior geometry is left out, holes stay open down to a few cells, and open surfaces become thin sheets. Small parts far from the model, such as scan noise, are left out with a warning (`small-parts-left-out`), and so are points and lines. A part that fits inside a single cell disappears, so a scene of objects far apart may need a higher `--resolution`. [docs/placeholder.md](docs/placeholder.md) explains how it is built and where it sits.
 
-It writes `<output>.gltf` and `<output>.bin`, in the normalized profile. The report gives the source's face count, the grid (`resolution`, `cells`, `cellSize`, refit `passes`, `droppedParts`) and the output's vertices, faces and files.
+It writes `<output>.gltf` and `<output>.bin`, in the normalized profile. It reads and writes files only, not [chains](#chains): its output is not the next version of its input. The report gives the source's face count, the grid (`resolution`, `cells`, `cellSize`, refit `passes`, `droppedParts`) and the output's vertices, faces and files.
 
 ```console
 $ meshtinker placeholder --help
@@ -178,6 +209,8 @@ Quantizes and compresses the geometry with `EXT_meshopt_compression`, in the pre
 
 The report gives the primitives compressed and kept, the meshes whose positions were quantized or kept float, the nodes added, the bytes of the geometry's buffer views before and after, and the files written. A 44-million-face scan's 1.32 GB of geometry becomes 207 MB in 20 s, with a heap under 6 MB.
 
+Given a [chain](#chains), `compress` adds a stage, and records its quantization in `lossy.geometryQuantization`, with the bits of positions, normals and texture coordinates. It warns `repeated-quantization` when an earlier stage, or the source, quantized geometry already: a chain from a Draco source through `simplify` quantizes twice. The images are links to the parent stage's.
+
 ```console
 $ meshtinker compress --help
 Compress the geometry of a glTF or GLB model with meshopt
@@ -188,13 +221,14 @@ normals, 12-bit texture coordinates. Draco and meshopt primitives are copied as
 they are.
 
 
-meshtinker compress [OPTIONS] input output
+meshtinker compress [OPTIONS] input [output]
 
 
 POSITIONALS:
-  input TEXT REQUIRED           The .gltf or .glb file
-  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
-                                overwritten
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -202,8 +236,8 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
 ```
 
@@ -215,6 +249,8 @@ Simplified primitives are written uncompressed (float32 attributes), as every co
 
 A 44-million-face scan in 4 meshes takes about 70 s at the default error, down to 937,000 faces, with a heap under 5 MB.
 
+Given a [chain](#chains), `simplify` adds a stage, and adds the largest error it reached to `lossy.simplificationError`, so that the total over several runs stays known. The images are links to the parent stage's.
+
 ```console
 $ meshtinker simplify --help
 Reduce the triangles of a glTF or GLB model
@@ -225,13 +261,14 @@ Simplified primitives are written uncompressed, emptied ones are removed, and
 others are copied as they are.
 
 
-meshtinker simplify [OPTIONS] input output
+meshtinker simplify [OPTIONS] input [output]
 
 
 POSITIONALS:
-  input TEXT REQUIRED           The .gltf or .glb file
-  output TEXT REQUIRED          The .gltf file to write. Its directory must exist; no file is
-                                overwritten
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
 
 OPTIONS:
   -h,     --help                Print this help message and exit
@@ -241,9 +278,118 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
-          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
-                                directory)
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### ktx
+
+Encodes the scene's PNG and JPEG images as KTX2 with Basis Universal and points their textures at them through `KHR_texture_basisu`, as eCorpus does with `ktx create` through glTF-Transform. Color slots (base color, emissive, sheen and specular color, spec-gloss diffuse and specular) get ETC1S in sRGB; normal maps, ORM and every other data slot get UASTC in linear, with Zstandard. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. Every image gets a full mip chain, and sides that aren't multiples of 4 are rounded up, as the extension requires. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` or `EXT_texture_avif` alternative. `KHR_texture_basisu` is then required. Images are left as they are, each with a counted warning, when they are WebP or AVIF only (`image-format-unsupported`), already KTX2 (`image-already-compressed`), used as color by one slot and as data by another (`image-color-space-conflict`), used only by slots `ktx` doesn't know (`image-slot-unknown`), or can't be decoded. [docs/ktx.md](docs/ktx.md) has the details, and the benchmark that set the presets.
+
+`--quality` takes eCorpus's names: ETC1S quality levels 250, 240 (`High`, the default), 220, 180 and 128; UASTC is level 1 at every quality. `--max-size N` scales down images whose longest side is over N texels; without it, `ktx` doesn't resize. Large images are encoded one at a time on every CPU the process may use (its affinity, capped by the cgroup's `cpu.max`), and images under a megatexel several at a time. DamagedHelmet's five 2k images take 16 s with a 365 MiB peak, a 4k scan texture 15 s and 1.1 GB.
+
+The report gives, per image, its source format and size, codec, transfer function, whether alpha was kept, the output's size, bytes before and after, and the time; then the totals and the files written. Given a [chain](#chains), `ktx` adds a stage and records one `lossy.imageEncoding` round per image (`codec`, and `qualityLevel` or `uastcLevel`). It warns `repeated-lossy-image-encoding` when an earlier stage recorded one, such as `import` for a JPEG source. Run `uv` and other image commands before it: they leave KTX2 images as they are.
+
+```console
+$ meshtinker ktx --help
+Encode the images of a glTF or GLB model as KTX2
+
+Encodes PNG and JPEG images with Basis Universal and references them through
+KHR_texture_basisu: ETC1S for color, UASTC for normal maps and other data. The
+textures' other sources are removed.
+
+
+meshtinker ktx [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --quality <Highest|High|Medium|Low|Thumb> 
+                                ETC1S quality, as eCorpus's presets name it (default High)
+          --max-size N          Scale down images whose longest side is over N texels, keeping
+                                their aspect ratio
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+```
+
+### uv
+
+Packs the UV charts of each material tighter and bakes its textures into the new layout, so that fewer texels are wasted: `inspect`'s texture occupancy is the measure. Charts are only moved, by whole texels, so baking copies texels without resampling, and only the texture coordinates of the material's primitives change (no vertex is added; the primitives are written uncompressed). Materials that share images are packed together, and every image of a material gets the same layout, keeping their ratio of sizes. The baked images are PNG; run `ktx` after `uv`. A material whose images wouldn't lose 10 % of their texels is left as it is. So is, with a counted warning, a material with KTX2, WebP or AVIF images, a texture transform, textures on different texture coordinate sets, a repeating texture its UVs tile, morphed texture coordinates, or images that aren't whole multiples of each other in size. [docs/uv.md](docs/uv.md) has the details.
+
+`--max-size N` scales down baked images whose longest side is over N texels. The report gives, per group of materials, its status, charts, the images' sizes before and after, texels and occupancy before and after, and the time. Given a [chain](#chains), `uv` adds a stage; a PNG adds no lossy round.
+
+```console
+$ meshtinker uv --help
+Pack the UV charts of a glTF or GLB model tighter, and bake its textures
+
+Moves the UV charts of each material closer together, by whole texels, and
+copies their texels into smaller images, written as PNG. Charts are not rotated,
+scaled or re-cut. Materials whose images wouldn't shrink by 10 % are left as
+they are.
+
+
+meshtinker uv [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --max-size N          Scale down images whose longest side is over N texels, keeping
+                                their aspect ratio
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
+                                the output's directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### export
+
+Writes the last stage of a [chain](#chains) as one `.gltf` file with its `.bin` and images beside it, or as one `.glb` file, by the output's extension. The model is written as the stage holds it, in the normalized profile. A `.glb` puts the images into its binary chunk after the buffer views, each in a buffer view of its own with its `mimeType`. A GLB can't exceed 4 GiB: a larger model fails with `glb-too-large` and can be written as `.gltf`. The output's files are copies (reflinks where the file system has them), never links to the chain's.
+
+`--remove-chain` removes the chain once the output is published, under the chain's lock: `chain.json` first, then everything else in the chain's directory, other files included, and the directory itself. The chain's files then become the output's by hard link, rather than by copy. An output inside the chain's directory is refused (exit code 2). A directory that can't be removed, such as a mount point, is left empty, with a warning (`chain-directory-kept`).
+
+The report gives the stage written and the files, with their sizes.
+
+```console
+$ meshtinker export --help
+Write the last stage of a chain as a .gltf or .glb file
+
+A .gltf output gets its .bin and images beside it, as in the stage. A .glb
+output holds everything: the images go into its binary chunk. The model is
+written as the stage holds it.
+
+
+meshtinker export [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The chain: its last stage
+  output TEXT REQUIRED          The .gltf or .glb file to write. Its directory must exist; no
+                                file is overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --remove-chain        Remove the chain's directory, with everything in it, once the
+                                output is written
+          --json                Print the result as one JSON object on stdout, even on failure
 ```
 
 ## Architecture

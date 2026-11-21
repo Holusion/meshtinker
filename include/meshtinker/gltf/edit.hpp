@@ -19,6 +19,12 @@ namespace meshtinker::gltf {
 // (see Layout::added). The bytes must outlive the write.
 std::size_t addView(Layout& layout, Json view, common::ByteView bytes);
 
+// Appends an image whose file `name` (of `size` bytes) the command has
+// written in the output directory, and returns its index. `image` is its JSON
+// without `uri` or `bufferView`, which the writer sets. Pick `name` with
+// ImageNames (writer.hpp), so that it doesn't collide with another file.
+std::size_t addImage(Layout& layout, Json image, std::string name, std::uint64_t size);
+
 // Appends `accessor` and returns its index.
 std::size_t addAccessor(Layout& layout, Json accessor);
 

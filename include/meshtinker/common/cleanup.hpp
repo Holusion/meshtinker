@@ -11,8 +11,10 @@ namespace meshtinker::common {
 // outputs and workspaces behind. Commands call this once at startup.
 void installInterruptCleanup();
 
-// Registers a file or empty directory for removal on interruption, for as long
-// as the registration lives. Removing it normally is still the owner's job.
+// Registers a file or directory for removal on interruption, for as long as
+// the registration lives. Files are removed first, then directories, which
+// must hold only registered paths by then, up to four levels deep. Removing
+// it normally is still the owner's job.
 // Up to 1024 paths can be registered at once; beyond that, paths are not
 // cleaned up on interruption.
 class CleanupRegistration {

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace meshtinker::gltf {
@@ -31,8 +32,19 @@ struct Layout {
     // view with an EXT_ or KHR_meshopt_compression extension, they are the
     // compressed bytes, and the view's own range goes in a fallback buffer.
     std::map<std::size_t, common::ByteView> added;
+    // An image a command wrote itself, as it encoded it (gltf/edit.hpp).
+    struct AddedImage {
+        // The file's name in the output directory.
+        std::string name;
+        std::uint64_t size = 0;
+    };
+    // The images a command added, by output image, whose image_sources entry
+    // is `added_image`. The writer points them at their file and doesn't
+    // write it.
+    std::map<std::size_t, AddedImage> added_images;
     static constexpr std::size_t dropped = static_cast<std::size_t>(-1);
     static constexpr std::size_t added_view = dropped - 1;
+    static constexpr std::size_t added_image = dropped - 1;
 };
 
 // The .bin order of the profile for `json`'s buffer views: those primitives

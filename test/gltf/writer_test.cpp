@@ -1,5 +1,7 @@
 #include "meshtinker/common/failure.hpp"
 #include "meshtinker/gltf/document.hpp"
+#include "meshtinker/gltf/layout.hpp"
+#include "meshtinker/gltf/selection.hpp"
 #include "meshtinker/gltf/writer.hpp"
 #include "support/check.hpp"
 #include "support/fixtures.hpp"
@@ -94,6 +96,55 @@ TEST_CASE(round_trips_every_fixture) {
     }
 }
 
+TEST_CASE(writes_every_fixture_as_glb) {
+    for (const test::Fixture& f : test::fixtures()) {
+        if (f.name.rfind("refs-", 0) == 0) {
+            continue;
+        }
+        const fs::path directory = test::workDirectory("writer-glb/" + f.name);
+        const Document source = Document::read(f.model);
+        {
+            common::Outputs outputs;
+            const auto files = gltf::writeGlb(source, gltf::identityLayout(source), directory / "out.glb", outputs);
+            outputs.commit();
+            CHECK_EQ(files.size(), std::size_t{1});
+            CHECK_EQ(files[0].size, fs::file_size(directory / "out.glb"));
+        }
+        const Document output = Document::read(directory / "out.glb");
+        CHECK(output.container() == gltf::Container::glb);
+        // One file: nothing beside the GLB but missing images' names.
+        std::size_t entries = 0;
+        for ([[maybe_unused]] const auto& entry : fs::directory_iterator(directory)) {
+            ++entries;
+        }
+        CHECK_EQ(entries, std::size_t{1});
+        const cgltf_data& data = source.data();
+        // The source's views, then one per image file.
+        CHECK(output.data().buffer_views_count >= data.buffer_views_count);
+        for (std::size_t i = 0; i < data.buffer_views_count && i < output.data().buffer_views_count; ++i) {
+            if (!source.bufferView(i).empty()) {
+                CHECK(sameBytes(source.bufferView(i), output.bufferView(i)));
+            }
+        }
+        for (std::size_t i = 0; i < data.images_count; ++i) {
+            CHECK(sameBytes(source.image(i).bytes, output.image(i).bytes));
+            CHECK_EQ(output.image(i).missing, source.image(i).missing);
+            if (!source.image(i).missing) {
+                CHECK(output.image(i).origin == gltf::ImageOrigin::buffer_view);
+                CHECK(output.json()["images"][i].contains("mimeType"));
+            }
+        }
+        std::size_t with_data = 0;
+        for (std::size_t i = 0; i < output.data().buffers_count; ++i) {
+            with_data += output.buffer(i).empty() ? 0u : 1u;
+        }
+        CHECK(with_data <= 1);
+        if (test::failureCount() > 0) {
+            std::fprintf(stderr, "  in fixture %s\n", f.name.c_str());
+        }
+    }
+}
+
 TEST_CASE(names_images_without_collisions) {
     const Document glb = Document::read(test::fixture("textured-glb").model);
     const auto names = gltf::imageFileNames(glb, "out");
@@ -104,6 +155,39 @@ TEST_CASE(names_images_without_collisions) {
     const auto kept = gltf::imageFileNames(escaped, "uri escaping");
     CHECK_EQ(kept[0], std::string("base color \xE2\x99\xBB.jpg"));
     CHECK_EQ(kept[1], std::string("100% #1.png"));
+}
+
+TEST_CASE(unchanged_files_are_linked_from_the_parent) {
+    // An imported file written again unchanged, as a chain stage that edits
+    // nothing: the .bin and the images are links to the input's files.
+    common::Diagnostics diagnostics;
+    for (const char* name : {"scan", "textured-glb", "meshopt", "draco", "cube"}) {
+        const test::Fixture& f = test::fixture(name);
+        const fs::path parent = test::workDirectory(std::string("writer-link/") + name + "/parent");
+        const fs::path child = test::workDirectory(std::string("writer-link/") + name + "/child");
+        {
+            const Document source = gltf::readNormalized(f.model, {}, diagnostics);
+            common::Outputs outputs;
+            gltf::writeSeparate(source, gltf::normalizedLayout(source, gltf::selectScene(source), diagnostics), parent,
+                                "model", outputs);
+            outputs.commit();
+            // Outside a chain, nothing is linked.
+            CHECK_EQ(outputs.linkedCount(), std::size_t{0});
+        }
+        const Document imported = gltf::readNormalized(parent / "model.gltf", {}, diagnostics);
+        common::Outputs outputs;
+        outputs.linkFrom(parent);
+        const std::vector<gltf::WrittenFile> files = gltf::writeSeparate(
+            imported, gltf::normalizedLayout(imported, gltf::selectScene(imported), diagnostics), child, "model", outputs);
+        outputs.commit();
+        CHECK_EQ(outputs.linkedCount(), files.size() - 1);
+        for (const gltf::WrittenFile& file : files) {
+            CHECK_EQ(fs::file_size(child / file.name), file.size);
+            if (file.role != gltf::FileRole::gltf) {
+                CHECK(fs::equivalent(child / file.name, parent / file.name));
+            }
+        }
+    }
 }
 
 TEST_CASE(existing_outputs_are_kept_and_partial_outputs_removed) {

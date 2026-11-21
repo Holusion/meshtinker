@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { Document } from '@gltf-transform/core';
@@ -510,6 +511,112 @@ fixtures.occupancy = async (dir) => {
       ...['basecolor', 'metallicroughness', 'normal', 'occlusion', 'emissive', 'clearcoat'].map((s) => ({ name: `slot-${s}`, width: 8, height: 8, occupancy: 1 })),
       { name: 'unused', width: 8, height: 8, dropped: true, why: 'referenced by nothing: an orphan, which the profile drops' },
     ],
+  });
+};
+
+// The image cases `ktx` and `uv` handle (docs/ktx.md#validation): alpha used, unused and ignored, a size
+// that isn't a multiple of 4, a JPEG, a normal map, an ORM image in two data slots, a gray occlusion
+// image, one image behind two color textures, and a 16-bit PNG.
+fixtures.textures = async (dir) => {
+  const b = new Builder();
+  const withAlpha = (w, h, alpha) => {
+    const px = pattern(w, h, 1);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[(y * w + x) * 4 + 3] = alpha(x, y);
+    return sharp(px, { raw: { width: w, height: h, channels: 4 } }).png({ compressionLevel: 9 }).toBuffer();
+  };
+  const normals = () => {
+    const px = Buffer.alloc(16 * 16 * 3);
+    for (let i = 0; i < 256; i++) {
+      const nx = ((i % 16) - 7.5) / 20, ny = (Math.floor(i / 16) - 7.5) / 20, nz = Math.sqrt(1 - nx * nx - ny * ny);
+      [nx, ny, nz].forEach((v, c) => { px[i * 3 + c] = Math.round((v + 1) * 127.5); });
+    }
+    return sharp(px, { raw: { width: 16, height: 16, channels: 3 } }).png().toBuffer();
+  };
+  // Written by hand: sharp converts 16-bit raw input as a color space.
+  const deep = () => {
+    const chunk = (type, data) => {
+      const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+      const out = Buffer.alloc(8 + data.length + 4);
+      out.writeUInt32BE(data.length, 0);
+      body.copy(out, 4);
+      out.writeUInt32BE(zlib.crc32(body), 8 + data.length);
+      return out;
+    };
+    const header = Buffer.alloc(13);
+    header.writeUInt32BE(16, 0);
+    header.writeUInt32BE(16, 4);
+    header.set([16, 2, 0, 0, 0], 8); // 16 bits, RGB
+    const rows = Buffer.alloc(16 * (1 + 16 * 6));
+    // A smooth gradient, with low bytes that 8 bits drop.
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      [x * 4096 + 1234, y * 4096 + 567, 40000].forEach((v, c) => rows.writeUInt16BE(v, y * (1 + 96) + 1 + x * 6 + c * 2));
+    }
+    return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header),
+      chunk('IDAT', zlib.deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]);
+  };
+  const images = [
+    b.image('alpha.png', await withAlpha(30, 18, (x) => Math.round((x / 29) * 255)), 'image/png'),
+    b.image('opaque.png', await withAlpha(16, 16, () => 255), 'image/png'),
+    b.image('ignored-alpha.png', await withAlpha(16, 16, () => 128), 'image/png'),
+    b.image('emissive.jpg', await jpeg(16, 16, 2), 'image/jpeg'),
+    b.image('normal.png', await normals(), 'image/png'),
+    b.image('orm.png', await png(16, 16, 3), 'image/png'),
+    b.image('occlusion.png', await raw(16, 16, 4).removeAlpha().toColourspace('b-w').png().toBuffer(), 'image/png'),
+    b.image('shared.png', await png(16, 16, 5), 'image/png'),
+    b.image('deep.png', deep(), 'image/png'),
+  ];
+  const [alpha, opaque, ignored, emissive, normal, orm, occlusion, shared, sixteen] = images.map((image) => b.texture(image));
+  const sharedAgain = b.texture(images[7]);
+  const materials = [
+    { name: 'Alpha', alphaMode: 'BLEND', pbrMetallicRoughness: { baseColorTexture: { index: alpha } } },
+    { name: 'OpaqueAlpha', alphaMode: 'BLEND', pbrMetallicRoughness: { baseColorTexture: { index: opaque } } },
+    { name: 'IgnoredAlpha', pbrMetallicRoughness: { baseColorTexture: { index: ignored } } },
+    { name: 'Lit', emissiveFactor: [1, 1, 1], emissiveTexture: { index: emissive }, normalTexture: { index: normal },
+      occlusionTexture: { index: orm }, pbrMetallicRoughness: { metallicRoughnessTexture: { index: orm } } },
+    { name: 'Occluded', occlusionTexture: { index: occlusion } },
+    { name: 'SharedBase', pbrMetallicRoughness: { baseColorTexture: { index: shared } } },
+    { name: 'SharedEmissive', emissiveFactor: [1, 1, 1], emissiveTexture: { index: sharedAgain } },
+    { name: 'Deep', pbrMetallicRoughness: { baseColorTexture: { index: sixteen } } },
+  ];
+  const nodes = materials.map((m, i) => b.meshNode([{ ...quad(b, { x0: 2 * i, x1: 2 * i + 1 }), material: b.add('materials', m) }], {}, m.name).node);
+  b.json.scene = b.scene(nodes);
+  b.write(path.join(dir, 'textures.gltf'));
+  const image = (name, mimeType, width = 16, height = 16) => ({ name, mimeType, width, height, occupancy: 1 });
+  writeExpected(dir, {
+    description: 'Image cases for ktx and uv: alpha used, unused (all 255) and ignored (OPAQUE), a 30×18 size, a JPEG, a normal map, an ORM image in two data slots, a gray occlusion image, one image behind two color textures, a 16-bit PNG.',
+    geometry: { primitives: 8, vertices: 32, faces: 16 },
+    bounds: { min: [0, 0, 0], max: [15, 1, 0] },
+    images: [image('alpha', 'image/png', 30, 18), image('opaque', 'image/png'), image('ignored-alpha', 'image/png'),
+      image('emissive', 'image/jpeg'), image('normal', 'image/png'), image('orm', 'image/png'), image('occlusion', 'image/png'),
+      image('shared', 'image/png'), image('deep', 'image/png')],
+  });
+};
+
+// Charts spread over their textures, for uv: three charts in a 64×64 base color and a 32×32 normal map
+// (one image half the other's size), and a second material sharing the base color image.
+fixtures.atlas = async (dir) => {
+  const b = new Builder();
+  const color = b.image('atlas-color.png', await png(128, 128, 6), 'image/png');
+  const normals = Buffer.alloc(64 * 64 * 3);
+  for (let i = 0; i < 64 * 64; i++) {
+    const nx = ((i % 64) - 31.5) / 80, ny = (Math.floor(i / 64) - 31.5) / 80, nz = Math.sqrt(1 - nx * nx - ny * ny);
+    [nx, ny, nz].forEach((v, c) => { normals[i * 3 + c] = Math.round((v + 1) * 127.5); });
+  }
+  const normal = b.image('atlas-normal.png', await sharp(normals, { raw: { width: 64, height: 64, channels: 3 } }).png().toBuffer(), 'image/png');
+  const charted = b.add('materials', { name: 'Charted', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(color) } },
+    normalTexture: { index: b.texture(normal) } });
+  const sharing = b.add('materials', { name: 'Sharing', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(color) } } });
+  const charts = [[0.05, 0.05, 0.25, 0.3], [0.6, 0.1, 0.9, 0.35], [0.3, 0.7, 0.55, 0.95]];
+  const primitives = charts.map((uv, i) => ({ ...quad(b, { x0: 2 * i, x1: 2 * i + 1, uv }), material: charted }));
+  const { node: a } = b.meshNode(primitives, {}, 'Charted');
+  const { node: c } = b.meshNode([{ ...quad(b, { x0: 6, x1: 7, uv: [0.7, 0.6, 0.95, 0.9] }), material: sharing }], {}, 'Sharing');
+  b.json.scene = b.scene([a, c]);
+  b.write(path.join(dir, 'atlas.gltf'));
+  writeExpected(dir, {
+    description: 'Three charts spread over a 128×128 base color and a 64×64 normal map, and a second material sharing the base color, for uv.',
+    geometry: { primitives: 4, vertices: 16, faces: 8 },
+    bounds: { min: [0, 0, 0], max: [7, 1, 0] },
+    images: [{ name: 'atlas-color', mimeType: 'image/png', width: 128, height: 128 }, { name: 'atlas-normal', mimeType: 'image/png', width: 64, height: 64 }],
   });
 };
 

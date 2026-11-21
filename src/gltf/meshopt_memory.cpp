@@ -41,6 +41,7 @@ void* allocate(size_t size) {
         throw std::bad_alloc();
     }
     if (current != nullptr) {
+        common::noteLargeArrayHeapBytes();
         allocations->heap[data] = size;
     }
     return data;
