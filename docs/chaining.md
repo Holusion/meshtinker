@@ -101,6 +101,21 @@ Not built yet; this is how they will use chains. `optimize` and other presets ar
 3. Build a plan from the preset (`fast`, `slow`), the quality (`Highest` to `Thumb`) and the statistics: which steps run, their options, and which tool each uses for the model's size and the memory available. The plan is a table in code, like eCorpus's `getPreset` (`optimizeGlb.ts`).
 4. Run each step on the chain with `--json`, then `export chain/ out.glb`.
 
+Steps run in this order; a plan may leave any of them out.
+
+| Step | Must come after | Why |
+| --- | --- | --- |
+| `import` | | Every other command reads a chain's stages. |
+| `normals` | `import` | Writes smooth normals where they're missing or all flat (AGENTS.md, "normals default to smooth"). Flat normals keep the vertices of a flat soup apart, so it must come before `weld`. |
+| `weld` | `normals` | Merges vertices equal in every attribute. It must come before `simplify`, which collapses only edges between shared vertices. |
+| `simplify` | `weld` | Fewer triangles make every later step cheaper. |
+| `uv` | `simplify` | It repacks the texture coordinates that `simplify` keeps, on fewer triangles. It must come before `ktx`: it doesn't decode KTX2 ([uv.md](uv.md)). |
+| `ktx` | `uv` | Encodes the images that `uv` baked. |
+| `compress` | every geometry step | It quantizes and encodes geometry. A geometry step after it would write its primitives back as float32 ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)). |
+| `export` | | Writes the last stage. |
+
+`compress` stays one command, rather than a `quantize` and a `compress`. Vertices that become identical once quantized would merge inside `compress`, with the remap `weld` uses. A `weld` stage between the two would otherwise have to keep quantized storage, unlike every other geometry command, and `compress` would have to accept input it didn't quantize.
+
 - **Finding subcommands** uses the wrapper's lookup (own directory, then `PATH`), moved into `common`.
 - **Output.** Children's stderr passes through, so progress and warnings appear once, from the command that raised them. With `--json`, `optimize` prints `steps: [{command, argv, exitCode, report}]` and merges the children's diagnostics, each tagged with its step.
 - **Exit codes.** A child's non-zero exit code becomes `optimize`'s. A child killed by a signal is an internal error (70). In a container a `SIGKILL` most likely comes from the cgroup's OOM killer, but nothing confirms it, so it is not reported as out of memory (3).
