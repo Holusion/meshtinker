@@ -45,6 +45,7 @@ void Command::addInput() {
         break;
     case Kind::files:
     case Kind::constructor:
+    case Kind::meta:
         break;
     }
     app_.add_option("input", input_, help)->required();
@@ -82,6 +83,7 @@ void Command::addOutput() {
                              });
         break;
     case Kind::terminal:
+    case Kind::meta:
         output_option_ = app_.add_option("output", output,
                                          "The .gltf or .glb file to write. Its directory must exist; no file is overwritten")
                              ->required()
@@ -116,7 +118,7 @@ void Command::addTrustedOption() {
 
 void Command::addWorkspaceOptions() {
     std::string default_location = output_ ? "the output's directory" : "the input's directory";
-    if (kind_ != Kind::files) {
+    if (kind_ != Kind::files && kind_ != Kind::meta) {
         default_location = "the chain, else " + default_location;
     }
     app_.add_option("--tmp-dir", tmp_dir_, "Where to create the temporary workspace (default: " + default_location + ")")
@@ -128,7 +130,8 @@ bool Command::hasOutput() const { return output_option_ != nullptr && output_opt
 
 void Command::resolve() {
     resolved_input_ = input_;
-    const bool input_is_chain = kind_ != Kind::files && kind_ != Kind::constructor && chain::isChain(input_);
+    const bool input_is_chain =
+        kind_ != Kind::files && kind_ != Kind::constructor && kind_ != Kind::meta && chain::isChain(input_);
     std::error_code error;
     if (kind_ == Kind::constructor && output_ && hasOutput() && !hasExtension(output_->u8string(), ".gltf")) {
         stage_ = chain::StageWriter::create(*output_, input_.filename().u8string(), name_, outputs_);
@@ -142,7 +145,7 @@ void Command::resolve() {
         if (kind_ == Kind::terminal) {
             throw usageFailure("INPUT must be a chain, which `meshtinker import` creates");
         }
-        if (kind_ != Kind::files && std::filesystem::is_directory(input_, error)) {
+        if (kind_ != Kind::files && kind_ != Kind::meta && std::filesystem::is_directory(input_, error)) {
             throw common::Failure(common::ExitCode::input_rejected, "not-a-chain",
                                   "'" + input_.filename().u8string() + "' is a directory but not a chain: it has no " +
                                       chain::chain_file);
@@ -270,6 +273,11 @@ int Command::run(int argc, char** argv, const std::function<int()>& body) {
         diagnostics_.print(std::cerr, program());
         return code;
     } catch (...) {
+        // A command that deferred interruptions unwinds first, so that its
+        // destructors clean up, then dies of the signal.
+        if (common::interruption() != 0) {
+            common::dieOfInterruption();
+        }
         const common::FailureReport failure = common::describeFailure(std::current_exception());
         reportFailure(failure, json_);
         if (failure.exit_code == common::ExitCode::usage) {

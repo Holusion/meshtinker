@@ -3,9 +3,12 @@
 #include <array>
 #include <atomic>
 #include <csignal>
+#include <cstdlib>
 #include <utility>
 
 #if defined(__unix__) || defined(__APPLE__)
+#include <sys/types.h>
+#include <signal.h>
 #include <unistd.h>
 #define MESHTINKER_POSIX_SIGNALS 1
 #endif
@@ -25,7 +28,13 @@ std::array<std::atomic<const char*>, slot_count> slots{};
 // `import`, a stage or workspace directory in it.
 constexpr int directory_depth = 4;
 
-extern "C" void removeRegisteredPaths(int signal_number) {
+// Interruptions deferred (deferInterruptions), the child they go to, and the
+// signal received. Lock-free atomics, which a handler may use.
+std::atomic<bool> deferring{false};
+std::atomic<long> forwarded_child{0};
+std::atomic<int> received{0};
+
+void removePaths() {
     // Files first, then directories, which must be empty by then. Slots
     // aren't in nesting order, so directories take one pass per level.
     for (std::atomic<const char*>& slot : slots) {
@@ -42,6 +51,18 @@ extern "C" void removeRegisteredPaths(int signal_number) {
             }
         }
     }
+}
+
+extern "C" void removeRegisteredPaths(int signal_number) {
+    if (deferring.load()) {
+        received.store(signal_number);
+        const long child = forwarded_child.load();
+        if (child > 0) {
+            ::kill(static_cast<pid_t>(child), signal_number);
+        }
+        return;
+    }
+    removePaths();
     std::signal(signal_number, SIG_DFL);
     std::raise(signal_number);
 }
@@ -55,6 +76,43 @@ void installInterruptCleanup() {
         std::signal(signal_number, removeRegisteredPaths);
     }
 #endif
+}
+
+void deferInterruptions() {
+#if defined(MESHTINKER_POSIX_SIGNALS)
+    deferring.store(true);
+#endif
+}
+
+void setForwardedChild(long pid) {
+#if defined(MESHTINKER_POSIX_SIGNALS)
+    forwarded_child.store(pid);
+    // A signal that came just before the child started reaches it too.
+    if (pid > 0 && received.load() != 0) {
+        ::kill(static_cast<pid_t>(pid), received.load());
+    }
+#else
+    (void)pid;
+#endif
+}
+
+int interruption() {
+#if defined(MESHTINKER_POSIX_SIGNALS)
+    return received.load();
+#else
+    return 0;
+#endif
+}
+
+void dieOfInterruption() {
+#if defined(MESHTINKER_POSIX_SIGNALS)
+    const int signal_number = received.load();
+    deferring.store(false);
+    removePaths();
+    std::signal(signal_number, SIG_DFL);
+    std::raise(signal_number);
+#endif
+    std::_Exit(128);
 }
 
 CleanupRegistration::CleanupRegistration(std::string path) : path_(std::move(path)), slot_(no_slot) {

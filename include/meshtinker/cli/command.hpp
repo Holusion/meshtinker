@@ -36,6 +36,9 @@ enum class Kind : std::uint8_t {
     read_only,
     // `cmd work/ out`: reads the last stage of a chain, and writes elsewhere.
     terminal,
+    // `cmd in out.glb`: reads a file and writes a .gltf or .glb, running
+    // other commands on a chain of its own (optimize).
+    meta,
 };
 
 // A subcommand's command line, declared once: its options and their help text
