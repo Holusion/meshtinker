@@ -1,0 +1,50 @@
+{
+  "description": "Duplicates of each kind, and near-duplicates that must stay: wall.png and wall-copy.png hold the same bytes, and wall.png is a second image too; three samplers, two alike but for a name; five textures, three alike once images and samplers merge; materials alike but for their names, beside one with a NEAREST texture, one with extras and one with another image; seven meshes, each with its own copy of quad A except \"Moved\" (other positions, mirrored texture coordinates with the same bounds) and \"Interleaved\" (positions and normals in one strided view); an animation whose two samplers have equal inputs.",
+  "dedup": {
+    "images": {
+      "before": 4,
+      "after": 2
+    },
+    "samplers": {
+      "before": 3,
+      "after": 2
+    },
+    "textures": {
+      "before": 5,
+      "after": 3
+    },
+    "materials": {
+      "before": 6,
+      "after": 4
+    },
+    "accessors": {
+      "before": 32,
+      "after": 9
+    },
+    "meshes": {
+      "before": 7,
+      "after": 5
+    },
+    "bytes": {
+      "bufferViews": {
+        "before": 1044,
+        "after": 276
+      },
+      "images": {
+        "before": 504,
+        "after": 341
+      }
+    },
+    "sameMesh": {
+      "Rock.001": "Rock",
+      "Interleaved": "Rock"
+    },
+    "keptNames": [
+      "Rock",
+      "Stone_0"
+    ],
+    "absentFiles": [
+      "wall-copy.png"
+    ]
+  }
+}

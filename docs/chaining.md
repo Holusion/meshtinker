@@ -108,7 +108,8 @@ Steps run in this order; a plan may leave any of them out.
 | `import` | | Every other command reads a chain's stages. |
 | `normals` | `import` | Writes smooth normals where they're missing or all flat (AGENTS.md, "normals default to smooth"). Flat normals keep the vertices of a flat soup apart, so it must come before `weld`. |
 | `weld` | `normals` | Merges vertices equal in every attribute. It must come before `simplify`, which collapses only edges between shared vertices. |
-| `simplify` | `weld` | Fewer triangles make every later step cheaper. |
+| `dedup` | `weld` | Stores identical images, materials, meshes and accessors once. After `weld`, which copies primitives that share accessors; before `simplify`, which locks copies of a mesh whole, and before the image commands, so that each image is baked and encoded once ([dedup.md](dedup.md#in-a-chain)). |
+| `simplify` | `dedup` | Fewer triangles make every later step cheaper. |
 | `uv` | `simplify` | It repacks the texture coordinates that `simplify` keeps, on fewer triangles. It must come before `ktx` and `avif`: it decodes neither KTX2 nor AVIF ([uv.md](uv.md)). |
 | `ktx` or `avif` | `uv` | Encode the images that `uv` baked: KTX2, which stays compressed on the GPU, or AVIF, smaller to download. One or the other: each leaves the other's textures as they are, since `ktx` can't decode AVIF and `avif` keeps KTX2 ([avif.md](avif.md#textures-and-sources)). |
 | `compress` | every geometry step | It quantizes and encodes geometry. A geometry step after it would write its primitives back as float32 ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)). |
