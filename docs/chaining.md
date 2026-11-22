@@ -71,11 +71,12 @@ This is also why the record is a plain JSON file and not a line appended to a te
 | Kind | Commands | File mode | Chain mode |
 | --- | --- | --- | --- |
 | constructor | `import` | `import in out.gltf` | `import in work/` creates the chain and stage 000 |
-| transform | normals, weld, simplify, compress, uv, ktx, avif | `cmd in out.gltf` | `cmd work/` adds a stage |
+| transform | normals, weld, dedup, simplify, compress, uv, ktx, avif | `cmd in out.gltf` | `cmd work/` adds a stage |
 | read-only | `inspect` | `inspect in` | `inspect work/` reads the last stage |
 | terminal | `export` | — | `export work/ out.glb` |
 
 - `placeholder` stays out of chains and reads files only. Commands that read a model and write something other than its next version may not stay, so chains aren't designed around them.
+- `optimize` is a files command too: it builds a chain of its own in its workspace, which the user never names. Its output may be `.glb` as well as `.gltf`, which a files command declares (`cli::OutputFormats`), since the kind is about chains, not formats.
 - Only `import` creates a chain. A transform given a chain and an output is a command-line error (2): a stage's location is the chain's to decide. So is a transform given a file and no output, and `export` given anything but a chain.
 - A command declares its kind when it creates its `cli::Command`, which resolves the positionals before the command's body runs: in chain mode `input()` is the last stage's model, `outputDirectory()` the pending stage directory, `outputStem()` the source's stem, and `stage()` the stage being written, for `lossy`. The body writes through `outputs()` and calls `publish(report)`, which writes `stage.json` and publishes the stage. A transform therefore needs no code of its own for chains beyond its `lossy` rounds.
 - In chain mode a command's input is always `import`'s output or a stage built on it, so it is in the profile and read front to back.
@@ -94,12 +95,12 @@ Two transforms on one chain would both build on the same stage. A command that w
 
 ## Meta-commands
 
-Not built yet; this is how they will use chains. `optimize` and other presets are C++ subcommands (`meshtinker-optimize`) that run the individual subcommands, as AGENTS.md says. Scripts would need a runtime (a shell, Node.js) beside the static binaries. Presets decide from the JSON reports, which nlohmann reads, and a user who wants to experiment can script a chain by hand.
+`optimize` ([optimize.md](optimize.md)) is a C++ subcommand (`meshtinker-optimize`) that runs the individual subcommands, as AGENTS.md says. Scripts would need a runtime (a shell, Node.js) beside the static binaries. It decides from the JSON reports, which nlohmann reads, and a user who wants to experiment can script a chain by hand.
 
 1. Create a chain in its workspace, beside the output, so that failure and interruption cleanup come with the workspace, and `--keep-tmp` keeps the whole chain for debugging.
 2. Run `import in chain/`. Stage 000's report has the statistics.
-3. Build a plan from the preset (`fast`, `slow`), the quality (`Highest` to `Thumb`) and the statistics: which steps run, their options, and which tool each uses for the model's size and the memory available. The plan is a table in code, like eCorpus's `getPreset` (`optimizeGlb.ts`).
-4. Run each step on the chain with `--json`, then `export chain/ out.glb`.
+3. Run the plan (`src/commands/optimize/plan.cpp`): a list of conditions and steps, which reads the preset (`fast`, `slow`), the quality (`Highest` to `Thumb`), the reports so far and the memory available, and runs each step on the chain with `--json` as it goes.
+4. Run `export chain/ out.glb`.
 
 Steps run in this order; a plan may leave any of them out.
 
@@ -117,7 +118,7 @@ Steps run in this order; a plan may leave any of them out.
 
 `compress` stays one command, rather than a `quantize` and a `compress`. Vertices that become identical once quantized would merge inside `compress`, with the remap `weld` uses. A `weld` stage between the two would otherwise have to keep quantized storage, unlike every other geometry command, and `compress` would have to accept input it didn't quantize.
 
-- **Finding subcommands** uses the wrapper's lookup (own directory, then `PATH`), moved into `common`.
-- **Output.** Children's stderr passes through, so progress and warnings appear once, from the command that raised them. With `--json`, `optimize` prints `steps: [{command, argv, exitCode, report}]` and merges the children's diagnostics, each tagged with its step.
+- **Finding subcommands** uses the wrapper's lookup (own directory, then `PATH`), in `common` (`common/subcommands.hpp`).
+- **Output.** Children's stderr passes through, so progress and warnings appear once, from the command that raised them. With `--json`, `optimize` prints `steps: [{command, argv, exitCode, seconds, report}]` and merges the children's diagnostics, each tagged with its step.
 - **Exit codes.** A child's non-zero exit code becomes `optimize`'s. A child killed by a signal is an internal error (70). In a container a `SIGKILL` most likely comes from the cgroup's OOM killer, but nothing confirms it, so it is not reported as out of memory (3).
-- **Interruption.** A container's `SIGTERM` reaches only `optimize`. It forwards `SIGINT`, `SIGTERM` and `SIGHUP` to the running child, waits for it, then cleans its workspace. The current handler only unlinks and re-raises, so spawning needs a variant of it.
+- **Interruption.** A container's `SIGTERM` reaches only `optimize`. It forwards `SIGINT`, `SIGTERM` and `SIGHUP` to the running child (`common::deferInterruptions`), waits for it, unwinds to remove its workspace, then dies of the signal.

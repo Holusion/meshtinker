@@ -25,7 +25,8 @@ const char* version();
 // How a command takes part in chains (docs/chaining.md), which decides what
 // its `input` and `output` positionals accept.
 enum class Kind : std::uint8_t {
-    // Reads and writes files only: `cmd in out.gltf` (placeholder).
+    // Reads and writes files only: `cmd in out.gltf` (placeholder), or
+    // `cmd in out.glb` when the command writes GLB too (optimize).
     files,
     // `import in out.gltf`, or `import in work/` to create a chain and its
     // stage 000.
@@ -37,6 +38,10 @@ enum class Kind : std::uint8_t {
     // `cmd work/ out`: reads the last stage of a chain, and writes elsewhere.
     terminal,
 };
+
+// The files a command's output may be. Stages are always .gltf, so this
+// matters only to the files kind; the terminal kind writes either.
+enum class OutputFormats : std::uint8_t { gltf, gltf_or_glb };
 
 // A subcommand's command line, declared once: its options and their help text
 // go through CLI11, and `--help` is generated from them. The standard options
@@ -60,7 +65,7 @@ public:
     // The `output` positional: the .gltf file the command writes, with its
     // .bin and images beside it, or what the kind accepts instead. Declare it
     // after the input.
-    void addOutput();
+    void addOutput(OutputFormats formats = OutputFormats::gltf);
     // A command's own flag. CLI11's add_flag is a template that can throw, so
     // calling it from main()'s translation unit makes clang-tidy's
     // exception-escape check fire; this keeps it in command.cpp. A hidden flag

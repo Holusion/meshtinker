@@ -11,6 +11,23 @@ namespace meshtinker::common {
 // outputs and workspaces behind. Commands call this once at startup.
 void installInterruptCleanup();
 
+// For commands that run others (docs/chaining.md#meta-commands): from now on,
+// SIGINT, SIGTERM and SIGHUP are forwarded to the running child (see
+// setForwardedChild) and recorded, and the process carries on: it waits for
+// the child, which cleans up after itself, then sees interruption(), unwinds,
+// and calls dieOfInterruption().
+void deferInterruptions();
+
+// The child to forward signals to, or 0 for none.
+void setForwardedChild(long pid);
+
+// The signal received while interruptions were deferred, or 0.
+int interruption();
+
+// Removes the registered paths and dies of the recorded signal, as an
+// interrupted command would have.
+[[noreturn]] void dieOfInterruption();
+
 // Registers a file or directory for removal on interruption, for as long as
 // the registration lives. Files are removed first, then directories, which
 // must hold only registered paths by then, up to four levels deep. Removing
