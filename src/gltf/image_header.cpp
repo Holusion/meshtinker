@@ -1,6 +1,7 @@
 #include "meshtinker/gltf/image_header.hpp"
 
 #include <cstring>
+#include <vector>
 
 namespace meshtinker::gltf {
 namespace {
@@ -108,10 +109,150 @@ std::optional<ImageHeader> readKtx2(ByteView bytes) {
     return ImageHeader{ImageFormat::ktx2, littleEndian32(bytes.data + 20), littleEndian32(bytes.data + 24)};
 }
 
+// An ISOBMFF box: its type, and where its payload and the box end.
+struct Box {
+    char type[4];
+    std::size_t payload;
+    std::size_t end;
+};
+
+// The box at `offset`, which must end by `limit`.
+std::optional<Box> boxAt(ByteView bytes, std::size_t offset, std::size_t limit) {
+    if (!bytes.contains(offset, 8) || offset + 8 > limit) {
+        return std::nullopt;
+    }
+    std::uint64_t size = bigEndian32(bytes.data + offset);
+    std::size_t header = 8;
+    if (size == 1) {
+        if (!bytes.contains(offset, 16)) {
+            return std::nullopt;
+        }
+        size = (std::uint64_t{bigEndian32(bytes.data + offset + 8)} << 32) | bigEndian32(bytes.data + offset + 12);
+        header = 16;
+    } else if (size == 0) {
+        size = limit - offset;
+    }
+    if (size < header || size > limit - offset) {
+        return std::nullopt;
+    }
+    Box box{};
+    std::memcpy(box.type, bytes.data + offset + 4, 4);
+    box.payload = offset + header;
+    box.end = offset + static_cast<std::size_t>(size);
+    return box;
+}
+
+// The first child of type `type` among the boxes from `offset` to `limit`.
+std::optional<Box> findBox(ByteView bytes, std::size_t offset, std::size_t limit, const char* type) {
+    while (offset < limit) {
+        const std::optional<Box> box = boxAt(bytes, offset, limit);
+        if (!box) {
+            return std::nullopt;
+        }
+        if (std::memcmp(box->type, type, 4) == 0) {
+            return box;
+        }
+        offset = box->end;
+    }
+    return std::nullopt;
+}
+
+// AVIF: an ISOBMFF file whose `ftyp` box lists the `avif` or `avis` brand.
+// Its size is the `ispe` property (image spatial extents) of the primary item:
+// the `pitm` item, through the `ipma` associations, since a grid or alpha item
+// has its own.
+std::optional<ImageHeader> readAvif(ByteView bytes) {
+    const std::optional<Box> ftyp = boxAt(bytes, 0, bytes.size);
+    if (!ftyp || std::memcmp(ftyp->type, "ftyp", 4) != 0 || ftyp->end - ftyp->payload < 8) {
+        return std::nullopt;
+    }
+    bool brand = false;
+    for (std::size_t at = ftyp->payload; at + 4 <= ftyp->end; at += at == ftyp->payload ? std::size_t{8} : std::size_t{4}) {
+        brand = brand || startsWith(bytes, at, "avif", 4) || startsWith(bytes, at, "avis", 4);
+    }
+    if (!brand) {
+        return std::nullopt;
+    }
+    // `meta`, `iprp` and their children are full boxes or plain containers:
+    // `meta` has 4 bytes of version and flags before its children.
+    const std::optional<Box> meta = findBox(bytes, ftyp->end, bytes.size, "meta");
+    if (!meta || meta->end - meta->payload < 4) {
+        return std::nullopt;
+    }
+    const std::size_t children = meta->payload + 4;
+    std::optional<std::uint32_t> primary;
+    if (const std::optional<Box> pitm = findBox(bytes, children, meta->end, "pitm"); pitm && bytes.contains(pitm->payload, 6)) {
+        primary = bytes.data[pitm->payload] == 0 ? bigEndian16(bytes.data + pitm->payload + 4)
+                                                 : (bytes.contains(pitm->payload, 8) ? bigEndian32(bytes.data + pitm->payload + 4) : 0);
+    }
+    const std::optional<Box> iprp = findBox(bytes, children, meta->end, "iprp");
+    const std::optional<Box> ipco = iprp ? findBox(bytes, iprp->payload, iprp->end, "ipco") : std::nullopt;
+    if (!ipco) {
+        return std::nullopt;
+    }
+    // Property indices are 1-based, in `ipco` order.
+    struct Extent {
+        std::uint32_t index;
+        std::uint32_t width;
+        std::uint32_t height;
+    };
+    std::vector<Extent> extents;
+    std::uint32_t index = 0;
+    for (std::size_t at = ipco->payload; at < ipco->end;) {
+        const std::optional<Box> property = boxAt(bytes, at, ipco->end);
+        if (!property) {
+            return std::nullopt;
+        }
+        ++index;
+        if (std::memcmp(property->type, "ispe", 4) == 0 && property->end - property->payload >= 12) {
+            extents.push_back({index, bigEndian32(bytes.data + property->payload + 4), bigEndian32(bytes.data + property->payload + 8)});
+        }
+        at = property->end;
+    }
+    if (extents.empty()) {
+        return std::nullopt;
+    }
+    const auto header = [](const Extent& extent) { return ImageHeader{ImageFormat::avif, extent.width, extent.height}; };
+    const std::optional<Box> ipma = findBox(bytes, iprp->payload, iprp->end, "ipma");
+    if (!primary || !ipma || !bytes.contains(ipma->payload, 8)) {
+        return header(extents.front());
+    }
+    const std::uint8_t version = bytes.data[ipma->payload];
+    const bool wide_index = (bytes.data[ipma->payload + 3] & 1) != 0;
+    const std::uint32_t entries = bigEndian32(bytes.data + ipma->payload + 4);
+    std::size_t at = ipma->payload + 8;
+    for (std::uint32_t e = 0; e < entries; ++e) {
+        const std::size_t id_size = version < 1 ? 2 : 4;
+        if (at + id_size + 1 > ipma->end) {
+            break;
+        }
+        const std::uint32_t item = version < 1 ? bigEndian16(bytes.data + at) : bigEndian32(bytes.data + at);
+        const std::uint32_t associations = bytes.data[at + id_size];
+        at += id_size + 1;
+        for (std::uint32_t a = 0; a < associations; ++a) {
+            const std::size_t size = wide_index ? 2 : 1;
+            if (at + size > ipma->end) {
+                return header(extents.front());
+            }
+            const std::uint32_t property = wide_index ? bigEndian16(bytes.data + at) & 0x7FFFU : bytes.data[at] & 0x7FU;
+            at += size;
+            if (item != *primary) {
+                continue;
+            }
+            for (const Extent& extent : extents) {
+                if (extent.index == property) {
+                    return header(extent);
+                }
+            }
+        }
+    }
+    return header(extents.front());
+}
+
 } // namespace
 
 std::optional<ImageHeader> readImageHeader(ByteView bytes) {
-    for (const auto reader : {readPng, readJpeg, readWebp, readKtx2}) {
+    for (const auto reader : {readPng, readJpeg, readWebp, readKtx2, readAvif}) {
         if (auto header = reader(bytes)) {
             return header;
         }
@@ -129,6 +270,8 @@ const char* mimeType(ImageFormat format) {
         return "image/webp";
     case ImageFormat::ktx2:
         return "image/ktx2";
+    case ImageFormat::avif:
+        return "image/avif";
     }
     return "application/octet-stream";
 }

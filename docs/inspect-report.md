@@ -116,7 +116,7 @@ The cost column says what a field needs. **Document** fields come from the JSON,
 | --- | --- |
 | `texture-alternative-source` | A texture has a core `source` and an extension source; the core one is measured. Example: the texture. |
 | `unknown-required-extension` | `extensionsRequired` lists an extension meshtinker doesn't know. The model is still inspected and imported. Example: the extension. |
-| `image-unrecognized` | An image isn't PNG, JPEG, WebP or KTX2, or is truncated. |
+| `image-unrecognized` | An image isn't PNG, JPEG, WebP, KTX2 or AVIF, or is truncated. |
 | `missing-image` | An image's file is missing or outside the model's folder, and no base color uses it. Its `file` is the reference, `byteSize` 0, size and occupancy `null`. `import` keeps the reference, without a file behind it. |
 | `draco-decode-failed` | Draco rejected a primitive's data, or it doesn't match its accessors: bounds, and occupancy of the images the primitive uses, are `null`. |
 | `missing-vertex-data` | An accessor's buffer view holds no data: same consequences. |

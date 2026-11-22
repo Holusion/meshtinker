@@ -71,7 +71,7 @@ This is also why the record is a plain JSON file and not a line appended to a te
 | Kind | Commands | File mode | Chain mode |
 | --- | --- | --- | --- |
 | constructor | `import` | `import in out.gltf` | `import in work/` creates the chain and stage 000 |
-| transform | simplify, compress, uv, ktx | `cmd in out.gltf` | `cmd work/` adds a stage |
+| transform | normals, weld, simplify, compress, uv, ktx, avif | `cmd in out.gltf` | `cmd work/` adds a stage |
 | read-only | `inspect` | `inspect in` | `inspect work/` reads the last stage |
 | terminal | `export` | — | `export work/ out.glb` |
 
@@ -109,8 +109,8 @@ Steps run in this order; a plan may leave any of them out.
 | `normals` | `import` | Writes smooth normals where they're missing or all flat (AGENTS.md, "normals default to smooth"). Flat normals keep the vertices of a flat soup apart, so it must come before `weld`. |
 | `weld` | `normals` | Merges vertices equal in every attribute. It must come before `simplify`, which collapses only edges between shared vertices. |
 | `simplify` | `weld` | Fewer triangles make every later step cheaper. |
-| `uv` | `simplify` | It repacks the texture coordinates that `simplify` keeps, on fewer triangles. It must come before `ktx`: it doesn't decode KTX2 ([uv.md](uv.md)). |
-| `ktx` | `uv` | Encodes the images that `uv` baked. |
+| `uv` | `simplify` | It repacks the texture coordinates that `simplify` keeps, on fewer triangles. It must come before `ktx` and `avif`: it decodes neither KTX2 nor AVIF ([uv.md](uv.md)). |
+| `ktx` or `avif` | `uv` | Encode the images that `uv` baked: KTX2, which stays compressed on the GPU, or AVIF, smaller to download. One or the other: each leaves the other's textures as they are, since `ktx` can't decode AVIF and `avif` keeps KTX2 ([avif.md](avif.md#textures-and-sources)). |
 | `compress` | every geometry step | It quantizes and encodes geometry. A geometry step after it would write its primitives back as float32 ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)). |
 | `export` | | Writes the last stage. |
 

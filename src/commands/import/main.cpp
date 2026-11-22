@@ -30,7 +30,7 @@ void recordSourceRounds(chain::Lossy& lossy, const analysis::Report& report) {
     }
     for (const analysis::Report::Image& image : report.images) {
         const std::string format = image.mime_type.value_or("");
-        if (format == "image/jpeg" || format == "image/webp" || format == "image/ktx2") {
+        if (format == "image/jpeg" || format == "image/webp" || format == "image/ktx2" || format == "image/avif") {
             lossy.addRound("imageEncoding", {{"image", image.index}, {"format", format}}, nullptr);
         }
     }

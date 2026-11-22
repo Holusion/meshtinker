@@ -620,6 +620,89 @@ fixtures.atlas = async (dir) => {
   });
 };
 
+fixtures.avif = async (dir) => {
+  // Noisy 48×48 images, which PNG stores poorly and AVIF well, so that `avif`
+  // encodes them; and a 4×4 one, which stays a smaller PNG.
+  const b = new Builder();
+  const random = prng(7);
+  const noisy = (w, h, hue, channels = 4, alpha = () => 255) => {
+    const px = pattern(w, h, hue);
+    for (let i = 0; i < w * h; i++) {
+      for (let c = 0; c < 3; c++) px[i * 4 + c] = Math.max(0, Math.min(255, px[i * 4 + c] + Math.round((random() - 0.5) * 60)));
+      px[i * 4 + 3] = alpha(i % w, Math.floor(i / w));
+    }
+    let image = sharp(px, { raw: { width: w, height: h, channels: 4 } });
+    if (channels === 1) image = image.removeAlpha().toColourspace('b-w');
+    else if (channels === 3) image = image.removeAlpha();
+    return image.png({ compressionLevel: 9 }).toBuffer();
+  };
+  const normals = () => {
+    const px = Buffer.alloc(48 * 48 * 3);
+    for (let i = 0; i < 48 * 48; i++) {
+      const nx = ((i % 48) - 23.5) / 60 + (random() - 0.5) * 0.2, ny = (Math.floor(i / 48) - 23.5) / 60 + (random() - 0.5) * 0.2;
+      const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+      [nx, ny, nz].forEach((v, c) => { px[i * 3 + c] = Math.round((v + 1) * 127.5); });
+    }
+    return sharp(px, { raw: { width: 48, height: 48, channels: 3 } }).png({ compressionLevel: 9 }).toBuffer();
+  };
+  const existing = await raw(32, 32, 6).avif({ quality: 50 }).toBuffer();
+  const images = [
+    b.image('color.png', await noisy(48, 48, 1, 3), 'image/png'),
+    b.image('alpha.png', await noisy(48, 48, 2, 4, (x) => Math.round((x / 47) * 255)), 'image/png'),
+    b.image('normal.png', await normals(), 'image/png'),
+    b.image('orm.png', await noisy(48, 48, 3, 3), 'image/png'),
+    b.image('gray.png', await noisy(48, 48, 4, 1), 'image/png'),
+    b.image('mixed.png', await noisy(48, 48, 5, 3), 'image/png'),
+    b.image('tiny.png', await png(4, 4, 0), 'image/png'),
+    b.image('fallback.png', await noisy(48, 48, 6, 3), 'image/png'),
+    b.image('alternative.webp', await webp(32, 32, 0), 'image/webp'),
+    b.image('ktx-only.ktx2', await ktx2(16, 16, 1), 'image/ktx2'),
+    b.image('webp-only.webp', await webp(8, 8, 2), 'image/webp'),
+    b.image('existing.avif', existing, 'image/avif'),
+  ];
+  const [color, alpha, normal, orm, gray, mixed, tiny, fallback, alternative, ktxOnly, webpOnly, avifOnly] = images;
+  const t = (image, extensions) => b.texture(image, undefined, extensions ? { extensions } : undefined);
+  const materials = [
+    { name: 'Color', pbrMetallicRoughness: { baseColorTexture: { index: t(color) } } },
+    { name: 'Alpha', alphaMode: 'BLEND', pbrMetallicRoughness: { baseColorTexture: { index: t(alpha) } } },
+    { name: 'Data', normalTexture: { index: t(normal) }, occlusionTexture: { index: t(orm) },
+      pbrMetallicRoughness: { metallicRoughnessTexture: { index: t(orm) } } },
+    { name: 'Gray', occlusionTexture: { index: t(gray) } },
+    { name: 'Mixed', pbrMetallicRoughness: { baseColorTexture: { index: t(mixed) }, metallicRoughnessTexture: { index: t(mixed) } } },
+    { name: 'Tiny', pbrMetallicRoughness: { baseColorTexture: { index: t(tiny) } } },
+    { name: 'PngWithWebp', pbrMetallicRoughness: { baseColorTexture: { index: t(fallback, { EXT_texture_webp: { source: alternative } }) } } },
+    { name: 'KtxOnly', pbrMetallicRoughness: { baseColorTexture: { index: t(null, { KHR_texture_basisu: { source: ktxOnly } }) } } },
+    { name: 'WebpOnly', pbrMetallicRoughness: { baseColorTexture: { index: t(null, { EXT_texture_webp: { source: webpOnly } }) } } },
+    { name: 'AvifOnly', pbrMetallicRoughness: { baseColorTexture: { index: t(null, { EXT_texture_avif: { source: avifOnly } }) } } },
+  ];
+  // Two rows of five quads, so that the scene isn't a thin strip (placeholder's resolution).
+  const nodes = materials.map((m, i) => {
+    const [x0, y0] = [2 * (i % 5), 2 * Math.floor(i / 5)];
+    return b.meshNode([{ ...quad(b, { x0, x1: x0 + 1, y0, y1: y0 + 1 }), material: b.add('materials', m) }], {}, m.name).node;
+  });
+  b.json.extensionsUsed = ['EXT_texture_webp', 'KHR_texture_basisu', 'EXT_texture_avif'];
+  b.json.extensionsRequired = ['EXT_texture_webp', 'KHR_texture_basisu', 'EXT_texture_avif'];
+  b.json.scene = b.scene(nodes);
+  b.write(path.join(dir, 'avif.gltf'));
+  const image = (name, mimeType, width = 48, height = 48) => ({ name, mimeType, width, height, used: true });
+  writeExpected(dir, {
+    description: 'Image cases for avif: noisy 48×48 color, alpha, normal, ORM, gray and color-and-data images that AVIF stores smaller than PNG; a 4×4 PNG it does not; a PNG with a WebP alternative, and KTX2-, WebP- and AVIF-only textures.',
+    geometry: { primitives: 10, vertices: 40, faces: 20 },
+    bounds: { min: [0, 0, 0], max: [9, 3, 0] },
+    images: [image('color', 'image/png'), image('alpha', 'image/png'), image('normal', 'image/png'), image('orm', 'image/png'),
+      image('gray', 'image/png'), image('mixed', 'image/png'), image('tiny', 'image/png', 4, 4), image('fallback', 'image/png'),
+      { ...image('alternative', 'image/webp', 32, 32), used: false, why: 'the core source wins, with a texture-alternative-source diagnostic' },
+      image('ktx-only', 'image/ktx2', 16, 16), image('webp-only', 'image/webp', 8, 8), image('existing', 'image/avif', 32, 32)],
+    avif: {
+      encoded: { 'color.png': '4:2:0', 'alpha.png': '4:2:0', 'normal.png': '4:4:4', 'orm.png': '4:4:4', 'gray.png': '4:0:0', 'mixed.png': '4:4:4', 'fallback.png': '4:2:0' },
+      alpha: ['alpha.png'],
+      notSmaller: ['tiny.png'],
+      why: 'Color in 4:2:0, data and color-and-data in 4:4:4, gray in 4:0:0; only the BLEND material samples alpha; the 4×4 PNG is smaller than its AVIF.',
+    },
+    diagnostics: ['texture-alternative-source'],
+  });
+};
+
 fixtures['alt-sources'] = async (dir) => {
   const b = new Builder();
   const fallbackPng = b.image('fallback.png', await png(16, 16, 0), 'image/png');

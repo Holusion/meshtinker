@@ -46,7 +46,7 @@ basisu v2.50, 4 threads, on two scan color maps (sources below). PSNR is against
 
 ## Still to measure
 
-- **WebP, AVIF and JPEG** at full, half and quarter size, with fast encoder settings (WebP `method` 0 to 2, AVIF speed 8 to 10, JPEG quality 80 to 90), on the same images, with the same metrics as the KTX2 rows.
+- **WebP, AVIF and JPEG** at half and quarter size, and JPEG at full size, with fast encoder settings, on the same images, with the same metrics as the KTX2 rows. WebP and AVIF at full size, effort 0 included, are in [webp-avif.md](webp-avif.md): AVIF wins on size at equal quality, and at effort 0 costs about WebP's time.
 - **More images:** at least a normal map and an ORM map (sources below), and a model made of many small pages (`32-campus-romainville`, 634 primitives of 256² to 512² images), where per-image overhead may dominate.
 - **Viewer memory per model:** the sum over the model's images of the GPU size, for each candidate. The figure can be computed rather than measured: texels × bits per texel × 4/3 for mips.
 

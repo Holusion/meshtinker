@@ -63,7 +63,7 @@ jobs:
         run: |
           dnf install -y "gcc-toolset-$GCC_TOOLSET-gcc-c++" \
             "gcc-toolset-$GCC_TOOLSET-libasan-devel" "gcc-toolset-$GCC_TOOLSET-libubsan-devel" \
-            cmake make git
+            cmake make git perl
           echo "/opt/rh/gcc-toolset-$GCC_TOOLSET/root/usr/bin" >> "$GITHUB_PATH"
       - uses: actions/checkout@v7
       - name: Configure

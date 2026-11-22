@@ -6,6 +6,7 @@
 #include "meshtinker/common/process.hpp"
 #include "support/check.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -84,7 +85,25 @@ TEST_CASE(readme_blocks_match_help_output) {
                                    __FILE__, __LINE__);
             continue;
         }
-        if (output && trimTrailingNewlines(*output) != block->second) {
+        // The wrapper lists the commands of this build: the README's list
+        // loses those that weren't built, such as `avif` with MESHTINKER_AVIF off.
+        std::string expected = block->second;
+        if (command.empty()) {
+            static const std::regex listed(R"(^  ([a-z]+) {2,}\S.*$)");
+            std::istringstream lines(block->second);
+            std::string line;
+            std::string kept;
+            while (std::getline(lines, line)) {
+                std::smatch match;
+                if (std::regex_match(line, match, listed) &&
+                    std::find(commands.begin(), commands.end(), match[1].str()) == commands.end()) {
+                    continue;
+                }
+                kept += line + "\n";
+            }
+            expected = trimTrailingNewlines(kept);
+        }
+        if (output && trimTrailingNewlines(*output) != expected) {
             meshtinker::test::fail("README block for `meshtinker " + command + " --help` is out of date. Replace it with:\n" +
                                        trimTrailingNewlines(*output),
                                    __FILE__, __LINE__);
