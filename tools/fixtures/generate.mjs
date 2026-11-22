@@ -517,6 +517,85 @@ fixtures.occupancy = async (dir) => {
 // The image cases `ktx` and `uv` handle (docs/ktx.md#validation): alpha used, unused and ignored, a size
 // that isn't a multiple of 4, a JPEG, a normal map, an ORM image in two data slots, a gray occlusion
 // image, one image behind two color textures, and a 16-bit PNG.
+fixtures.duplicates = async (dir) => {
+  const b = new Builder();
+  const wall = await png(16, 16, 0);
+  const other = await png(16, 16, 3);
+  const images = [
+    b.image('wall.png', wall, 'image/png'),
+    b.image('wall-copy.png', wall, 'image/png'),
+    b.image('wall.png', wall, 'image/png'),
+    b.image('other.png', other, 'image/png'),
+  ];
+  b.json.images[2].name = 'wall-again';
+  const linear = { magFilter: LINEAR, minFilter: 9987, wrapS: REPEAT, wrapT: REPEAT };
+  const samplers = [b.add('samplers', linear), b.add('samplers', { ...linear, name: 'copy' }),
+    b.add('samplers', { magFilter: NEAREST, minFilter: NEAREST })];
+  const textures = [b.texture(images[0], samplers[0]), b.texture(images[1], samplers[1]), b.texture(images[2], samplers[0]),
+    b.texture(images[0], samplers[2]), b.texture(images[3], samplers[0])];
+  const material = (name, texture, extra = {}) => b.add('materials', { name, pbrMetallicRoughness: { baseColorTexture: { index: texture } }, ...extra });
+  const materials = [material('Stone_0', textures[0]), material('Stone_1', textures[1]), material('Stone_2', textures[2]),
+    material('Stone_nearest', textures[3]), material('Other', textures[4]), material('Stone_extras', textures[0], { extras: { tag: 'x' } })];
+
+  // Quad A, written anew for each mesh that uses it.
+  const quadA = (m) => ({ ...quad(b), material: m });
+  // Quad A's positions and normals interleaved in one view: equal elements, 24 bytes apart.
+  const interleaved = (m) => {
+    const p = [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0];
+    const data = new Float32Array(24);
+    for (let v = 0; v < 4; v++) { data.set(p.slice(3 * v, 3 * v + 3), 6 * v); data.set([0, 0, 1], 6 * v + 3); }
+    const view = b.view(data, { stride: 24, target: ARRAY_BUFFER });
+    const { attributes, indices } = quad(b);
+    return { attributes: { ...attributes,
+      POSITION: b.accessor(view, FLOAT, 'VEC3', 4, { min: [0, 0, 0], max: [1, 1, 0] }),
+      NORMAL: b.accessor(view, FLOAT, 'VEC3', 4, { byteOffset: 12, min: [0, 0, 1], max: [0, 0, 1] }) }, indices, material: m };
+  };
+  // Quad A one unit up, with its texture coordinates mirrored: the same
+  // bounds, other values.
+  const moved = (m) => {
+    const q = quad(b, { z: 1, uv: [1, 0, 0, 1] });
+    return { ...q, material: m };
+  };
+  const meshes = [
+    ['Rock', quadA(materials[0])], ['Rock.001', quadA(materials[1])], ['RockNearest', quadA(materials[3])],
+    ['Moved', moved(materials[2])], ['RockExtras', quadA(materials[5])], ['Interleaved', interleaved(materials[0])],
+    ['Other', quadA(materials[4])],
+  ].map(([name, primitive], i) => b.meshNode([primitive], { translation: [2 * i, 0, 0] }, name));
+  const times = () => b.floats([0, 1], 'SCALAR');
+  const lift = (node) => ({ input: times(), output: b.floats([2 * node, 0, 0, 2 * node, 1 + node, 0], 'VEC3') });
+  b.add('animations', { name: 'Lift', samplers: [lift(0), lift(1)],
+    channels: [0, 1].map((n) => ({ sampler: n, target: { node: meshes[n].node, path: 'translation' } })) });
+  b.json.scene = b.scene(meshes.map((m) => m.node));
+  b.write(path.join(dir, 'duplicates.gltf'));
+  writeExpected(dir, {
+    description: 'Duplicates of each kind, and near-duplicates that must stay: wall.png and wall-copy.png hold the same bytes, and wall.png is a second image too; three samplers, two alike but for a name; five textures, three alike once images and samplers merge; materials alike but for their names, beside one with a NEAREST texture, one with extras and one with another image; seven meshes, each with its own copy of quad A except "Moved" (other positions, mirrored texture coordinates with the same bounds) and "Interleaved" (positions and normals in one strided view); an animation whose two samplers have equal inputs.',
+    dedup: {
+      images: { before: 4, after: 2 },
+      samplers: { before: 3, after: 2 },
+      textures: { before: 5, after: 3 },
+      materials: { before: 6, after: 4 },
+      // Quad A merges 4 copies and the interleaved one, "Moved" its normals
+      // and indices, the animation one input.
+      accessors: { before: 32, after: 9 },
+      meshes: { before: 7, after: 5 },
+      // Each view holds one accessor, but the interleaved view: quad A is 140
+      // bytes (48 of positions, 48 of normals, 32 of texture coordinates, 12
+      // of indices), and so are "Moved" and "Interleaved"; the animation
+      // holds two 8-byte inputs and two 24-byte outputs. What stays: quad A,
+      // the positions and texture coordinates of "Moved", one input, both
+      // outputs. Images: wall.png's file counts once.
+      bytes: {
+        bufferViews: { before: 7 * 140 + 2 * 8 + 2 * 24, after: 140 + 48 + 32 + 8 + 2 * 24 },
+        images: { before: 2 * wall.length + other.length, after: wall.length + other.length },
+      },
+      // Node → the node whose mesh it draws once merged.
+      sameMesh: { 'Rock.001': 'Rock', Interleaved: 'Rock' },
+      keptNames: ['Rock', 'Stone_0'],
+      absentFiles: ['wall-copy.png'],
+    },
+  });
+};
+
 fixtures.textures = async (dir) => {
   const b = new Builder();
   const withAlpha = (w, h, alpha) => {

@@ -29,4 +29,20 @@ std::string replaceProcess(const std::filesystem::path& program, const std::vect
 // with a non-zero status. Its stderr is discarded.
 std::optional<std::string> captureOutput(const std::filesystem::path& program, const std::vector<std::string>& arguments);
 
+// How a child process ended.
+struct ChildResult {
+    // Its exit status, or -1 if it didn't exit.
+    int exit_code = -1;
+    // The signal that killed it, or 0.
+    int signal = 0;
+    // What it printed on stdout.
+    std::string output;
+};
+
+// Runs `program` with `arguments` (argv[0] included), stdin from /dev/null and
+// stderr shared with this process, and waits for it. While it runs, deferred
+// interruptions (cleanup.hpp) go to it. Throws a Failure (exit code 4) if it
+// can't be started.
+ChildResult runChild(const std::filesystem::path& program, const std::vector<std::string>& arguments);
+
 } // namespace meshtinker::common

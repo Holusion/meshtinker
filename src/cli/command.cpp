@@ -50,11 +50,25 @@ void Command::addInput() {
     app_.add_option("input", input_, help)->required();
 }
 
-void Command::addOutput() {
+void Command::addOutput(OutputFormats formats) {
     std::filesystem::path& output = output_.emplace();
+    const bool glb = kind_ == Kind::terminal || (kind_ == Kind::files && formats == OutputFormats::gltf_or_glb);
+    if (glb) {
+        output_option_ = app_.add_option("output", output,
+                                         "The .gltf or .glb file to write. Its directory must exist; no file is overwritten")
+                             ->required()
+                             ->check([](const std::string& value) {
+                                 return hasExtension(value, ".gltf") || hasExtension(value, ".glb")
+                                            ? std::string()
+                                            : std::string("OUTPUT must end in .gltf or .glb");
+                             });
+        return;
+    }
     switch (kind_) {
     case Kind::files:
     case Kind::read_only:
+    case Kind::terminal: // handled above
+
         output_option_ = app_.add_option("output", output,
                                          "The .gltf file to write. Its directory must exist; no file is overwritten")
                              ->required()
@@ -79,16 +93,6 @@ void Command::addOutput() {
                                  return hasExtension(value, ".glb")
                                             ? std::string("OUTPUT must be a .gltf file or a directory")
                                             : std::string();
-                             });
-        break;
-    case Kind::terminal:
-        output_option_ = app_.add_option("output", output,
-                                         "The .gltf or .glb file to write. Its directory must exist; no file is overwritten")
-                             ->required()
-                             ->check([](const std::string& value) {
-                                 return hasExtension(value, ".gltf") || hasExtension(value, ".glb")
-                                            ? std::string()
-                                            : std::string("OUTPUT must end in .gltf or .glb");
                              });
         break;
     }
@@ -270,6 +274,11 @@ int Command::run(int argc, char** argv, const std::function<int()>& body) {
         diagnostics_.print(std::cerr, program());
         return code;
     } catch (...) {
+        // A command that deferred interruptions unwinds first, so that its
+        // destructors clean up, then dies of the signal.
+        if (common::interruption() != 0) {
+            common::dieOfInterruption();
+        }
         const common::FailureReport failure = common::describeFailure(std::current_exception());
         reportFailure(failure, json_);
         if (failure.exit_code == common::ExitCode::usage) {

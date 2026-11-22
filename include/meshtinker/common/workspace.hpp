@@ -80,9 +80,10 @@ public:
 
     // The directory, once created.
     const std::optional<std::filesystem::path>& path() const { return path_; }
+    // The directory, created on the first call. Throws a Failure as scratch() does.
+    const std::filesystem::path& directory();
 
 private:
-    const std::filesystem::path& directory();
 
     std::filesystem::path parent_;
     bool keep_;

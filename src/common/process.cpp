@@ -1,5 +1,8 @@
 #include "meshtinker/common/process.hpp"
 
+#include "meshtinker/common/cleanup.hpp"
+#include "meshtinker/common/failure.hpp"
+
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
@@ -174,6 +177,62 @@ std::optional<std::string> captureOutput(const fs::path& program, const std::vec
         return std::nullopt;
     }
     return output;
+#endif
+}
+
+ChildResult runChild(const fs::path& program, const std::vector<std::string>& arguments) {
+#if defined(_WIN32)
+    (void)arguments;
+    throw Failure(ExitCode::machine, "cannot-run", "Can't run " + program.filename().string() + " on this platform");
+#else
+    std::vector<char*> argv;
+    argv.reserve(arguments.size() + 1);
+    for (const std::string& argument : arguments) {
+        argv.push_back(const_cast<char*>(argument.c_str()));
+    }
+    argv.push_back(nullptr);
+    int pipe_ends[2];
+    if (::pipe(pipe_ends) != 0) {
+        throw Failure(ExitCode::machine, "cannot-run", "Can't run " + program.filename().string() + ": " + std::strerror(errno));
+    }
+    const pid_t child = ::fork();
+    if (child < 0) {
+        ::close(pipe_ends[0]);
+        ::close(pipe_ends[1]);
+        throw Failure(ExitCode::machine, "cannot-run", "Can't run " + program.filename().string() + ": " + std::strerror(errno));
+    }
+    if (child == 0) {
+        const int null_device = ::open("/dev/null", O_RDONLY);
+        ::dup2(null_device, STDIN_FILENO);
+        ::dup2(pipe_ends[1], STDOUT_FILENO);
+        ::close(pipe_ends[0]);
+        ::close(pipe_ends[1]);
+        ::execv(program.c_str(), argv.data());
+        ::_exit(127);
+    }
+    setForwardedChild(static_cast<long>(child));
+    ::close(pipe_ends[1]);
+    ChildResult result;
+    char buffer[65536];
+    for (;;) {
+        const ssize_t got = ::read(pipe_ends[0], buffer, sizeof buffer);
+        if (got > 0) {
+            result.output.append(buffer, static_cast<std::size_t>(got));
+        } else if (got == 0 || errno != EINTR) {
+            break;
+        }
+    }
+    ::close(pipe_ends[0]);
+    int status = 0;
+    while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {
+    }
+    setForwardedChild(0);
+    if (WIFEXITED(status)) {
+        result.exit_code = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        result.signal = WTERMSIG(status);
+    }
+    return result;
 #endif
 }
 

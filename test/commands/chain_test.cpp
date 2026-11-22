@@ -342,3 +342,20 @@ TEST_CASE(weld_then_simplify) {
     CHECK_EQ(after.code, 0);
     CHECK(after.json["output"]["faces"].get<std::uint64_t>() < alone.json["output"]["faces"].get<std::uint64_t>() / 2);
 }
+
+// dedup records no lossy round, and a later stage links the images it kept.
+TEST_CASE(dedup_in_a_chain) {
+    const fs::path root = test::workDirectory("chain-commands/duplicates");
+    const test::Fixture& fixture = test::fixture("duplicates");
+    const std::string chain_directory = (root / "chain").string();
+    CHECK_EQ(run("import", {fixture.model.string(), chain_directory}).code, 0);
+    const Run dedup = run("dedup", {chain_directory});
+    CHECK_EQ(dedup.code, 0);
+    CHECK_EQ(dedup.json["meshes"]["after"].get<std::uint64_t>(), fixture.expected["dedup"]["meshes"]["after"].get<std::uint64_t>());
+    const chain::Chain chain = chain::Chain::open(chain_directory);
+    CHECK_EQ(chain.record(chain.last())["lossy"], chain.record(chain.stages().front())["lossy"]);
+    const Run again = run("dedup", {chain_directory});
+    CHECK_EQ(again.code, 0);
+    CHECK_EQ(again.json["meshes"]["before"], again.json["meshes"]["after"]);
+    CHECK_EQ(run("export", {chain_directory, (root / "out.glb").string()}).code, 0);
+}

@@ -32,11 +32,13 @@ Usage: meshtinker <command> [args...]
 Commands:
   avif          Encode the images of a glTF or GLB model as AVIF
   compress      Compress the geometry of a glTF or GLB model with meshopt
+  dedup         Store identical images, materials, meshes and accessors once
   export        Write the last stage of a chain as a .gltf or .glb file
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
   ktx           Encode the images of a glTF or GLB model as KTX2
   normals       Write smooth normals where a glTF or GLB model has none or flat ones
+  optimize      Optimize a glTF or GLB model in one step
   placeholder   Build a low-poly stand-in for a glTF or GLB model
   simplify      Reduce the triangles of a glTF or GLB model
   uv            Pack the UV charts of a glTF or GLB model tighter, and bake its textures
@@ -85,6 +87,46 @@ meshtinker export work/ scan-opt.glb   # writes the last stage as .glb or .gltf
 [docs/chaining.md](docs/chaining.md) has the layout and the reasons for it.
 
 ## Operations
+
+### optimize
+
+Runs the other commands on a chain in its workspace, with the steps and options that suit the model, and writes the result as a `.glb` or `.gltf`: `import`, then `normals`, `weld`, `dedup`, `simplify`, `uv`, `ktx` or `avif`, and `compress`, each when the model needs it, then `export`. `--quality` sets `simplify`'s error and the textures' size and quality, after eCorpus's presets; `--preset fast` makes a temporary model quickly, without `uv` and with AVIF at a low effort; `--textures avif` encodes AVIF rather than KTX2. Each step's warnings appear as it runs. The report lists the steps with their times and the bytes before and after; with `--json`, each step's own report, and its diagnostics tagged with the step. A failing step's exit code becomes `optimize`'s, and an interruption reaches the running step before the workspace goes. [docs/optimize.md](docs/optimize.md) has the rules each step follows, in `src/commands/optimize/plan.cpp`.
+
+```console
+$ meshtinker optimize --help
+Optimize a glTF or GLB model in one step
+
+Imports the model into a chain in its workspace, runs the commands that suit it
+(normals, weld, dedup, simplify, uv, ktx or avif, compress) with the options of
+the preset and quality, and exports the result. Each step's warnings appear as
+it runs.
+
+
+meshtinker optimize [OPTIONS] input output
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file
+  output TEXT REQUIRED          The .gltf or .glb file to write. Its directory must exist; no
+                                file is overwritten
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --quality <Highest|High|Medium|Low|Thumb> 
+                                Geometry and texture quality, as eCorpus's presets name it
+                                (default High)
+          --preset <slow|fast>  slow for the asset to publish, fast for a temporary model: no uv,
+                                AVIF at a low effort (default slow)
+          --textures <ktx|avif> KTX2, which stays compressed on the GPU, or AVIF, smaller to
+                                download (default ktx)
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+          --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
+                                directory)
+          --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
 
 ### inspect
 
@@ -325,6 +367,41 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### dedup
+
+Stores identical objects once: images with the same bytes, then samplers, textures, materials, accessors and meshes that are equal but for their name, as glTF-Transform's `dedup` does with its defaults. References point at the first of each, which keeps its name, and the others are removed. Each node draws what it drew. Accessors in meshopt views, sparse accessors and accessors without a view are left as they are, and an accessor merged into another frees its bytes only when no other accessor uses its buffer view. [docs/dedup.md](docs/dedup.md) says what compares equal, and why `dedup` goes after `weld` and before `simplify` in a chain.
+
+The report gives the objects of each kind before and after, and the bytes of buffer views and images stored before and after.
+
+Given a [chain](#chains), `dedup` adds a stage, and records no lossy round.
+
+```console
+$ meshtinker dedup --help
+Store identical images, materials, meshes and accessors once
+
+Merges images with the same bytes, then samplers, textures, materials, accessors
+and meshes that are equal but for their name, into the first of each, and
+removes the others. Accessors in meshopt views and sparse accessors are left as
+they are.
+
+
+meshtinker dedup [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
 ```
 
 ### simplify
