@@ -1,0 +1,249 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "meshtinker test fixtures"
+  },
+  "images": [
+    {
+      "name": "atlas",
+      "uri": "atlas.jpg"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    }
+  ],
+  "materials": [
+    {
+      "name": "Scan",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 9216,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 9216,
+      "byteLength": 9216,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 18432,
+      "byteLength": 6144,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24576,
+      "byteLength": 72,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24648,
+      "byteLength": 72,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24720,
+      "byteLength": 72,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24792,
+      "byteLength": 12,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "componentType": 5126,
+      "count": 768,
+      "type": "VEC3",
+      "min": [
+        -1.0809707641601562,
+        -0.9590057730674744,
+        -1.104838490486145
+      ],
+      "max": [
+        1.069123387336731,
+        1.0114718675613403,
+        1.104838490486145
+      ],
+      "bufferView": 0
+    },
+    {
+      "componentType": 5126,
+      "count": 768,
+      "type": "VEC3",
+      "min": [
+        -1,
+        -0.8910065293312073,
+        -1
+      ],
+      "max": [
+        1,
+        0.8910065293312073,
+        1
+      ],
+      "bufferView": 1
+    },
+    {
+      "componentType": 5126,
+      "count": 768,
+      "type": "VEC2",
+      "min": [
+        0.05000000074505806,
+        0.10000000149011612
+      ],
+      "max": [
+        0.949999988079071,
+        0.8999999761581421
+      ],
+      "bufferView": 2
+    },
+    {
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ],
+      "bufferView": 3
+    },
+    {
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "bufferView": 4
+    },
+    {
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        0,
+        0,
+        0.5
+      ],
+      "bufferView": 5
+    },
+    {
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "bufferView": 6
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Soup",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Quads",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4
+          },
+          "targets": [
+            {
+              "POSITION": 5
+            }
+          ],
+          "indices": 6
+        }
+      ],
+      "weights": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Soup",
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "translation": [
+        0,
+        1,
+        0
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Quads",
+      "translation": [
+        3,
+        0,
+        0
+      ],
+      "mesh": 1
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "scene": 0,
+  "buffers": [
+    {
+      "byteLength": 24804,
+      "uri": "soup.bin"
+    }
+  ]
+}

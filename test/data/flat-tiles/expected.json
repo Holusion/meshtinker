@@ -1,0 +1,34 @@
+{
+  "description": "The synthetic scan cut into 4 tiles, one primitive each, with three vertices per triangle carrying its face normal and a tangent along its first edge, as the campus scan stores its normals.",
+  "geometry": {
+    "meshes": 1,
+    "primitives": 4,
+    "vertices": 4608,
+    "faces": 1536
+  },
+  "bounds": {
+    "min": [
+      -0.5112667679786682,
+      0.5293730199337006,
+      -0.5112592577934265
+    ],
+    "max": [
+      0.5435729026794434,
+      1.4943949580192566,
+      0.5112592577934265
+    ],
+    "tolerance": 0.000001
+  },
+  "normals": {
+    "weldedVertices": [
+      221,
+      221,
+      221,
+      221
+    ],
+    "why": "Once smooth, a tile's vertices at one position are equal in every attribute, so weld brings each tile back to the indexed tile it was unrolled from."
+  },
+  "notes": [
+    "Bounds are the generator's float32 positions through the node transform."
+  ]
+}

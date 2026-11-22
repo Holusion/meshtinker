@@ -268,3 +268,45 @@ TEST_CASE(uv_then_ktx) {
     CHECK_EQ(late.code, 0);
     CHECK(hasDiagnostic(late.json, "image-already-compressed"));
 }
+
+// normals records no lossy round, and lets weld merge what flat normals kept
+// apart (docs/chaining.md#meta-commands: normals before weld).
+TEST_CASE(normals_then_weld) {
+    const fs::path root = test::workDirectory("chain-commands/flat-tiles");
+    const test::Fixture& fixture = test::fixture("flat-tiles");
+    const std::string chain_directory = (root / "chain").string();
+    CHECK_EQ(run("import", {fixture.model.string(), chain_directory}).code, 0);
+    const Run normals = run("normals", {chain_directory});
+    CHECK_EQ(normals.code, 0);
+    CHECK_EQ(normals.json["primitives"]["smoothed"].get<std::uint64_t>(), std::uint64_t{4});
+    const Run weld = run("weld", {chain_directory});
+    CHECK_EQ(weld.code, 0);
+    std::uint64_t expected = 0;
+    for (const auto& vertices : fixture.expected["normals"]["weldedVertices"]) {
+        expected += vertices.get<std::uint64_t>();
+    }
+    CHECK_EQ(weld.json["output"]["vertices"].get<std::uint64_t>(), expected);
+    const chain::Chain chain = chain::Chain::open(chain_directory);
+    CHECK_EQ(chain.record(chain.last())["lossy"], chain.record(chain.stages().front())["lossy"]);
+}
+
+// weld records no lossy round, and lets simplify collapse a soup it otherwise
+// can't touch (docs/chaining.md#meta-commands: weld before simplify).
+TEST_CASE(weld_then_simplify) {
+    const fs::path root = test::workDirectory("chain-commands/soup");
+    const fs::path source = test::fixture("soup").model;
+    const std::string plain = (root / "plain").string();
+    const std::string welded = (root / "welded").string();
+    CHECK_EQ(run("import", {source.string(), plain}).code, 0);
+    CHECK_EQ(run("import", {source.string(), welded}).code, 0);
+    const Run weld = run("weld", {welded});
+    CHECK_EQ(weld.code, 0);
+    CHECK_EQ(weld.json["primitives"]["welded"].get<std::uint64_t>(), std::uint64_t{2});
+    const chain::Chain chain = chain::Chain::open(welded);
+    CHECK_EQ(chain.record(chain.last())["lossy"], chain.record(chain.stages().front())["lossy"]);
+    const Run alone = run("simplify", {"--error", "0.01", plain});
+    const Run after = run("simplify", {"--error", "0.01", welded});
+    CHECK_EQ(alone.code, 0);
+    CHECK_EQ(after.code, 0);
+    CHECK(after.json["output"]["faces"].get<std::uint64_t>() < alone.json["output"]["faces"].get<std::uint64_t>() / 2);
+}

@@ -29,29 +29,6 @@ std::size_t indexOf(const cgltf_accessor* accessor, const cgltf_data& data) {
     return static_cast<std::size_t>(accessor - data.accessors);
 }
 
-template <typename Visit>
-void forEachAccessor(const cgltf_primitive& primitive, Visit visit) {
-    if (primitive.indices != nullptr) {
-        visit(*primitive.indices);
-    }
-    for (std::size_t a = 0; a < primitive.attributes_count; ++a) {
-        visit(*primitive.attributes[a].data);
-    }
-    for (std::size_t t = 0; t < primitive.targets_count; ++t) {
-        for (std::size_t a = 0; a < primitive.targets[t].attributes_count; ++a) {
-            visit(*primitive.targets[t].attributes[a].data);
-        }
-    }
-}
-
-bool compressedView(const cgltf_buffer_view* view) { return view != nullptr && view->has_meshopt_compression != 0; }
-
-bool usesMeshopt(const cgltf_accessor& accessor) {
-    return compressedView(accessor.buffer_view) ||
-           (accessor.is_sparse != 0 &&
-            (compressedView(accessor.sparse.indices_buffer_view) || compressedView(accessor.sparse.values_buffer_view)));
-}
-
 bool isTriangles(cgltf_primitive_type type) {
     return type == cgltf_primitive_type_triangles || type == cgltf_primitive_type_triangle_strip ||
            type == cgltf_primitive_type_triangle_fan;
@@ -144,14 +121,14 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
             if (gltf::GeometryReader::isDraco(primitive)) {
                 plan = Plan::draco;
             } else {
-                forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
-                    if (usesMeshopt(accessor)) {
+                gltf::forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
+                    if (gltf::usesMeshopt(accessor)) {
                         plan = Plan::meshopt;
                     }
                 });
             }
             if (plan == Plan::rewrite) {
-                forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
+                gltf::forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
                     if (reader.prepare(accessor) != gltf::Readability::readable ||
                         cgltf_num_components(accessor.type) > 4) {
                         plan = Plan::unreadable;
@@ -189,7 +166,7 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
     for (std::size_t m = 0; m < data.meshes_count; ++m) {
         for (std::size_t p = 0; p < data.meshes[m].primitives_count; ++p) {
             const cgltf_primitive& primitive = data.meshes[m].primitives[p];
-            forEachAccessor(primitive, [&](const cgltf_accessor& accessor) { ++users[indexOf(&accessor, data)]; });
+            gltf::forEachAccessor(primitive, [&](const cgltf_accessor& accessor) { ++users[indexOf(&accessor, data)]; });
             const cgltf_accessor* position = gltf::findAttribute(primitive, cgltf_attribute_type_position, 0);
             if (position != nullptr) {
                 const std::size_t index = indexOf(position, data);
@@ -301,7 +278,7 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
                 continue;
             }
             const cgltf_primitive& primitive = mesh.primitives[p];
-            forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
+            gltf::forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
                 input_views.insert(accessor.buffer_view);
                 if (accessor.is_sparse != 0) {
                     input_views.insert(accessor.sparse.indices_buffer_view);
@@ -309,7 +286,7 @@ Report compress(const std::filesystem::path& input, const std::filesystem::path&
                 }
             });
             bool exclusive = isTriangles(primitive.type);
-            forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
+            gltf::forEachAccessor(primitive, [&](const cgltf_accessor& accessor) {
                 exclusive = exclusive && users[indexOf(&accessor, data)] == 1;
             });
             if (!exclusive) {

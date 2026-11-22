@@ -1,0 +1,137 @@
+model,source,generator,primitives,classes,triangles,vertices,weld_exact,weld_without_normal,weld_position,weld_quantized,dihedral_le1,dihedral_le10,dihedral_le30,dihedral_le60,dihedral_gt60,split_le1,split_le10,split_le30,split_le60,split_gt60,normal_maps,dihedral_gt60_le80,dihedral_gt80_le90,dihedral_gt90
+triangle/triangle.gltf,fixture,meshtinker test fixtures,1,flat:1,1,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,,,
+triangle-glb/triangle.glb,fixture,meshtinker test fixtures,1,no-normals:1,1,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,,,
+textured-glb/textured.glb,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+data-uri/data-uri.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+shared/shared.gltf,fixture,meshtinker test fixtures,3,no-normals:3,4,12,12,12,12,12,1,0,0,0,0,0,0,0,0,0,0,,,
+modes/modes.gltf,fixture,meshtinker test fixtures,7,no-normals-unindexed:1,2,6,6,6,6,6,0,0,0,0,0,0,0,0,0,0,0,,,
+scenes/scenes.gltf,fixture,meshtinker test fixtures,3,flat:1 no-normals-unindexed:2,4,10,10,10,10,10,1,0,0,0,0,0,0,0,0,0,0,,,
+no-default-scene/no-default-scene.gltf,fixture,meshtinker test fixtures,2,flat:2,4,8,8,8,8,8,2,0,0,0,0,0,0,0,0,0,0,,,
+interleaved/interleaved.gltf,fixture,meshtinker test fixtures,2,flat:2,4,8,8,8,8,8,2,0,0,0,0,0,0,0,0,0,0,,,
+sparse/sparse.gltf,fixture,meshtinker test fixtures,2,no-normals:1 no-normals-unindexed:1,3,7,7,7,7,7,1,0,0,0,0,0,0,0,0,0,0,,,
+morph/morph.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+occupancy/occupancy.gltf,fixture,meshtinker test fixtures,6,flat:6,12,24,24,24,24,24,6,0,0,0,0,0,0,0,0,0,1,,,
+textures/textures.gltf,fixture,meshtinker test fixtures,8,flat:8,16,32,32,32,32,32,8,0,0,0,0,0,0,0,0,0,1,,,
+atlas/atlas.gltf,fixture,meshtinker test fixtures,4,flat:4,8,16,16,16,16,16,4,0,0,0,0,0,0,0,0,0,3,,,
+alt-sources/alt-sources.gltf,fixture,meshtinker test fixtures,3,flat:3,6,12,12,12,12,12,3,0,0,0,0,0,0,0,0,0,0,,,
+meshopt/meshopt.gltf,fixture,meshtinker test fixtures,1,no-normals:1,4,6,6,6,6,6,3,0,0,0,0,0,0,0,0,0,0,,,
+meshopt-quantized/meshopt-quantized.glb,fixture,glTF-Transform v4.5.1,1,smooth:1,98,64,64,64,64,64,91,42,0,0,0,0,0,0,0,0,0,,,
+quantized/quantized.gltf,fixture,glTF-Transform v4.5.1,1,smooth:1,98,64,64,64,64,64,91,42,0,0,0,0,0,0,0,0,0,,,
+draco/draco.glb,fixture,glTF-Transform v4.5.1,1,smooth:1,98,64,64,64,64,64,91,42,0,0,0,0,0,0,0,0,0,,,
+unknown-ext/unknown-ext.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+instancing/instancing.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+refs-outside/model/refs-outside.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+refs-symlink/model/refs-symlink.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+udim/udim.gltf,fixture,meshtinker test fixtures,3,flat:3,6,12,12,12,12,12,3,0,0,0,0,0,0,0,0,0,3,,,
+spec-gloss/spec-gloss.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+invalid/invalid.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+scan/scan.glb,fixture,meshtinker test fixtures,1,smooth:1,1024,612,612,612,561,612,95,776,607,10,0,0,0,0,0,0,0,,,
+scan-tiles/scan-tiles.gltf,fixture,meshtinker test fixtures,4,smooth:4,9216,4900,4900,4900,4900,4900,1923,10321,1288,4,0,0,0,0,0,0,0,,,
+scan-meshes/scan-meshes.gltf,fixture,meshtinker test fixtures,4,smooth:4,9216,4900,4900,4900,4900,4900,1923,10321,1288,4,0,0,0,0,0,0,0,,,
+cube/cube.gltf,fixture,meshtinker test fixtures,2,no-normals:2,816,540,412,412,412,412,1104,0,0,0,120,0,0,0,0,0,0,,,
+floater/floater.gltf,fixture,meshtinker test fixtures,2,no-normals:2,204,174,106,106,106,106,246,0,0,0,60,0,0,0,0,0,0,,,
+noise/noise.gltf,fixture,meshtinker test fixtures,1,no-normals:1,216,198,114,114,114,114,252,0,0,0,72,0,0,0,0,0,0,,,
+skinned/skinned.gltf,fixture,meshtinker test fixtures,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+rigid-hierarchy/rigid-hierarchy.gltf,fixture,meshtinker test fixtures,3,flat:3,6,12,12,12,12,12,3,0,0,0,0,0,0,0,0,0,0,,,
+khronos/BoxTextured/glTF/BoxTextured.gltf,khronos,COLLADA2GLTF,1,flat:1,12,24,24,21,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/BoxTextured/glTF-Binary/BoxTextured.glb,khronos,COLLADA2GLTF,1,flat:1,12,24,24,21,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/BoxTextured/glTF-Embedded/BoxTextured.gltf,khronos,COLLADA2GLTF,1,flat:1,12,24,24,21,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/Unicode❤♻Test/glTF/Unicode❤♻Test.gltf,khronos,,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+khronos/Unicode❤♻Test/glTF-Binary/Unicode❤♻Test.glb,khronos,,1,flat:1,2,4,4,4,4,4,1,0,0,0,0,0,0,0,0,0,0,,,
+khronos/BoxInterleaved/glTF/BoxInterleaved.gltf,khronos,COLLADA2GLTF,1,flat:1,12,24,24,8,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/MeshPrimitiveModes/glTF/MeshPrimitiveModes.gltf,khronos,,7,no-normals:1,6,7,7,7,7,7,6,0,0,0,0,0,0,0,0,0,0,,,
+khronos/TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf,khronos,,1,no-normals-unindexed:1,1,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,,,
+khronos/SimpleMeshes/glTF/SimpleMeshes.gltf,khronos,,1,flat:1,1,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,,,
+khronos/MultipleScenes/glTF/MultipleScenes.gltf,khronos,,2,no-normals:2,3,7,7,7,7,7,1,0,0,0,0,0,0,0,0,0,0,,,
+khronos/SimpleSparseAccessor/glTF/SimpleSparseAccessor.gltf,khronos,,1,no-normals:1,12,14,14,14,14,14,11,0,0,0,0,0,0,0,0,0,0,,,
+khronos/OrientationTest/glTF-Binary/OrientationTest.glb,khronos,"Khronos Blender glTF 2.0 exporter, but with 3 quaternions manually converted to rotation matricies",13,flat:7 mostly-flat:6,524,1048,1048,288,288,960,276,25,24,288,173,0,0,0,115,173,0,,,
+khronos/NegativeScaleTest/glTF-Binary/NegativeScaleTest.glb,khronos,Khronos glTF Blender I/O v3.3.32,8,flat:5 smooth:3,3884,2032,2032,2014,2014,2014,22,5760,0,0,0,0,0,0,0,0,0,,,
+khronos/SimpleInstancing/glTF-Binary/SimpleInstancing.glb,khronos,JglTF from https://github.com/javagl/JglTF,1,flat:1,12,24,24,8,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/AnimatedMorphCube/glTF-Binary/AnimatedMorphCube.glb,khronos,glTF Tools for Unity,1,flat:1,12,24,24,8,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/AnimatedMorphCube/glTF-Quantized/AnimatedMorphCube.gltf,khronos,gltfpack 0.13,1,flat:1,12,24,24,8,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/SimpleSkin/glTF/SimpleSkin.gltf,khronos,,1,no-normals:1,8,10,10,10,10,10,7,0,0,0,0,0,0,0,0,0,0,,,
+khronos/BrainStem/glTF-Meshopt-EXT/BrainStem.gltf,khronos,gltfpack 0.20,49,smooth:44 split:5,61666,34084,34084,34074,34074,34084,27873,22321,18633,11818,8829,0,0,1,3,6,0,,,
+khronos/Duck/glTF-Binary/Duck.glb,khronos,COLLADA2GLTF,1,split:1,4212,2399,2399,2277,2108,2399,911,3482,1580,252,93,0,0,0,6,54,0,,,
+khronos/Duck/glTF-Draco/Duck.gltf,khronos,COLLADA2GLTF,1,split:1,4212,2399,2399,2277,2108,2399,784,3586,1603,251,94,0,0,0,3,57,0,,,
+khronos/Duck/glTF-Quantized/Duck.gltf,khronos,gltfpack 0.13,1,split:1,4212,2399,2399,2277,2108,2399,912,3489,1573,251,93,0,0,0,3,57,0,,,
+khronos/TextureTransformTest/glTF/TextureTransformTest.gltf,khronos,,9,no-normals:9,18,36,36,36,36,36,9,0,0,0,0,0,0,0,0,0,0,,,
+khronos/TextureTransformMultiTest/glTF-Binary/TextureTransformMultiTest.glb,khronos,glTF-Transform v4.0.4,29,flat:23 smooth:6,3956,2302,2302,2302,2302,2302,1330,4152,168,0,0,0,0,0,0,0,3,,,
+khronos/TextureSettingsTest/glTF-Binary/TextureSettingsTest.glb,khronos,COLLADA2GLTF with hand-edits,10,flat:10,72,144,144,144,144,144,36,0,0,0,0,0,0,0,0,0,0,,,
+khronos/TextureCoordinateTest/glTF-Binary/TextureCoordinateTest.glb,khronos,"Khronos Blender glTF 2.0 exporter, plus hand-edits",5,flat:5,10,20,20,20,20,20,5,0,0,0,0,0,0,0,0,0,0,,,
+khronos/TextureLinearInterpolationTest/glTF-Binary/TextureLinearInterpolationTest.glb,khronos,,3,no-normals:1 smooth:2,642,414,328,328,328,328,1,120,840,0,0,0,0,0,0,0,0,,,
+khronos/MultiUVTest/glTF-Binary/MultiUVTest.glb,khronos,Khronos Blender glTF 2.0 exporter,1,flat:1,12,24,24,24,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+khronos/ChronographWatch/glTF-WEBP/ChronographWatch.gltf,khronos,Created by RapidPipeline 3D Processor v7.2.1 | rapidpipeline.com,19,flat:6 mostly-flat:5 split:8,100002,104765,104765,80260,51027,104608,32806,53978,32084,15916,11887,7,23,2228,10834,11843,1,,,
+khronos/ChronographWatch/glTF-KTX-BasisU/ChronographWatch.gltf,khronos,Created by RapidPipeline 3D Processor v7.2.1 | rapidpipeline.com,19,flat:6 mostly-flat:5 split:8,100002,104765,104765,80260,51027,104608,32806,53978,32084,15916,11887,7,23,2228,10834,11843,1,,,
+khronos/DamagedHelmet/glTF-Binary/DamagedHelmet.glb,khronos,Khronos Blender glTF 2.0 exporter,1,split:1,15452,14556,14356,12525,8661,14328,6434,5862,5987,2157,1823,0,0,96,1827,1973,1,,,
+collection/output/01-akhenaton-nefertiti/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,1661339,850356,850356,850356,831170,850356,443556,1925781,113827,3540,4797,0,0,0,0,0,0,523,170,4104
+collection/output/02-73/model.gltf,local,glTF-Transform v4.0.2,16,smooth:16,1100000,590800,590800,590800,586357,590796,252925,1276394,80304,2826,1523,0,0,0,0,0,0,364,73,1086
+uri-escaping/uri escaping.gltf,fixture,meshtinker test fixtures,2,flat:2,4,8,8,8,8,8,2,0,0,0,0,0,0,0,0,0,0,,,
+khronos/Box With Spaces/glTF/Box With Spaces.gltf,khronos,Khronos glTF Blender I/O v1.3.48,1,flat:1,12,24,24,20,8,24,6,0,0,0,12,0,0,0,0,8,1,,,
+collection/output/03-fil-ndpt-pieta/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,2305876,1190546,1190524,1190524,1163486,1190520,295826,1970323,684394,32690,3620,0,0,0,0,0,0,2149,563,908
+collection/output/05-mascaron-03/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,1870769,1061344,1030229,1030229,940632,1030213,289616,1409248,825187,234953,42793,0,0,0,0,0,0,26917,5237,10639
+collection/output/06-notredame-chapiteau-1/model.gltf,local,glTF-Transform v4.0.2,1,split:1,199977,108684,108684,108683,100602,108684,17649,115536,110238,43051,12663,0,0,1,0,0,0,6292,1441,4930
+collection/output/07-chapiteau-monstre-pc13-hd/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,1677622,863576,863574,863574,840079,863417,150999,1466504,793408,73177,31200,0,0,0,0,0,0,10623,4128,16449
+collection/output/08-perrusson/model.gltf,local,glTF-Transform v4.0.2,1,split:1,678030,933706,933706,933702,338489,933706,28758,199210,296264,267257,224200,0,0,0,1,3,0,107037,38404,78759
+collection/output/10-trema-retablebelvaux-leo/model.gltf,local,glTF-Transform v4.0.2,1,split:1,1499995,890947,890878,862884,754901,890818,241797,846208,760688,238407,38621,558,15629,5311,122,18,1,26280,7641,4700
+collection/output/11-fil-bellevue-ostensoir-export-03/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,1499909,1007512,1004492,1004492,750502,1004479,192665,1313497,637642,88653,16818,0,0,0,0,0,0,9564,2439,4815
+collection/output/12-fil-evires-cloche/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199978,151931,151607,151607,104181,151448,30351,119456,86442,37409,20290,0,0,0,0,0,0,7461,2346,10483
+collection/output/13-fil-thorens-pichet-a-mid/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199995,107857,107857,107857,99998,107857,22151,160008,98139,11450,8052,0,0,0,0,0,0,2185,1615,4252
+collection/output/14-fil-aviernoz-croixprocession-export-03/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199979,194378,193796,193796,100617,193769,13815,107813,113637,42271,21413,0,0,0,0,0,0,8789,2726,9898
+collection/output/15-ulysseilescalypso/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,199986,145638,145401,145401,100101,145401,17651,143361,101915,29466,7419,0,0,0,0,0,1,4315,1166,1938
+collection/output/16-hermaphrodite-export-02/model.gltf,local,glTF-Transform v4.0.2,1,mostly-flat:1,1499539,4456384,4456363,863320,750210,3735662,1036080,1016270,166559,26465,3493,142175,463176,107675,30922,6234,0,2517,430,546
+collection/output/17-golem/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199998,209397,206050,206050,100003,206050,23959,129829,92084,35011,18930,0,0,0,0,0,1,8615,2689,7626
+collection/output/18-vestale/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199980,164458,163157,163157,99992,163155,20473,124674,101253,36081,17188,0,0,0,0,0,0,7476,2180,7532
+collection/output/19-fibule-cavalier-model-2m/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199956,187329,185728,185728,99976,185728,14061,107108,117010,42010,19451,0,0,0,0,0,1,8480,2562,8409
+collection/output/20-inrap-patin-glace/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199988,160208,157992,157992,99994,157970,25919,129400,89393,34109,20597,0,0,0,0,0,1,7618,2587,10392
+collection/output/21-inrap-peigne-dents/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,200000,141097,136273,136273,100000,136273,27200,162093,83946,16463,9886,0,0,0,0,0,1,3497,1224,5165
+collection/output/22-inrap-couvercle-pate-brique/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199948,157208,153798,153798,100066,153798,32763,166597,76149,14985,8978,0,0,0,0,0,1,3432,1195,4351
+collection/output/23-man-10918-pyxide/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,199708,115981,115981,115981,99856,115981,29601,137240,95374,26650,10311,0,0,0,0,0,1,4605,1427,4279
+collection/output/24-998-193-1-1-high/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,1000264,3000792,512001,512001,499993,511993,97958,1084830,311700,5062,806,0,0,0,0,0,0,367,170,269
+collection/output/25-troca-fds-1-smart-fusion-1/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199987,118580,118580,118580,100687,118566,42876,176171,61381,8525,10226,0,0,0,0,0,0,5054,2691,2481
+collection/output/26-tiburon-nadando/model.gltf,local,glTF-Transform v4.0.2,1,split:1,51208,45410,45410,45410,25932,45393,13928,44281,14022,3141,1164,14,645,1517,2719,1324,1,573,177,414
+collection/output/27-athlete-clean-01/model.gltf,local,glTF-Transform v4.0.2,1,split:1,199992,185192,178986,178986,100973,178986,20891,158685,96476,18085,4836,0,0,0,0,1,1,2643,715,1478
+collection/output/28-tasse-100k/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,99996,62365,62168,62168,50000,62168,13467,84240,44991,6622,674,0,0,0,0,0,1,459,90,125
+collection/output/30-globe/model.gltf,local,glTF-Transform v4.0.2,1,split:1,9800,5149,5149,5149,4902,5149,5600,9100,0,0,0,51,0,0,0,0,1,0,0,0
+collection/output/31-hospicecomtesse-globeterrestre-fixscale/model.gltf,local,glTF-Transform v4.0.2,1,split:1,19800,10199,10199,10199,9902,10199,11572,18128,0,0,0,15,84,0,0,0,1,0,0,0
+collection/output/32-campus-romainville/model.gltf,local,glTF-Transform v4.0.2,634,flat:634,672191,1997566,1997534,765698,430609,1442508,317263,79781,108388,122260,207178,143180,4848,10079,33260,202466,0,59873,34017,113288
+collection/output/33-liege-1730-ruhl-texture-light/model.gltf,local,glTF-Transform v4.0.2,2,split:2,199980,294069,294069,294045,103224,294048,8803,57105,63704,67591,100136,94902,0,5,6,204,0,40523,22597,37016
+collection/output/34-johannisfriedhof/model.gltf,local,glTF-Transform v4.0.2,6,no-normals:6,199590,143189,143185,143185,132906,143175,4478,35347,68533,79728,77726,0,0,0,0,0,0,33622,11682,32422
+collection/output/35-fni-65/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199980,102843,102843,102843,99992,102836,20529,163175,95425,9744,10832,0,0,0,0,0,0,3786,2440,4606
+collection/output/36-fil-aviernoz-stalles-parta/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199987,136548,136548,136548,105081,135416,53670,116886,66833,33629,22575,0,0,0,0,0,0,9419,2884,10272
+collection/output/37-tessier-hubertpreop-bot-export-01/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199998,211190,210647,210647,99915,210647,13007,105146,114502,46705,20517,0,0,0,0,0,0,10094,2918,7505
+collection/output/38-tessier-c10a3-skull-export-01/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199980,199758,199215,199215,99876,199215,13716,108911,114015,44890,18309,0,0,0,0,0,0,8889,2569,6851
+collection/output/39-citedentelle-bourgeoiscalais-export-01/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199995,159419,159230,159230,99987,159228,17002,132347,117762,24292,8499,0,0,0,0,0,0,3894,1198,3407
+collection/output/40-chauvet-sdf403/model.gltf,local,glTF-Transform v4.0.2,1,split:1,33506,17792,17792,17792,17144,17792,3615,26368,17892,1718,276,0,1,0,0,0,0,129,21,126
+collection/output/41-secteur-ii-retouche-mapped113/model.gltf,local,glTF-Transform v4.0.2,1,split:1,106990,57357,57357,57352,54176,57253,24794,115794,18271,858,79,8,0,0,0,0,0,57,13,9
+collection/output/42-taureaux-02-voute/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,29081,15806,15806,15806,15802,15806,4131,25078,12284,791,77,0,0,0,0,0,0,53,8,16
+collection/output/43-taureaux-02-voute/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,29081,15806,15806,15806,15802,15806,4131,25078,12284,791,77,0,0,0,0,0,0,53,8,16
+collection/output/44-modelpart-g01-002/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,199999,110195,110195,110195,100984,110195,8604,84175,138774,55860,11603,0,0,0,0,0,0,7787,1566,2250
+collection/output/45-box09215/model.gltf,local,glTF-Transform v4.0.2,1,flat:1,8,16,16,16,8,16,4,0,0,0,5,0,0,0,0,6,0,,,
+collection/output/46-26-cartel-estatuas10/model.gltf,local,glTF-Transform v4.0.2,1,flat:1,12,24,24,24,8,24,6,0,0,0,12,0,0,0,0,8,0,,,
+collection/output/47-portail-sud-ndev-048/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,2,6,6,6,5,6,0,0,0,0,0,0,0,0,0,0,0,,,
+collection/output/48-centered143/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,38369,30268,30268,30268,19533,30268,4596,19971,20486,9640,2498,0,0,0,0,0,0,1769,371,358
+collection/output/49-principalec-volet-droit209/model.gltf,local,glTF-Transform v4.0.2,1,flat:1,4,6,6,6,6,6,3,0,0,0,0,0,0,0,0,0,0,,,
+collection/output/50-fil-bellevue-saintguerin-export-03/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199981,186113,185686,185686,99199,185625,23384,119070,98917,37767,19779,0,0,0,0,0,0,8325,2591,8863
+collection/output/51-fil-thorens-ange-gaucher-export-03/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199979,177403,177183,177183,100569,177180,24847,145800,93546,24301,10755,0,0,0,0,0,0,4793,1434,4528
+collection/output/52-fil-bellevue-stallesenestre-export-04/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199977,180283,179982,179982,102904,179925,25037,109449,96173,42313,23744,0,0,0,0,0,0,9410,2898,11436
+collection/output/53-fil-aviernoz-stalles-partb/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199985,144930,144930,144930,107923,144285,56569,119616,64890,29850,19619,0,0,0,0,0,0,7805,2488,9326
+collection/output/54-fil-thorens-pichet-b-mid/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199991,107941,107941,107941,100279,107941,26678,169541,84150,11351,7773,0,0,0,0,0,0,2772,1263,3738
+collection/output/55-tasse-melissa-kintsugi/model.gltf,local,glTF-Transform v4.0.2,1,smooth:1,999998,2999994,545337,545337,500003,545318,214252,1126329,153224,5207,985,0,0,0,0,0,1,565,163,257
+collection/output/56-dameallongee-export-lod0/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199971,155207,153521,153521,101298,153521,26611,164205,77879,18880,10808,0,0,0,0,0,0,4230,1369,5209
+collection/output/57-tessier-c11a3-export-01/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199986,204177,203671,203671,99965,203671,16323,113677,108104,43732,18041,0,0,0,0,0,0,8805,2493,6743
+collection/output/58-tessier-c9a2-export-01/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,199990,199033,198569,198569,99937,198569,16855,118888,107560,39647,16903,0,0,0,0,0,0,8076,2292,6535
+collection/output/59-56/model.gltf,local,glTF-Transform v4.0.2,1,no-normals:1,200000,110487,110367,110367,99973,110203,43507,175767,51610,11589,17110,0,0,0,0,0,0,7260,4025,5825
+Lion_Belfort.Sc.130.3/test_meshopt.glb,local,glTF-Transform v4.0.2,1,no-normals:1,143396,79477,78681,78681,72096,78274,22718,154963,35010,1893,92,0,0,0,0,0,0,63,5,24
+Lion_Belfort.Sc.130.3/test_draco.glb,local,glTF-Transform v4.0.2,1,no-normals:1,143396,78707,78681,78681,72096,78681,22712,154969,34985,1910,101,0,0,0,0,0,0,71,11,19
+Lion/normal_map_compressed_ktx.glb,local,glTF-Transform v4.5.0,1,no-normals:1,293371,246522,236002,236002,146457,236002,29497,201006,144488,38575,19441,0,0,0,0,0,1,8454,2739,8248
+Lion/normal_map_compressed_webp.glb,local,glTF-Transform v4.0.2,1,no-normals:1,293371,246522,236002,236002,146457,236002,29497,201006,144488,38575,19441,0,0,0,0,0,1,8454,2739,8248
+Ebauche Statue Grecque/Ebauche_statue_grecque_ktx.glb,local,glTF-Transform v4.5.0,1,no-normals:1,300700,233034,228345,228345,150435,228345,33361,234926,158840,20088,3142,0,0,0,0,0,0,1687,391,1064
+Ebauche Statue Grecque/Ebauche_statue_grecque_webp.glb,local,glTF-Transform v4.5.0,1,no-normals:1,300700,233034,228345,228345,150435,228345,33361,234926,158840,20088,3142,0,0,0,0,0,0,1687,391,1064
+Sorcier/larger_tiles/sorcier_003_high.glb,local,glTF-Transform v4.5.0,1,split:1,6830,9923,6433,6214,3494,6433,312,2719,3937,2239,958,166,83,0,1,9,0,532,139,287
+MNHN/MNHN_ZM_AC-1896-74_Cervus_elaphus_thumb.glb,local,obj2gltf,1,smooth:1,137100,202331,114623,114623,70738,114623,7964,63699,77605,38198,15883,0,0,0,0,0,0,8650,2238,4995
+Lion/lion.glb,local,obj2gltf,7,no-normals:7,199986,123279,123279,123279,119713,123278,15046,123808,112888,22503,6390,0,0,0,0,0,7,3190,848,2352
+Zodiac/MAN63675_HP_44M/MAN63675_HP_44M.gltf,local,obj2gltf,4,smooth:3 split:1,43994480,24814695,22372455,22372455,22250833,22372290,6332712,5298014,133242,2458,100,0,0,0,1,0,4,81,10,9
+Lascaux/output/source_model_8k/Lascaux_seamed_8k.gltf,local,obj2gltf-stream,166,no-normals-unindexed:166,4716368,14149104,2652577,2652577,2637977,2650566,707779,3926524,1898092,239495,20787,0,0,0,0,0,0,15021,2428,3338
+Notre Dame en Vaux/Notre_Dame_en_Vaux_10M.gltf,local,obj2gltf,30,no-normals:30,9884904,7170254,7170150,7170150,5420908,7170112,928919,5590294,5241478,1989454,590005,0,0,0,0,0,0,362441,90881,136683
+ISTI_dataset/RWT180/WoodenDragonSculpture.gltf,local,obj2gltf,1,split:1,3103522,9310566,2003751,2003735,1551722,2003729,848247,1725044,360376,52749,8139,0,6,1,0,2,0,5747,1087,1305
+Zodiac/Tiles/model.gltf,local,cluster-lod tile,51,mostly-flat:6 smooth:44 split:1,43994480,22429316,22429316,22429316,22307654,22429262,31520164,32871073,1256428,33490,1489,0,0,0,1,0,0,1207,148,134
