@@ -122,6 +122,20 @@ TEST_CASE(output_must_end_in_gltf) {
     CHECK_EQ(result.code, 2);
 }
 
+// A files command that writes GLB too takes either, and nothing else.
+TEST_CASE(output_may_be_glb_when_the_command_writes_it) {
+    for (const char* output : {"out.glb", "out.gltf"}) {
+        cli::Command command("test", "Do a test thing");
+        command.addInput();
+        command.addOutput(cli::OutputFormats::gltf_or_glb);
+        CHECK_EQ(runCommand(command, {"in.glb", output}, [] { return 0; }).code, 0);
+    }
+    cli::Command command("test", "Do a test thing");
+    command.addInput();
+    command.addOutput(cli::OutputFormats::gltf_or_glb);
+    CHECK_EQ(runCommand(command, {"in.glb", "out.obj"}, [] { return 0; }).code, 2);
+}
+
 TEST_CASE(output_directory_must_exist) {
     cli::Command command("test", "Do a test thing");
     command.addInput();

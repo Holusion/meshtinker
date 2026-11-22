@@ -71,12 +71,12 @@ This is also why the record is a plain JSON file and not a line appended to a te
 | Kind | Commands | File mode | Chain mode |
 | --- | --- | --- | --- |
 | constructor | `import` | `import in out.gltf` | `import in work/` creates the chain and stage 000 |
-| transform | normals, weld, simplify, compress, uv, ktx, avif | `cmd in out.gltf` | `cmd work/` adds a stage |
+| transform | normals, weld, dedup, simplify, compress, uv, ktx, avif | `cmd in out.gltf` | `cmd work/` adds a stage |
 | read-only | `inspect` | `inspect in` | `inspect work/` reads the last stage |
 | terminal | `export` | — | `export work/ out.glb` |
-| meta | `optimize` | `optimize in out.glb`, on a chain of its own in its workspace | — |
 
 - `placeholder` stays out of chains and reads files only. Commands that read a model and write something other than its next version may not stay, so chains aren't designed around them.
+- `optimize` is a files command too: it builds a chain of its own in its workspace, which the user never names. Its output may be `.glb` as well as `.gltf`, which a files command declares (`cli::OutputFormats`), since the kind is about chains, not formats.
 - Only `import` creates a chain. A transform given a chain and an output is a command-line error (2): a stage's location is the chain's to decide. So is a transform given a file and no output, and `export` given anything but a chain.
 - A command declares its kind when it creates its `cli::Command`, which resolves the positionals before the command's body runs: in chain mode `input()` is the last stage's model, `outputDirectory()` the pending stage directory, `outputStem()` the source's stem, and `stage()` the stage being written, for `lossy`. The body writes through `outputs()` and calls `publish(report)`, which writes `stage.json` and publishes the stage. A transform therefore needs no code of its own for chains beyond its `lossy` rounds.
 - In chain mode a command's input is always `import`'s output or a stage built on it, so it is in the profile and read front to back.

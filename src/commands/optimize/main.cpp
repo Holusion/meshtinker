@@ -18,10 +18,10 @@ int run(int argc, char** argv) {
                          "Imports the model into a chain in its workspace, runs the commands that suit it (normals, "
                          "weld, dedup, simplify, uv, ktx or avif, compress) with the options of the preset and "
                          "quality, and exports the result. Each step's warnings appear as it runs.",
-                         cli::Kind::meta);
+                         cli::Kind::files);
     Options options;
     command.addInput();
-    command.addOutput();
+    command.addOutput(cli::OutputFormats::gltf_or_glb);
     const std::map<std::string, Quality> qualities = {{"Highest", Quality::highest},
                                                       {"High", Quality::high},
                                                       {"Medium", Quality::medium},
