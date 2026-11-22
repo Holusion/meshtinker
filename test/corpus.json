@@ -50,6 +50,7 @@
     { "id": "fixture/flat-tiles", "source": "fixture", "path": "flat-tiles/flat-tiles.gltf", "covers": ["photogrammetry", "gltf", "node-transforms", "flat-normals"] },
     { "id": "fixture/bare", "source": "fixture", "path": "bare/bare.gltf", "covers": ["photogrammetry", "gltf", "node-transforms", "no-normals", "unlit", "morph"] },
     { "id": "fixture/scan-meshes", "source": "fixture", "path": "scan-meshes/scan-meshes.gltf", "covers": ["photogrammetry", "gltf", "jpeg", "node-transforms", "tiled-meshes"] },
+    { "id": "fixture/duplicates", "source": "fixture", "path": "duplicates/duplicates.gltf", "covers": ["gltf", "png", "duplicates", "interleaved", "samplers", "animation", "extras"] },
     { "id": "fixture/cube", "source": "fixture", "path": "cube/cube.gltf", "covers": ["closed-surface", "hidden-interior"] },
     { "id": "fixture/floater", "source": "fixture", "path": "floater/floater.gltf", "covers": ["floaters"] },
     { "id": "fixture/noise", "source": "fixture", "path": "noise/noise.gltf", "covers": ["floaters"] },

@@ -1,20 +1,22 @@
 #!/bin/bash
 # Runs the whole pipeline as a chain on each model and checks the result:
-#   tools/experiments/e2e/pipeline.sh BUILD_DIR OUT_DIR MODEL...
-# import -> weld -> simplify -> uv -> ktx -> compress -> export as GLB. Prints each command's exit code, time and
+#   [TEXTURES=avif] tools/experiments/e2e/pipeline.sh BUILD_DIR OUT_DIR MODEL...
+# import -> normals -> weld -> dedup -> simplify -> uv -> ktx (or avif) -> compress -> export as GLB, in the
+# step order of docs/chaining.md. Prints each command's exit code, time and
 # warnings, then validates the GLB against the input (tools/validate.mjs) and compares it with the chain's
 # last stage (tools/compare.mjs), which export must write unchanged. OUT_DIR must be on a real disk.
 set -u
 REPO=$(cd "$(dirname "$0")/../../.." && pwd)
 export LC_NUMERIC=C
 BUILD=$1; OUT=$2; shift 2
+TEXTURES=${TEXTURES:-ktx}
 for model in "$@"; do
   name=$(basename "$(dirname "$model")")-$(basename "${model%.*}")
   dir="$OUT/$name"; rm -rf "$dir"; mkdir -p "$dir"
   work="$dir/work"
   echo "== $name"
   status=0
-  for step in "import $model $work" "weld $work" "simplify $work" "uv $work" "ktx $work" "compress $work" "export $work $dir/out.glb"; do
+  for step in "import $model $work" "normals $work" "weld $work" "dedup $work" "simplify $work" "uv $work" "$TEXTURES $work" "compress $work" "export $work $dir/out.glb"; do
     cmd=${step%% *}
     start=$(date +%s.%N)
     "$BUILD/meshtinker" ${step%% *} --json ${step#* } > "$dir/$cmd.json" 2> "$dir/$cmd.err"

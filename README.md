@@ -32,6 +32,7 @@ Usage: meshtinker <command> [args...]
 Commands:
   avif          Encode the images of a glTF or GLB model as AVIF
   compress      Compress the geometry of a glTF or GLB model with meshopt
+  dedup         Store identical images, materials, meshes and accessors once
   export        Write the last stage of a chain as a .gltf or .glb file
   import        Rewrite a glTF or GLB file in the normalized profile
   inspect       Report statistics about a glTF or GLB file
@@ -325,6 +326,41 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+```
+
+### dedup
+
+Stores identical objects once: images with the same bytes, then samplers, textures, materials, accessors and meshes that are equal but for their name, as glTF-Transform's `dedup` does with its defaults. References point at the first of each, which keeps its name, and the others are removed. Each node draws what it drew. Accessors in meshopt views, sparse accessors and accessors without a view are left as they are, and an accessor merged into another frees its bytes only when no other accessor uses its buffer view. [docs/dedup.md](docs/dedup.md) says what compares equal, and why `dedup` goes after `weld` and before `simplify` in a chain.
+
+The report gives the objects of each kind before and after, and the bytes of buffer views and images stored before and after.
+
+Given a [chain](#chains), `dedup` adds a stage, and records no lossy round.
+
+```console
+$ meshtinker dedup --help
+Store identical images, materials, meshes and accessors once
+
+Merges images with the same bytes, then samplers, textures, materials, accessors
+and meshes that are equal but for their name, into the first of each, and
+removes the others. Accessors in meshopt views and sparse accessors are left as
+they are.
+
+
+meshtinker dedup [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
 ```
 
 ### simplify
