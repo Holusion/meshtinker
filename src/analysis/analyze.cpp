@@ -357,7 +357,7 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
             image.height = source.header->height;
         } else {
             diagnostics.warn("image-unrecognized",
-                             "An image is not PNG, JPEG, WebP or KTX2, or is truncated: its size is unknown",
+                             "An image is not PNG, JPEG, WebP, KTX2 or AVIF, or is truncated: its size is unknown",
                              image.file.value_or("image " + std::to_string(i)));
         }
         if (found_uses != uses.end()) {

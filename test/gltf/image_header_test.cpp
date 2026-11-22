@@ -34,6 +34,7 @@ TEST_CASE(reads_fixture_images) {
     checkHeader("alt-sources/alternative.webp", ImageFormat::webp, 32, 32);
     checkHeader("alt-sources/ktx-only.ktx2", ImageFormat::ktx2, 64, 64);
     checkHeader("alt-sources/webp-only.webp", ImageFormat::webp, 8, 8);
+    checkHeader("avif/existing.avif", ImageFormat::avif, 32, 32);
 }
 
 TEST_CASE(reads_jpeg_after_other_segments) {
@@ -60,6 +61,59 @@ TEST_CASE(reads_lossy_and_extended_webp) {
                                           0,   0,   0,   0,   0xFF, 0x0F, 0x00, 0x01, 0x00, 0x00};
     header = readImageHeader(ByteView{extended.data(), extended.size()});
     CHECK(header && header->width == 4096 && header->height == 2);
+}
+
+namespace {
+
+// An ISOBMFF box: big-endian size, type, payload.
+std::vector<std::uint8_t> box(const char* type, const std::vector<std::uint8_t>& payload) {
+    const auto size = static_cast<std::uint32_t>(payload.size() + 8);
+    std::vector<std::uint8_t> out = {static_cast<std::uint8_t>(size >> 24), static_cast<std::uint8_t>(size >> 16),
+                                     static_cast<std::uint8_t>(size >> 8), static_cast<std::uint8_t>(size),
+                                     static_cast<std::uint8_t>(type[0]), static_cast<std::uint8_t>(type[1]),
+                                     static_cast<std::uint8_t>(type[2]), static_cast<std::uint8_t>(type[3])};
+    out.insert(out.end(), payload.begin(), payload.end());
+    return out;
+}
+
+std::vector<std::uint8_t> join(std::initializer_list<std::vector<std::uint8_t>> parts) {
+    std::vector<std::uint8_t> out;
+    for (const auto& part : parts) {
+        out.insert(out.end(), part.begin(), part.end());
+    }
+    return out;
+}
+
+std::vector<std::uint8_t> ispe(std::uint8_t width_high, std::uint8_t width_low, std::uint8_t height_high,
+                               std::uint8_t height_low) {
+    return box("ispe", {0, 0, 0, 0, 0, 0, width_high, width_low, 0, 0, height_high, height_low});
+}
+
+} // namespace
+
+// The size is the primary item's, through its `ipma` associations: here item
+// 2, whose `ispe` is the second property, not the first.
+TEST_CASE(reads_avif_primary_item_size) {
+    const std::vector<std::uint8_t> ftyp = box("ftyp", {'m', 'i', 'f', '1', 0, 0, 0, 0, 'm', 'i', 'f', '1', 'a', 'v', 'i', 'f'});
+    const std::vector<std::uint8_t> pitm = box("pitm", {0, 0, 0, 0, 0, 2});
+    const std::vector<std::uint8_t> ipco = box("ipco", join({ispe(0, 16, 0, 16), ispe(0x01, 0x2C, 0, 200)}));
+    // Version 0, flags 0: 16-bit item IDs, 7-bit property indices.
+    const std::vector<std::uint8_t> ipma = box("ipma", {0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0x81, 0, 2, 1, 0x82});
+    const std::vector<std::uint8_t> meta = box("meta", join({{0, 0, 0, 0}, pitm, box("iprp", join({ipco, ipma}))}));
+    const std::vector<std::uint8_t> file = join({ftyp, meta, box("mdat", {})});
+    const auto header = readImageHeader(ByteView{file.data(), file.size()});
+    CHECK(header.has_value());
+    if (header) {
+        CHECK(header->format == ImageFormat::avif);
+        CHECK_EQ(header->width, 300u);
+        CHECK_EQ(header->height, 200u);
+    }
+    // Without `meta`, the size can't be told.
+    const std::vector<std::uint8_t> truncated = join({ftyp, box("mdat", {})});
+    CHECK(!readImageHeader(ByteView{truncated.data(), truncated.size()}).has_value());
+    // Another ISOBMFF brand isn't AVIF.
+    const std::vector<std::uint8_t> heic = join({box("ftyp", {'h', 'e', 'i', 'c', 0, 0, 0, 0, 'm', 'i', 'f', '1'}), meta});
+    CHECK(!readImageHeader(ByteView{heic.data(), heic.size()}).has_value());
 }
 
 TEST_CASE(rejects_unknown_and_truncated_bytes) {

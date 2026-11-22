@@ -26,3 +26,20 @@ All copies are unmodified. Draco comes from upstream (below); the others come fr
 - `xatlas/` holds `xatlas.cpp` and `xatlas.h` from upstream's `source/xatlas/`, with SHA-256 sums in `xatlas/SHA256SUMS`.
 
 Check the sums with `sha256sum -c SHA256SUMS` in each folder.
+
+## Downloaded at build time
+
+libavif and libaom, which `avif` needs, are too large to vendor: libaom's source is 41 MB. The build downloads their release archives, checks them against the SHA-256 sums below, and compiles them as static libraries into the build directory (`cmake/avif-deps.cmake`, as `ExternalProject`s). nasm is built the same way, to assemble libaom's x86 code. Nothing is installed on the system, and nothing is loaded at run time.
+
+| Dependency | Version | License | Archive | SHA-256 |
+| --- | --- | --- | --- | --- |
+| [nasm](https://www.nasm.us/) | 3.02 | BSD 2-Clause | `https://www.nasm.us/pub/nasm/releasebuilds/3.02/nasm-3.02.tar.xz` | `87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d` |
+| [libaom](https://aomedia.googlesource.com/aom/) | 3.15.3 | BSD 2-Clause and the Alliance for Open Media Patent License 1.0 | `https://storage.googleapis.com/aom-releases/libaom-3.15.3.tar.gz` | `12c01dc731ed7b5a999e28120b45bf58a002ba3435a4ba2cfbc1e084a27c9c04` |
+| [libavif](https://github.com/AOMediaCodec/libavif) | 1.4.2 | BSD 2-Clause | `https://github.com/AOMediaCodec/libavif/archive/refs/tags/v1.4.2.tar.gz` | `2b645287340ba5a631d268b551dc2d72bd73ac33335962dd36dcdb6d8366921d` |
+
+- **nasm** is built with its own `configure`, using its bundled zlib (`--without-zlib`). Only the `nasm` program is built, and it is used at build time only.
+- **libaom** is built Release whatever the project's build type, without its programs, tests or documentation. Its encoder and decoder are both built: the decoder lets the tests read AVIF back. Its build runs a Perl script (`rtcd.pl`), so Perl is a build requirement.
+- **libavif** uses that libaom (`AVIF_CODEC_AOM=SYSTEM`, with pkg-config turned off so that a system libaom can't be picked), without libyuv, libsharpyuv, its programs or tests.
+- **Downloads:** archives go to `MESHTINKER_DOWNLOAD_DIR` (default `build/third_party/downloads`). Point it at a shared folder to download once for several build directories, or pre-seed it for an offline build. Each build directory compiles its own copies, in about 3 minutes on 4 cores.
+- **Sums:** libaom publishes no sum for its archive; the one above was taken from the first download. libavif's is GitHub's tag archive.
+- **Updating:** change the version, URL and sum in `cmake/avif-deps.cmake` and here, then rebuild from a clean build directory.

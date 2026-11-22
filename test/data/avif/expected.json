@@ -1,0 +1,128 @@
+{
+  "description": "Image cases for avif: noisy 48×48 color, alpha, normal, ORM, gray and color-and-data images that AVIF stores smaller than PNG; a 4×4 PNG it does not; a PNG with a WebP alternative, and KTX2-, WebP- and AVIF-only textures.",
+  "geometry": {
+    "primitives": 10,
+    "vertices": 40,
+    "faces": 20
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      9,
+      3,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "color",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "alpha",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "normal",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "orm",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "gray",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "mixed",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "tiny",
+      "mimeType": "image/png",
+      "width": 4,
+      "height": 4,
+      "used": true
+    },
+    {
+      "name": "fallback",
+      "mimeType": "image/png",
+      "width": 48,
+      "height": 48,
+      "used": true
+    },
+    {
+      "name": "alternative",
+      "mimeType": "image/webp",
+      "width": 32,
+      "height": 32,
+      "used": false,
+      "why": "the core source wins, with a texture-alternative-source diagnostic"
+    },
+    {
+      "name": "ktx-only",
+      "mimeType": "image/ktx2",
+      "width": 16,
+      "height": 16,
+      "used": true
+    },
+    {
+      "name": "webp-only",
+      "mimeType": "image/webp",
+      "width": 8,
+      "height": 8,
+      "used": true
+    },
+    {
+      "name": "existing",
+      "mimeType": "image/avif",
+      "width": 32,
+      "height": 32,
+      "used": true
+    }
+  ],
+  "avif": {
+    "encoded": {
+      "color.png": "4:2:0",
+      "alpha.png": "4:2:0",
+      "normal.png": "4:4:4",
+      "orm.png": "4:4:4",
+      "gray.png": "4:0:0",
+      "mixed.png": "4:4:4",
+      "fallback.png": "4:2:0"
+    },
+    "alpha": [
+      "alpha.png"
+    ],
+    "notSmaller": [
+      "tiny.png"
+    ],
+    "why": "Color in 4:2:0, data and color-and-data in 4:4:4, gray in 4:0:0; only the BLEND material samples alpha; the 4×4 PNG is smaller than its AVIF."
+  },
+  "diagnostics": [
+    "texture-alternative-source"
+  ]
+}

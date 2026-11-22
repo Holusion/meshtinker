@@ -269,6 +269,38 @@ TEST_CASE(uv_then_ktx) {
     CHECK(hasDiagnostic(late.json, "image-already-compressed"));
 }
 
+#ifdef MESHTINKER_HAS_AVIF
+// avif records a round per encoded image; avif again finds only AVIF
+// textures; ktx then leaves them, as it can't decode AVIF.
+TEST_CASE(avif_records_a_round_per_image) {
+    const fs::path root = test::workDirectory("chain-commands/avif");
+    const std::string work = (root / "work").string();
+    CHECK_EQ(run("import", {test::fixture("avif").model.string(), work}).code, 0);
+    const Run encoded = run("avif", {"--quality", "Low", work});
+    CHECK_EQ(encoded.code, 0);
+    const chain::Chain chain = chain::Chain::open(work);
+    const Json record = chain.record(chain.last());
+    CHECK_EQ(record["command"].get<std::string>(), std::string("avif"));
+    std::size_t avif = 0;
+    // import's rounds come first, existing.avif's among them.
+    for (const Json& round : record["lossy"]["imageEncoding"]) {
+        if (round["stage"].get<std::string>() == chain.last().text()) {
+            ++avif;
+            CHECK_EQ(round["format"].get<std::string>(), std::string("image/avif"));
+            CHECK_EQ(round["quality"].get<int>(), 40);
+            CHECK_EQ(round["effort"].get<int>(), 3);
+        }
+    }
+    CHECK_EQ(avif, std::size_t{7});
+    const Run again = run("avif", {work});
+    CHECK_EQ(again.code, 0);
+    CHECK_EQ(again.json["totals"]["encoded"].get<int>(), 0);
+    const Run ktx = run("ktx", {work});
+    CHECK_EQ(ktx.code, 0);
+    CHECK(hasDiagnostic(ktx.json, "image-format-unsupported"));
+}
+#endif
+
 // normals records no lossy round, and lets weld merge what flat normals kept
 // apart (docs/chaining.md#meta-commands: normals before weld).
 TEST_CASE(normals_then_weld) {

@@ -38,6 +38,8 @@ const char* extensionFor(const ImageData& image, const Json& json) {
             return "webp";
         case ImageFormat::ktx2:
             return "ktx2";
+        case ImageFormat::avif:
+            return "avif";
         }
     }
     const std::string declared = json.value("mimeType", std::string());
@@ -52,6 +54,9 @@ const char* extensionFor(const ImageData& image, const Json& json) {
     }
     if (declared == "image/ktx2") {
         return "ktx2";
+    }
+    if (declared == "image/avif") {
+        return "avif";
     }
     return "bin";
 }
@@ -418,6 +423,9 @@ const char* mimeFor(const char* extension) {
     }
     if (name == "ktx2") {
         return "image/ktx2";
+    }
+    if (name == "avif") {
+        return "image/avif";
     }
     return nullptr;
 }

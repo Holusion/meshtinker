@@ -7,7 +7,7 @@
 
 namespace meshtinker::gltf {
 
-enum class ImageFormat : std::uint8_t { png, jpeg, webp, ktx2 };
+enum class ImageFormat : std::uint8_t { png, jpeg, webp, ktx2, avif };
 
 struct ImageHeader {
     ImageFormat format;
@@ -16,8 +16,8 @@ struct ImageHeader {
 };
 
 // Reads an image's format and dimensions from its first bytes, without
-// decoding pixels. Recognizes PNG, JPEG, WebP (lossy, lossless and extended)
-// and KTX2. Empty if the bytes are none of these, or too short to say.
+// decoding pixels. Recognizes PNG, JPEG, WebP (lossy, lossless and extended),
+// KTX2 and AVIF. Empty if the bytes are none of these, or too short to say.
 std::optional<ImageHeader> readImageHeader(common::ByteView bytes);
 
 const char* mimeType(ImageFormat format);

@@ -15,6 +15,10 @@ include(CTest)
 # CI and agents turn it on, with the reference toolchain (.github/workflows/ci.yml).
 option(MESHTINKER_WARNINGS_AS_ERRORS "Treat compiler warnings in project code as errors" OFF)
 option(MESHTINKER_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+# `avif` builds libavif, libaom and nasm from release archives downloaded by
+# the build (cmake/avif-deps.cmake). Off for builds without network access
+# and without a download folder to reuse.
+option(MESHTINKER_AVIF "Build the avif command (downloads and builds nasm, libaom and libavif)" ON)
 
 # Executables link libstdc++ and libgcc statically so that only the C library
 # is loaded at run time. Sanitizer runtimes are shared libraries, so sanitized
@@ -166,6 +170,7 @@ file(GLOB meshtinker_core_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/analysis/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/chain/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/texture/*.cpp"
 )
 add_library(meshtinker-core STATIC ${meshtinker_core_sources})
 meshtinker_configure(meshtinker-core)
@@ -207,6 +212,11 @@ meshtinker_add_command(ktx)
 target_link_libraries(meshtinker-ktx-lib PUBLIC basisu)
 meshtinker_add_command(uv)
 target_link_libraries(meshtinker-uv-lib PUBLIC xatlas)
+if(MESHTINKER_AVIF)
+    include(cmake/avif-deps.cmake)
+    meshtinker_add_command(avif)
+    target_link_libraries(meshtinker-avif-lib PUBLIC meshtinker-avif-codec)
+endif()
 find_package(Threads REQUIRED)
 target_link_libraries(meshtinker-placeholder-lib PRIVATE Threads::Threads)
 
@@ -293,8 +303,15 @@ if(BUILD_TESTING)
     meshtinker_add_test(uv uv/uv_test.cpp meshtinker-uv-lib)
     target_include_directories(test-uv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     target_include_directories(test-ktx PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    if(MESHTINKER_AVIF)
+        meshtinker_add_test(avif avif/avif_test.cpp meshtinker-avif-lib)
+        target_include_directories(test-avif PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    endif()
     meshtinker_add_script_test(wrapper commands/wrapper_test.cmake)
     meshtinker_add_test(chain-commands commands/chain_test.cpp)
+    if(MESHTINKER_AVIF)
+        target_compile_definitions(test-chain-commands PRIVATE MESHTINKER_HAS_AVIF)
+    endif()
     meshtinker_add_test(cli-readme-help cli/readme_help_test.cpp)
     meshtinker_add_test(cli-command cli/command_test.cpp)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND MESHTINKER_STATIC_RUNTIME)

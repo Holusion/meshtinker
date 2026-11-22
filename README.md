@@ -30,6 +30,7 @@ Usage: meshtinker <command> [args...]
        meshtinker --version
 
 Commands:
+  avif          Encode the images of a glTF or GLB model as AVIF
   compress      Compress the geometry of a glTF or GLB model with meshopt
   export        Write the last stage of a chain as a .gltf or .glb file
   import        Rewrite a glTF or GLB file in the normalized profile
@@ -399,6 +400,60 @@ OPTIONS:
           --version             Print the version and exit
           --quality <Highest|High|Medium|Low|Thumb> 
                                 ETC1S quality, as eCorpus's presets name it (default High)
+          --max-size N          Scale down images whose longest side is over N texels, keeping
+                                their aspect ratio
+          --json                Print the result as one JSON object on stdout, even on failure
+          --trusted             Let the model reference files outside its folder: absolute paths,
+                                `..` leading out, symlinks
+```
+
+### avif
+
+Encodes the scene's PNG and JPEG images as AVIF with libavif and libaom, and points their textures at them through `EXT_texture_avif`. It's the web-image alternative to `ktx`: smaller downloads, but textures that decode to RGBA8 on the GPU. Color slots get 4:2:0, normal maps, ORM and every other data slot 4:4:4, gray images 4:0:0. Every file gets the sRGB color description, which browsers leave as it is. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` alternative. `EXT_texture_avif` is then required, so browsers without AVIF (Safari and iOS before 16, Edge before 121) can't load the model. KTX2 textures are kept.
+
+Some images are left as they are:
+- An image whose AVIF isn't smaller than its source keeps its source; tiny placeholders are smaller as PNG.
+- With a counted warning: WebP-only textures (`image-format-unsupported`), images used only by slots `avif` doesn't know (`image-slot-unknown`), and images that can't be decoded.
+
+[docs/avif.md](docs/avif.md) has the details, and [docs/experiments/webp-avif.md](docs/experiments/webp-avif.md) the comparison that chose AVIF and set the presets.
+
+`--quality` takes eCorpus's names: libavif quality 80, 65 (`High`, the default), 50, 40 and 30. `--effort` is sharp's scale, 0 (fastest) to 9:
+- the default, 3, is within 10 % of the slowest effort's size at a quarter of effort 4's time;
+- efforts 0 and 1 inflate some images.
+
+`--max-size N` scales down images whose longest side is over N texels. Large images are encoded one at a time on every CPU the process may use, small ones several at a time, as `ktx` does. A 4k scan texture takes 3.4 s with a 297 MiB peak, three 8k textures 25 s and 1.6 GiB.
+
+The report gives, per image, its source format and size, pixel format, whether alpha was kept, the output's size, bytes before and after, and the time. Then come the totals, the images kept because they were smaller (`notSmaller`), and the files written. Given a [chain](#chains), `avif` adds a stage and records one `lossy.imageEncoding` round per image (`quality`, `effort`, `subsampling`). Run `uv` and other image commands before it: they leave AVIF images as they are.
+
+The build downloads and compiles libavif, libaom and nasm ([vendor/README.md](vendor/README.md#downloaded-at-build-time)). Configure with `-DMESHTINKER_AVIF=OFF` to build without them, and without `avif`.
+
+```console
+$ meshtinker avif --help
+Encode the images of a glTF or GLB model as AVIF
+
+Encodes PNG and JPEG images with libavif and libaom and references them through
+EXT_texture_avif, which becomes required: color in 4:2:0, normal maps and other
+data in 4:4:4. The textures' other sources are removed; KTX2 textures are kept.
+
+
+meshtinker avif [OPTIONS] input [output]
+
+
+POSITIONALS:
+  input TEXT REQUIRED           The .gltf or .glb file, or a chain: its last stage
+  output TEXT                   The .gltf file to write. Its directory must exist; no file is
+                                overwritten. Not given when INPUT is a chain: the command adds a
+                                stage to it
+
+OPTIONS:
+  -h,     --help                Print this help message and exit
+          --version             Print the version and exit
+          --quality <Highest|High|Medium|Low|Thumb> 
+                                Quality, as eCorpus's presets name it: libavif quality 80, 65,
+                                50, 40, 30 (default High)
+          --effort E:INT in [0 - 9] 
+                                Encoder effort, 0 (fastest) to 9, as sharp counts it; 0 and 1
+                                inflate some images (default 3)
           --max-size N          Scale down images whose longest side is over N texels, keeping
                                 their aspect ratio
           --json                Print the result as one JSON object on stdout, even on failure

@@ -28,6 +28,7 @@
     { "id": "fixture/textures", "source": "fixture", "path": "textures/textures.gltf", "covers": ["png", "jpeg", "alpha", "normal-map", "16-bit-png", "shared-image"] },
     { "id": "fixture/atlas", "source": "fixture", "path": "atlas/atlas.gltf", "covers": ["png", "normal-map", "shared-image", "charts"] },
     { "id": "fixture/alt-sources", "source": "fixture", "path": "alt-sources/alt-sources.gltf", "covers": ["alt-source", "png", "webp", "ktx2"] },
+    { "id": "fixture/avif", "source": "fixture", "path": "avif/avif.gltf", "covers": ["alt-source", "png", "webp", "ktx2", "avif", "alpha", "normal-map"] },
     { "id": "fixture/meshopt", "source": "fixture", "path": "meshopt/meshopt.gltf", "covers": ["meshopt", "meshopt-fallback"] },
     { "id": "fixture/meshopt-quantized", "source": "fixture", "path": "meshopt-quantized/meshopt-quantized.glb", "covers": ["meshopt", "quantized", "glb"] },
     { "id": "fixture/quantized", "source": "fixture", "path": "quantized/quantized.gltf", "covers": ["quantized"] },

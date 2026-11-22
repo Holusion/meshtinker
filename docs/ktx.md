@@ -1,6 +1,6 @@
 # ktx
 
-`meshtinker ktx` encodes the images of the scene as KTX2 with Basis Universal and references them through `KHR_texture_basisu`. It replaces glTF-Transform's `toktx` calls in eCorpus's `optimizeGlb.ts`. Decoding, resizing, memory and threads are shared with other commands and described in [images.md](images.md). The benchmark that set the presets is under [Measurements](#measurements).
+`meshtinker ktx` encodes the images of the scene as KTX2 with Basis Universal and references them through `KHR_texture_basisu`. It replaces glTF-Transform's `toktx` calls in eCorpus's `optimizeGlb.ts`. Decoding, resizing, memory and threads are shared with other commands and described in [images.md](images.md). Choosing the textures to encode, and pointing them at the new files, is shared with [`avif`](avif.md) (`texture::reencode`). The benchmark that set the presets is under [Measurements](#measurements).
 
 ```bash
 meshtinker ktx in.gltf out/                    # default quality

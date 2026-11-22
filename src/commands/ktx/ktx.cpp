@@ -2,21 +2,13 @@
 
 #include "encode.hpp"
 
-#include "meshtinker/gltf/edit.hpp"
-#include "meshtinker/gltf/graph.hpp"
-#include "meshtinker/gltf/layout.hpp"
-#include "meshtinker/gltf/material_slots.hpp"
-#include "meshtinker/gltf/selection.hpp"
 #include "meshtinker/image/image.hpp"
+#include "meshtinker/texture/reencode.hpp"
 
-#include <algorithm>
 #include <chrono>
-#include <exception>
 #include <filesystem>
-#include <map>
+#include <memory>
 #include <optional>
-#include <set>
-#include <thread>
 
 namespace meshtinker::ktx {
 
@@ -69,139 +61,50 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-double secondsSince(Clock::time_point start) { return std::chrono::duration<double>(Clock::now() - start).count(); }
+// basisu's encoder, with the codec chosen from the image's use (docs/ktx.md#codec-per-slot).
+class BasisuEncoder final : public texture::Encoder {
+public:
+    BasisuEncoder(unsigned threads, const Settings& settings) : encoder_(threads), settings_(settings) {}
 
-using gltf::SlotKind;
-
-const Json* child(const Json& object, const char* key) {
-    if (!object.is_object()) {
-        return nullptr;
+    std::optional<std::vector<std::uint8_t>> encode(image::Image image, const texture::Request& request,
+                                                    std::string& error) override {
+        EncodeParams params;
+        params.settings = settings_;
+        params.codec = request.use.color ? ktx::Codec::etc1s : ktx::Codec::uastc;
+        params.srgb = request.use.color;
+        params.normal = request.use.normal;
+        params.alpha = request.alpha;
+        return encoder_.encode(std::move(image), params, error);
     }
-    const auto found = object.find(key);
-    return found == object.end() ? nullptr : &*found;
-}
 
-// What the known slots of every material ask of each texture.
-struct TextureUse {
-    bool color = false;
-    bool data = false;
-    bool normal = false;
-    bool alpha = false;
-    bool any() const { return color || data || normal; }
+private:
+    ktx::Encoder encoder_;
+    Settings settings_;
 };
 
-std::map<std::size_t, TextureUse> textureUses(const Json& json) {
-    std::map<std::size_t, TextureUse> uses;
-    const Json* materials = child(json, "materials");
-    if (materials == nullptr || !materials->is_array()) {
-        return uses;
+class KtxCodec final : public texture::Codec {
+public:
+    explicit KtxCodec(const Settings& settings) : settings_(settings) {}
+    const char* command() const override { return "ktx"; }
+    const char* library() const override { return "basisu"; }
+    const char* extension() const override { return "KHR_texture_basisu"; }
+    const char* mimeType() const override { return "image/ktx2"; }
+    const char* fileExtension() const override { return ".ktx2"; }
+    std::vector<const char*> keptExtensions() const override { return {}; }
+    std::vector<const char*> replacedExtensions() const override { return {"EXT_texture_webp", "EXT_texture_avif"}; }
+    // ETC1S and UASTC files are different files with different transfer functions.
+    bool mixedUse() const override { return false; }
+    // A KTX2 file stays compressed on the GPU, which a smaller PNG or JPEG doesn't.
+    bool keepsSmallerSource() const override { return false; }
+    // Block formats: sides are multiples of 4.
+    std::uint32_t multiple() const override { return 4; }
+    std::unique_ptr<texture::Encoder> encoder(unsigned threads) const override {
+        return std::make_unique<BasisuEncoder>(threads, settings_);
     }
-    for (const Json& material : *materials) {
-        const bool opaque = gltf::isOpaque(material);
-        for (const gltf::TextureSlot& slot : gltf::textureSlots(material)) {
-            const std::optional<gltf::KnownSlot> known = gltf::knownSlot(slot.path);
-            const Json* index = child(*slot.info, "index");
-            if (!known || index == nullptr || !index->is_number_unsigned()) {
-                continue;
-            }
-            TextureUse& use = uses[index->get<std::size_t>()];
-            use.color = use.color || known->kind == SlotKind::color;
-            use.data = use.data || known->kind == SlotKind::data;
-            use.normal = use.normal || known->kind == SlotKind::normal;
-            use.alpha = use.alpha || known->alpha || (known->alpha_unless_opaque && !opaque);
-        }
-    }
-    return uses;
-}
 
-std::optional<std::size_t> sourceOf(const Json& texture, const char* extension) {
-    const Json* holder = &texture;
-    if (extension != nullptr) {
-        const Json* extensions = child(texture, "extensions");
-        holder = extensions != nullptr ? child(*extensions, extension) : nullptr;
-    }
-    const Json* source = holder != nullptr ? child(*holder, "source") : nullptr;
-    if (source == nullptr || !source->is_number_unsigned()) {
-        return std::nullopt;
-    }
-    return source->get<std::size_t>();
-}
-
-const char* formatName(const gltf::ImageData& data) {
-    return data.header ? gltf::mimeType(data.header->format) : "unknown";
-}
-
-// One image to encode.
-struct Job {
-    std::size_t source = 0;
-    std::vector<std::size_t> textures;
-    EncodeParams params;
-    bool alpha_sampled = false;
-    image::Content content = image::Content::srgb;
-    // The source's size, from its header.
-    image::Size source_size;
-    std::string name;
-    // Filled by run().
-    std::optional<std::vector<std::uint8_t>> ktx2;
-    std::string error;
-    bool decoded = false;
-    bool alpha = false;
-    image::Size size;
-    std::uint32_t width = 0;
-    std::uint32_t height = 0;
-    double seconds = 0;
+private:
+    Settings settings_;
 };
-
-void run(Job& job, const gltf::Document& document, std::uint32_t max_size, Encoder& encoder) {
-    const Clock::time_point start = Clock::now();
-    const gltf::ImageData& data = document.image(job.source);
-    std::optional<image::Image> decoded = image::decode(data.bytes, job.error);
-    if (!decoded) {
-        return;
-    }
-    job.decoded = true;
-    job.width = decoded->width;
-    job.height = decoded->height;
-    job.alpha = job.alpha_sampled && image::analyze(*decoded).alpha;
-    job.params.alpha = job.alpha;
-    job.size = image::fittedSize({decoded->width, decoded->height}, max_size, 4);
-    if (job.size != image::Size{decoded->width, decoded->height}) {
-        // Resampled, then the decoded pixels go: one copy at a time.
-        image::Image resized = image::resize(*decoded, job.size, job.content, job.alpha);
-        decoded = std::move(resized);
-    }
-    job.ktx2 = encoder.encode(std::move(*decoded), job.params, job.error);
-    job.seconds = secondsSince(start);
-}
-
-// Images whose output is under this many texels don't keep every core busy on
-// their own, and are encoded several at a time (docs/images.md#memory-and-threads).
-constexpr std::uint64_t small_texels = std::uint64_t{1024} * 1024;
-
-void removeUnusedExtension(Json& json, const char* name, const Json& textures) {
-    for (const Json& texture : textures) {
-        const Json* extensions = child(texture, "extensions");
-        if (extensions != nullptr && child(*extensions, name) != nullptr) {
-            return;
-        }
-    }
-    for (const char* list : {"extensionsUsed", "extensionsRequired"}) {
-        if (!json.contains(list)) {
-            continue;
-        }
-        Json kept = Json::array();
-        for (const Json& entry : json[list]) {
-            if (!(entry.is_string() && entry.get<std::string>() == name)) {
-                kept.push_back(entry);
-            }
-        }
-        if (kept.empty()) {
-            json.erase(list);
-        } else {
-            json[list] = std::move(kept);
-        }
-    }
-}
 
 } // namespace
 
@@ -211,210 +114,35 @@ Report ktx(const fs::path& input, const fs::path& directory, const std::string& 
     Report report;
     report.quality = options.quality;
     report.max_size = options.max_size;
-    report.threads = options.threads != 0 ? options.threads : image::threadCount();
-
-    gltf::Document document = gltf::readNormalized(input, options.read, diagnostics);
-    gltf::Layout layout = gltf::normalizedLayout(document, gltf::selectScene(document), diagnostics);
-    Json& json = layout.json;
-    const std::vector<std::string> source_names = gltf::imageFileNames(document, stem);
-    gltf::ImageNames names(document, stem);
-
-    // Which textures each image would be encoded for, and what they ask of it.
-    const std::map<std::size_t, TextureUse> uses = textureUses(json);
-    std::map<std::size_t, std::vector<std::size_t>> textures_of;
-    std::map<std::size_t, TextureUse> image_uses;
-    std::set<std::size_t> skipped_images;
-    const auto skip = [&](std::size_t image, const char* code, const std::string& message) {
-        if (skipped_images.insert(image).second) {
-            ++report.skipped;
-            diagnostics.warn(code, message, source_names[layout.image_sources[image]]);
-        }
-    };
-    const Json empty = Json::array();
-    const Json& textures = json.contains("textures") ? json["textures"] : empty;
-    for (std::size_t t = 0; t < textures.size(); ++t) {
-        const Json& texture = textures[t];
-        if (sourceOf(texture, "KHR_texture_basisu")) {
-            continue; // Already KTX2: kept, not re-encoded.
-        }
-        const std::optional<std::size_t> source = sourceOf(texture, nullptr);
-        if (!source) {
-            std::optional<std::size_t> other = sourceOf(texture, "EXT_texture_webp");
-            if (!other) {
-                other = sourceOf(texture, "EXT_texture_avif");
-            }
-            if (other) {
-                skip(*other, "image-format-unsupported",
-                     "textures with only a WebP or AVIF source are left as they are: ktx decodes PNG and JPEG");
-            }
-            continue;
-        }
-        const auto use = uses.find(t);
-        if (use == uses.end() || !use->second.any()) {
-            skip(*source, "image-slot-unknown",
-                 "images only slots unknown to ktx use are left as they are: their transfer function can't be told");
-            continue;
-        }
-        textures_of[*source].push_back(t);
-        TextureUse& image_use = image_uses[*source];
-        image_use.color = image_use.color || use->second.color;
-        image_use.data = image_use.data || use->second.data;
-        image_use.normal = image_use.normal || use->second.normal;
-        image_use.alpha = image_use.alpha || use->second.alpha;
+    texture::Options texture_options;
+    texture_options.max_size = options.max_size;
+    texture_options.threads = options.threads;
+    texture_options.read = options.read;
+    const KtxCodec codec(settings(options.quality));
+    texture::Result result = texture::reencode(input, directory, stem, texture_options, codec, outputs, diagnostics);
+    report.threads = result.threads;
+    report.skipped = result.skipped;
+    report.files = std::move(result.files);
+    for (const texture::Encoded& image : result.encoded) {
+        EncodedImage entry;
+        entry.source = image.source;
+        entry.name = image.name;
+        entry.source_format = image.source_format;
+        entry.width = image.width;
+        entry.height = image.height;
+        entry.codec = image.request.use.color ? Codec::etc1s : Codec::uastc;
+        entry.srgb = image.request.use.color;
+        entry.alpha = image.request.alpha;
+        entry.image = image.image;
+        entry.output = image.output;
+        entry.output_width = image.output_width;
+        entry.output_height = image.output_height;
+        entry.bytes_before = image.bytes_before;
+        entry.bytes_after = image.bytes_after;
+        entry.seconds = image.seconds;
+        report.encoded.push_back(std::move(entry));
     }
-
-    const Settings quality_settings = settings(options.quality);
-    std::vector<Job> jobs;
-    for (const auto& [image, texture_list] : textures_of) {
-        const gltf::ImageData& data = document.image(layout.image_sources[image]);
-        const TextureUse& use = image_uses[image];
-        if (data.missing) {
-            skip(image, "image-missing", "images whose file is missing are left as they are");
-            continue;
-        }
-        if (data.header && data.header->format == gltf::ImageFormat::ktx2) {
-            skip(image, "image-already-compressed", "images already in KTX2 are left as they are");
-            continue;
-        }
-        if (!data.header || (data.header->format != gltf::ImageFormat::png && data.header->format != gltf::ImageFormat::jpeg)) {
-            skip(image, "image-format-unsupported", "images other than PNG and JPEG are left as they are");
-            continue;
-        }
-        if (use.color && (use.data || use.normal)) {
-            skip(image, "image-color-space-conflict",
-                 "images used both as color and as data are left as they are: one file can't have both transfer "
-                 "functions");
-            continue;
-        }
-        Job job;
-        job.source = image;
-        job.source_size = {data.header->width, data.header->height};
-        job.textures = texture_list;
-        job.params.settings = quality_settings;
-        job.params.codec = use.color ? Codec::etc1s : Codec::uastc;
-        job.params.srgb = use.color;
-        job.params.normal = use.normal;
-        job.alpha_sampled = use.alpha;
-        job.content = use.color ? image::Content::srgb : use.normal ? image::Content::normal : image::Content::linear;
-        jobs.push_back(std::move(job));
-    }
-
-    // Large images one at a time, each using every thread; small ones in
-    // batches, one per thread.
-    std::vector<Job*> large;
-    std::vector<Job*> small;
-    for (Job& job : jobs) {
-        const image::Size size = image::fittedSize(job.source_size, options.max_size, 4);
-        (static_cast<std::uint64_t>(size.width) * size.height < small_texels ? small : large).push_back(&job);
-    }
-
-    std::vector<EncodedImage> encoded;
-    const auto finish = [&](Job& job) {
-        const std::size_t source = layout.image_sources[job.source];
-        const gltf::ImageData& data = document.image(source);
-        const std::string& source_name = source_names[source];
-        if (!job.decoded) {
-            skip(job.source, "image-decode-failed", "images that can't be decoded are left as they are (" + job.error + ")");
-            return;
-        }
-        if (!job.ktx2) {
-            skip(job.source, "image-encode-failed", "images basisu can't encode are left as they are (" + job.error + ")");
-            return;
-        }
-        const std::string name = names.reserve(fs::u8path(source_name).replace_extension(".ktx2").u8string());
-        common::OutputFile file = outputs.create(directory / fs::u8path(name));
-        file.write({job.ktx2->data(), job.ktx2->size()});
-        file.close();
-        const std::uint64_t size = job.ktx2->size();
-        job.ktx2.reset();
-
-        // The new image keeps the source's name, extras and extensions.
-        Json image_json = json["images"][job.source];
-        image_json.erase("uri");
-        image_json.erase("bufferView");
-        image_json["mimeType"] = "image/ktx2";
-        const std::size_t added = gltf::addImage(layout, std::move(image_json), name, size);
-        for (const std::size_t t : job.textures) {
-            Json& texture = json["textures"][t];
-            texture.erase("source");
-            if (texture.contains("extensions")) {
-                texture["extensions"].erase("EXT_texture_webp");
-                texture["extensions"].erase("EXT_texture_avif");
-            }
-            texture["extensions"]["KHR_texture_basisu"] = Json{{"source", added}};
-        }
-
-        EncodedImage result;
-        result.source = source;
-        result.name = source_name;
-        result.source_format = formatName(data);
-        result.width = job.width;
-        result.height = job.height;
-        result.codec = job.params.codec;
-        result.srgb = job.params.srgb;
-        result.alpha = job.alpha;
-        result.output = name;
-        result.output_width = job.size.width;
-        result.output_height = job.size.height;
-        result.bytes_before = data.bytes.size;
-        result.bytes_after = size;
-        result.seconds = job.seconds;
-        encoded.push_back(std::move(result));
-    };
-
-    if (!large.empty()) {
-        Encoder encoder(report.threads);
-        for (Job* job : large) {
-            run(*job, document, options.max_size, encoder);
-            finish(*job);
-            document.releaseMappedPages();
-        }
-    }
-    for (std::size_t first = 0; first < small.size(); first += report.threads) {
-        const std::size_t last = std::min(small.size(), first + report.threads);
-        std::vector<std::exception_ptr> errors(last - first);
-        std::vector<std::thread> workers;
-        for (std::size_t i = first; i < last; ++i) {
-            workers.emplace_back([&, i] {
-                try {
-                    Encoder encoder(1);
-                    run(*small[i], document, options.max_size, encoder);
-                } catch (...) {
-                    errors[i - first] = std::current_exception();
-                }
-            });
-        }
-        for (std::thread& worker : workers) {
-            worker.join();
-        }
-        for (const std::exception_ptr& error : errors) {
-            if (error) {
-                std::rethrow_exception(error);
-            }
-        }
-        for (std::size_t i = first; i < last; ++i) {
-            finish(*small[i]);
-        }
-    }
-
-    if (!encoded.empty()) {
-        gltf::useExtension(json, "KHR_texture_basisu", true);
-        removeUnusedExtension(json, "EXT_texture_webp", json["textures"]);
-        removeUnusedExtension(json, "EXT_texture_avif", json["textures"]);
-    }
-    gltf::prune(layout);
-    // The output index of each new image, once prune has renumbered them.
-    std::map<std::string, std::size_t> added_index;
-    for (const auto& [index, added] : layout.added_images) {
-        added_index[added.name] = index;
-    }
-    for (EncodedImage& image : encoded) {
-        image.image = added_index.at(image.output);
-    }
-    std::sort(encoded.begin(), encoded.end(), [](const EncodedImage& a, const EncodedImage& b) { return a.image < b.image; });
-    report.encoded = std::move(encoded);
-    report.files = gltf::writeSeparate(document, layout, directory, stem, outputs);
-    report.seconds = secondsSince(start);
+    report.seconds = std::chrono::duration<double>(Clock::now() - start).count();
     return report;
 }
 
