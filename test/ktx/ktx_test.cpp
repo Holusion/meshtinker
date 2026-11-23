@@ -222,24 +222,42 @@ TEST_CASE(max_size_scales_down) {
     CHECK(decoded.ok && decoded.width == 8 && decoded.levels == 4);
 }
 
+// --min-size leaves small images as they are, without a warning.
+TEST_CASE(min_size_leaves_small_images) {
+    ktx::Options options;
+    options.min_size = 16;
+    options.quality = ktx::Quality::thumb;
+    Run run = encode("textures", "min-size", options);
+    // alpha.png (30×18) is encoded; the 16×16 ones are left.
+    CHECK(find(run.report, "alpha.png") != nullptr);
+    CHECK(find(run.report, "normal.png") == nullptr);
+    CHECK_EQ(run.report.encoded.size(), std::size_t{1});
+    CHECK_EQ(run.report.small.size(), std::size_t{8});
+    CHECK_EQ(run.report.skipped, std::uint64_t{0});
+    CHECK(fs::exists(run.directory / "normal.png"));
+}
+
 TEST_CASE(other_sources_are_removed_and_unsupported_ones_kept) {
     Run run = encode("alt-sources", "alt-sources");
-    // fallback.png is encoded; ktx-only.ktx2 stays; webp-only.webp is left with a warning.
-    CHECK_EQ(run.report.encoded.size(), std::size_t{1});
-    CHECK_EQ(run.report.skipped, std::uint64_t{1});
+    // fallback.png is encoded; ktx-only.ktx2 stays; webp-only.webp is
+    // encoded where the build decodes WebP, and left with a warning elsewhere.
+    const bool webp = image::decodesWebp();
+    CHECK_EQ(run.report.encoded.size(), std::size_t{webp ? 2U : 1U});
+    CHECK_EQ(run.report.skipped, std::uint64_t{webp ? 0U : 1U});
     const Json diagnostics = run.diagnostics.toJson();
-    CHECK(diagnostics.size() == 1 && diagnostics[0]["code"] == "image-format-unsupported");
+    CHECK(webp ? diagnostics.empty() : diagnostics.size() == 1 && diagnostics[0]["code"] == "image-format-unsupported");
     const Json& textures = run.json["textures"];
     CHECK(!textures[0].contains("source"));
     CHECK(!textures[0]["extensions"].contains("EXT_texture_webp"));
     CHECK(textures[0]["extensions"].contains("KHR_texture_basisu"));
-    CHECK(textures[2]["extensions"].contains("EXT_texture_webp"));
+    CHECK(textures[2]["extensions"].contains(webp ? "KHR_texture_basisu" : "EXT_texture_webp"));
+    CHECK(!webp || !textures[2]["extensions"].contains("EXT_texture_webp"));
     // alternative.webp went with the source it was an alternative to.
     for (const Json& image : run.json["images"]) {
         CHECK(image["uri"] != "alternative.webp" && image["uri"] != "fallback.png");
     }
     CHECK(fs::exists(run.directory / "ktx-only.ktx2"));
-    CHECK(fs::exists(run.directory / "webp-only.webp"));
+    CHECK(fs::exists(run.directory / (webp ? "webp-only.ktx2" : "webp-only.webp")));
     CHECK(fs::exists(run.directory / "fallback.ktx2"));
 }
 

@@ -97,6 +97,9 @@ public:
     // The stage with the highest number. Throws a Failure (exit code 1,
     // `chain-empty`) if there is none.
     StageName last() const;
+    // The stage numbered `number`. Throws a Failure (exit code 1,
+    // `stage-missing`) if there is none.
+    StageName stage(std::uint64_t number) const;
     // `<stage>/<stem>.gltf`.
     std::filesystem::path model(const StageName& stage) const;
     // The stage's stage.json. Throws a Failure (exit code 1) if it can't be

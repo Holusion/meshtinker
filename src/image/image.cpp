@@ -5,8 +5,16 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <new>
 #include <stdexcept>
+
+#ifdef MESHTINKER_DECODES_WEBP
+#include <webp/decode.h>
+#endif
+#ifdef MESHTINKER_DECODES_AVIF
+#include <avif/avif.h>
+#endif
 
 #include <stb/stb_image.h>
 #include <stb/stb_image_resize2.h>
@@ -14,7 +22,119 @@
 
 namespace meshtinker::image {
 
+namespace {
+
+bool startsWith(common::ByteView bytes, std::size_t offset, const char* text) {
+    const std::size_t length = std::strlen(text);
+    return bytes.size >= offset + length && std::memcmp(bytes.data + offset, text, length) == 0;
+}
+
+bool isWebp(common::ByteView bytes) { return startsWith(bytes, 0, "RIFF") && startsWith(bytes, 8, "WEBP"); }
+
+// An ISOBMFF file: AVIF's `ftyp` box comes first.
+bool isAvif(common::ByteView bytes) { return startsWith(bytes, 4, "ftyp"); }
+
+#ifdef MESHTINKER_DECODES_WEBP
+std::optional<Image> decodeWebp(common::ByteView bytes, std::string& error) {
+    WebPBitstreamFeatures features;
+    if (WebPGetFeatures(bytes.data, bytes.size, &features) != VP8_STATUS_OK || features.has_animation) {
+        error = features.has_animation ? "animated WebP" : "not a WebP image libwebp reads";
+        return std::nullopt;
+    }
+    Image image;
+    image.width = static_cast<std::uint32_t>(features.width);
+    image.height = static_cast<std::uint32_t>(features.height);
+    image.source_channels = features.has_alpha ? 4 : 3;
+    image.pixels.resize(image.texels() * 4);
+    const int stride = features.width * 4;
+    if (WebPDecodeRGBAInto(bytes.data, bytes.size, image.pixels.data(), image.pixels.size(), stride) == nullptr) {
+        error = "libwebp couldn't decode it";
+        return std::nullopt;
+    }
+    return image;
+}
+#endif
+
+#ifdef MESHTINKER_DECODES_AVIF
+std::optional<Image> decodeAvif(common::ByteView bytes, std::string& error) {
+    std::unique_ptr<avifDecoder, void (*)(avifDecoder*)> decoder(avifDecoderCreate(), avifDecoderDestroy);
+    if (!decoder) {
+        throw std::bad_alloc();
+    }
+    // One thread: image commands decode several images at once (images.md).
+    decoder->maxThreads = 1;
+    avifResult result = avifDecoderSetIOMemory(decoder.get(), bytes.data, bytes.size);
+    if (result == AVIF_RESULT_OK) {
+        result = avifDecoderParse(decoder.get());
+    }
+    if (result == AVIF_RESULT_OK) {
+        result = avifDecoderNextImage(decoder.get());
+    }
+    if (result == AVIF_RESULT_OUT_OF_MEMORY) {
+        throw std::bad_alloc();
+    }
+    if (result != AVIF_RESULT_OK) {
+        error = avifResultToString(result);
+        return std::nullopt;
+    }
+    const avifImage* decoded = decoder->image;
+    Image image;
+    image.width = decoded->width;
+    image.height = decoded->height;
+    image.source_channels = decoded->alphaPlane != nullptr ? 4 : decoded->yuvFormat == AVIF_PIXEL_FORMAT_YUV400 ? 1 : 3;
+    image.pixels.resize(image.texels() * 4);
+    // Higher bit depths are reduced to 8, as stb_image does for PNG.
+    avifRGBImage rgb;
+    avifRGBImageSetDefaults(&rgb, decoded);
+    rgb.format = AVIF_RGB_FORMAT_RGBA;
+    rgb.depth = 8;
+    rgb.pixels = image.pixels.data();
+    rgb.rowBytes = image.width * 4;
+    result = avifImageYUVToRGB(decoded, &rgb);
+    if (result == AVIF_RESULT_OUT_OF_MEMORY) {
+        throw std::bad_alloc();
+    }
+    if (result != AVIF_RESULT_OK) {
+        error = avifResultToString(result);
+        return std::nullopt;
+    }
+    return image;
+}
+#endif
+
+} // namespace
+
+bool decodesWebp() {
+#ifdef MESHTINKER_DECODES_WEBP
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool decodesAvif() {
+#ifdef MESHTINKER_DECODES_AVIF
+    return true;
+#else
+    return false;
+#endif
+}
+
 std::optional<Image> decode(common::ByteView bytes, std::string& error) {
+#ifdef MESHTINKER_DECODES_WEBP
+    if (isWebp(bytes)) {
+        return decodeWebp(bytes, error);
+    }
+#endif
+#ifdef MESHTINKER_DECODES_AVIF
+    if (isAvif(bytes)) {
+        return decodeAvif(bytes, error);
+    }
+#endif
+    if (isWebp(bytes) || isAvif(bytes)) {
+        error = "this build doesn't decode WebP or AVIF";
+        return std::nullopt;
+    }
     if (bytes.size > static_cast<std::size_t>(INT_MAX)) {
         error = "the file is over 2 GiB";
         return std::nullopt;

@@ -28,6 +28,8 @@ struct Options {
     Quality quality = Quality::high;
     // The longest side of an output image, 0 for no cap (docs/images.md#resizing).
     std::uint32_t max_size = 0;
+    // Images no larger than this on either side are left as they are (0: none).
+    std::uint32_t min_size = 0;
     // Threads for basisu, 0 for every CPU the process may use.
     unsigned threads = 0;
     gltf::ReadOptions read;
@@ -69,11 +71,14 @@ struct EncodedImage {
 
 struct Report {
     Quality quality = Quality::high;
+    std::uint32_t min_size = 0;
     std::uint32_t max_size = 0;
     unsigned threads = 1;
     std::vector<EncodedImage> encoded;
     // Images left as they are, each with its warning.
     std::uint64_t skipped = 0;
+    // Images left as they are for min_size.
+    std::vector<std::string> small;
     double seconds = 0;
     std::vector<gltf::WrittenFile> files;
 };

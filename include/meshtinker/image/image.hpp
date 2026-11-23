@@ -25,8 +25,15 @@ struct Image {
     std::size_t texels() const { return static_cast<std::size_t>(width) * height; }
 };
 
-// Decodes PNG or JPEG `bytes`, the mapped file, to RGBA8. A 16-bit PNG is
-// reduced to 8 bits. Empty if the bytes can't be decoded, with the decoder's
+// Whether this build decodes WebP (libwebp) and AVIF (libavif): both are
+// built from downloaded archives, and optional (MESHTINKER_WEBP and
+// MESHTINKER_AVIF).
+bool decodesWebp();
+bool decodesAvif();
+
+// Decodes PNG, JPEG, and WebP and AVIF where the build decodes them, from
+// `bytes`, the mapped file, to RGBA8. Higher bit depths are reduced to 8 bits;
+// an animated WebP isn't decoded. Empty if the bytes can't be decoded, with the decoder's
 // reason in `error`. Throws std::bad_alloc if the pixels don't fit in memory.
 std::optional<Image> decode(common::ByteView bytes, std::string& error);
 

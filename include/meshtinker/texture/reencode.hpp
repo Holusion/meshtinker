@@ -95,6 +95,9 @@ public:
 struct Options {
     // The longest side of an output image, 0 for no cap (docs/images.md#resizing).
     std::uint32_t max_size = 0;
+    // Images no larger than this on either side are left as they are: they
+    // cost little GPU memory, and their encoding gains little (0: none).
+    std::uint32_t min_size = 0;
     // Threads, 0 for every CPU the process may use.
     unsigned threads = 0;
     gltf::ReadOptions read;
@@ -128,6 +131,8 @@ struct Result {
     std::uint64_t skipped = 0;
     // Images kept because their new file wasn't smaller (Codec::keepsSmallerSource).
     std::vector<std::string> not_smaller;
+    // Images left as they are for Options::min_size.
+    std::vector<std::string> small;
     std::vector<gltf::WrittenFile> files;
 };
 

@@ -33,7 +33,7 @@ Detecting imported files by a marker (`asset.generator` or `asset.extras`) was r
 - **Compressed geometry stays compressed.** `EXT_meshopt_compression` and `KHR_draco_mesh_compression` data is copied as is. A meshopt fallback buffer (no `uri`, `fallback: true`) stays a separate buffer without data, since it holds no bytes.
 - **Quantized geometry stays quantized.** `KHR_mesh_quantization` attributes are copied as is. Their component types are not float32, so code that reads vertex data must not assume float32.
 - **Alternative image sources:** a texture keeps its core `source` and its extension sources. Commands use the core `source` when there is one, with a warning, and an extension's source otherwise.
-- **Images keep their format.** WebP, KTX2 and AVIF are kept, along with their extensions (`EXT_texture_webp`, `KHR_texture_basisu`, `EXT_texture_avif`). A command that decodes images (to resize or recompress them) reads PNG and JPEG with stb. It copies any other image unchanged and reports it with one counted warning, until it supports that format.
+- **Images keep their format.** WebP, KTX2 and AVIF are kept, along with their extensions (`EXT_texture_webp`, `KHR_texture_basisu`, `EXT_texture_avif`). A command that decodes images (to resize or recompress them) reads PNG and JPEG with stb, and WebP and AVIF with libwebp and libavif ([images.md](images.md#formats)). It copies any other image unchanged and reports it with one counted warning, until it supports that format.
 - **Unknown extensions and `extras` survive**, as do `extensionsUsed` and `extensionsRequired`.
 
 ## Commands that rewrite geometry

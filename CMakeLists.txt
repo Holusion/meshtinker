@@ -19,6 +19,10 @@ option(MESHTINKER_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSan
 # the build (cmake/avif-deps.cmake). Off for builds without network access
 # and without a download folder to reuse.
 option(MESHTINKER_AVIF "Build the avif command (downloads and builds nasm, libaom and libavif)" ON)
+# Decoding WebP sources downloads and builds libwebp's decoder
+# (cmake/webp-deps.cmake); AVIF sources are decoded with MESHTINKER_AVIF's
+# libavif. Without them, image commands leave such sources as they are.
+option(MESHTINKER_WEBP "Decode WebP images (downloads and builds libwebp)" ON)
 
 # Executables link libstdc++ and libgcc statically so that only the C library
 # is loaded at run time. Sanitizer runtimes are shared libraries, so sanitized
@@ -177,6 +181,16 @@ meshtinker_configure(meshtinker-core)
 target_include_directories(meshtinker-core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_definitions(meshtinker-core PRIVATE MESHTINKER_VERSION="${PROJECT_VERSION}")
 target_link_libraries(meshtinker-core PUBLIC meshtinker-vendor)
+if(MESHTINKER_WEBP)
+    include(cmake/webp-deps.cmake)
+    target_link_libraries(meshtinker-core PRIVATE meshtinker-webp-codec)
+    target_compile_definitions(meshtinker-core PRIVATE MESHTINKER_DECODES_WEBP)
+endif()
+if(MESHTINKER_AVIF)
+    include(cmake/avif-deps.cmake)
+    target_link_libraries(meshtinker-core PRIVATE meshtinker-avif-codec)
+    target_compile_definitions(meshtinker-core PRIVATE MESHTINKER_DECODES_AVIF)
+endif()
 
 # meshtinker_add_command(<name>) builds src/commands/<name>/ into meshtinker-<name>.
 # Every source except main.cpp also goes into the meshtinker-<name>-lib static
@@ -215,7 +229,6 @@ target_link_libraries(meshtinker-ktx-lib PUBLIC basisu)
 meshtinker_add_command(uv)
 target_link_libraries(meshtinker-uv-lib PUBLIC xatlas)
 if(MESHTINKER_AVIF)
-    include(cmake/avif-deps.cmake)
     meshtinker_add_command(avif)
     target_link_libraries(meshtinker-avif-lib PUBLIC meshtinker-avif-codec)
 endif()

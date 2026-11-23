@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 
 // `export` is a C++ keyword, hence the namespace name.
 namespace meshtinker::exporter {
@@ -55,6 +56,10 @@ int run(int argc, char** argv) {
     bool remove_chain = false;
     command.addFlag("--remove-chain", remove_chain,
                     "Remove the chain's directory, with everything in it, once the output is written");
+    std::optional<std::uint64_t> stage_number;
+    command.app()
+        .add_option("--stage", stage_number, "Write the stage with this number instead of the last: 0 is import's")
+        ->option_text("N");
     command.addJsonOption();
     return command.run(argc, argv, [&] {
         const fs::path directory = command.outputDirectory();
@@ -67,7 +72,7 @@ int run(int argc, char** argv) {
         if (remove_chain) {
             lock.emplace(chain.lock());
         }
-        const chain::StageName stage = chain.last();
+        const chain::StageName stage = stage_number ? chain.stage(*stage_number) : chain.last();
         const fs::path input = chain.model(stage);
         if (remove_chain) {
             // The chain goes, so its files can become the output's.

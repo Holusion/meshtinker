@@ -198,6 +198,15 @@ StageName Chain::last() const {
     return all.back();
 }
 
+StageName Chain::stage(std::uint64_t number) const {
+    const std::vector<StageName> all = stages();
+    const auto found = std::find_if(all.rbegin(), all.rend(), [&](const StageName& name) { return name.number == number; });
+    if (found == all.rend()) {
+        throw rejected("stage-missing", quoted(directory_) + " has no stage " + std::to_string(number));
+    }
+    return *found;
+}
+
 fs::path Chain::model(const StageName& stage) const { return directory_ / fs::u8path(stage.text()) / fs::u8path(stem() + ".gltf"); }
 
 Json Chain::record(const StageName& stage) const {

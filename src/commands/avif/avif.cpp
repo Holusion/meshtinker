@@ -103,14 +103,17 @@ Report avif(const fs::path& input, const fs::path& directory, const std::string&
     report.quality = options.quality;
     report.effort = options.effort;
     report.max_size = options.max_size;
+    report.min_size = options.min_size;
     texture::Options texture_options;
     texture_options.max_size = options.max_size;
+    texture_options.min_size = options.min_size;
     texture_options.threads = options.threads;
     texture_options.read = options.read;
     const AvifCodec codec(qualityLevel(options.quality), options.effort);
     texture::Result result = texture::reencode(input, directory, stem, texture_options, codec, outputs, diagnostics);
     report.threads = result.threads;
     report.skipped = result.skipped;
+    report.small = std::move(result.small);
     report.not_smaller = std::move(result.not_smaller);
     report.files = std::move(result.files);
     for (texture::Encoded& image : result.encoded) {
