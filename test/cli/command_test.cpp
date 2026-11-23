@@ -260,6 +260,19 @@ TEST_CASE(chain_mode_follows_the_kind) {
         CHECK_EQ(runCommand(terminal, {(root / "scan.glb").string(), (root / "out.glb").string()}, [] { return 0; }).code, 2);
     }
     {
+        // A missing chain is the caller's problem (4), where a missing model
+        // is rejected (1).
+        cli::Command terminal("export", "Export", "", cli::Kind::terminal);
+        declare(terminal);
+        const Result result = runCommand(terminal, {"--json", (root / "gone").string(), (root / "out.glb").string()},
+                                         [] { return 0; });
+        CHECK_EQ(result.code, 4);
+        CHECK_EQ(nlohmann::json::parse(result.out)["error"]["code"].get<std::string>(), std::string("file-unreadable"));
+        cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);
+        declare(transform);
+        CHECK_EQ(runCommand(transform, {(root / "gone").string()}, [] { return 0; }).code, 1);
+    }
+    {
         // One writer at a time.
         const std::optional<common::FileLock> held = common::FileLock::tryAcquire(fs::path(work) / "lock");
         cli::Command transform("simplify", "Simplify", "", cli::Kind::transform);

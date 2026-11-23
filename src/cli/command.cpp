@@ -140,7 +140,10 @@ void Command::resolve() {
     }
     if (!input_is_chain) {
         if (kind_ != Kind::files && !std::filesystem::exists(input_, error)) {
-            throw common::systemFailure(ENOENT, common::Side::input, "file-unreadable",
+            // A terminal command's input is a chain, which an earlier command
+            // made: a missing one is the caller's problem, not the model's.
+            throw common::systemFailure(ENOENT, kind_ == Kind::terminal ? common::Side::machine : common::Side::input,
+                                        "file-unreadable",
                                         "cannot open '" + input_.filename().u8string() + "'");
         }
         if (kind_ == Kind::terminal) {

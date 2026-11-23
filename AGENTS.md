@@ -47,7 +47,7 @@ C++17, built with CMake from the repository root. The build scaffolding comes fr
 - Commands that report statistics print text by default and JSON with `--json`. Both are rendered from the same result structure, and JSON is the source of truth. With `--json`, stdout is one JSON object even when the command fails: it then holds an `error` and the diagnostics gathered so far. The `inspect` report's shape is documented in [docs/inspect-report.md](docs/inspect-report.md), and consumers generate types from it.
 - Counted warnings go to stderr and into the JSON `diagnostics`, with a stable `code`. Messages are English only. Localization, if ever needed, belongs to JSON consumers, who map codes.
 - Outputs are never overwritten, and the destination directory must already exist. A failed run removes only the files it created.
-- A file reference in a model (buffer or image `uri`) must lead to a regular file inside the input's folder. `..` is allowed only while the path stays inside that folder. Absolute paths, URLs and symlinks leading out are refused. Reading outside the folder requires `--trusted`. Messages show file names, not their folders.
+- A file reference in a model (buffer or image `uri`) must lead to a regular file inside the input's folder. `..` is allowed only while the path stays inside that folder. Absolute paths, URLs and symlinks leading out are refused. Reading outside the folder requires `--trusted`. A missing file isn't looked for by its name elsewhere, as mesh2gltf does for OBJ files whose uploads lose their folders: most glTF models refer to few files, or none in a GLB, so that waits for an upload that actually needs it. Messages show file names, not their folders.
 - Exit codes:
 
   | Code | Meaning |
