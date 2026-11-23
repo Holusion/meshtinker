@@ -48,7 +48,7 @@ if (model.hasGeometry()) run("compress");
   | `ktx`/`avif --max-size` | 8192 | 4096 | 2048 | 1024 | 512 |
   | `ktx`/`avif --quality` | Highest | High | Medium | Low | Thumb |
 
-  eCorpus also passes glTF-Transform a `ratio` that works as a floor: High and Highest keep every face. `simplify` is error-only ([simplify.md](simplify.md)), so High simplifies, within a ten-thousandth of the scene's size.
+  eCorpus also passes glTF-Transform a `ratio`, min(preset ratio, preset ratio × 1 M / vertices), which works as a floor: simplification stops at that ratio or at the error, whichever comes first. High and Highest (ratio 1) therefore keep at least about 1 M vertices, and every face of a smaller model. `simplify` is error-only ([simplify.md](simplify.md)), so High simplifies smaller models too, within a ten-thousandth of the scene's size. How the plan fares on the corpus, and the corrections proposed, are in [experiments/optimize-survey.md](experiments/optimize-survey.md).
 - **`uv` runs when it can gain and fit**: import measured the texture occupancy, it's under 0.9, and `uv`'s xatlas data (65 bytes per face, [uv.md](uv.md#time-and-memory)) fits in half the memory available. `uv` then decides per group whether repacking gains enough.
 - **Textures:** `ktx` by default, which stays compressed on the GPU; `avif` with `--textures avif`, smaller to download ([avif.md](avif.md)).
 - **`compress` always runs on geometry**, last.

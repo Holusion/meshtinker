@@ -1,0 +1,53 @@
+// The plan proposed in docs/experiments/optimize-survey.md. Render with:
+//   dot -Tsvg docs/optimize-plan/proposed.dot -o docs/optimize-plan/proposed.svg
+digraph proposed {
+  graph [rankdir=TB, fontname="Helvetica", nodesep=0.3, ranksep=0.3, label="optimize, proposed: budgets, per-image choices, time estimates, and fallbacks", labelloc=t, fontsize=14, newrank=true];
+  node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#eef3fb", color="#4a6fa5"];
+  edge [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  in [label="input", shape=oval, fillcolor="#ffffff"];
+  import [label="import + triage (< 1 s, 26 s at 44 M faces)\nfaces, per-image size, occupancy, encodings;\nbudgets from quality; step costs estimated:\nktx 0.6 s/Mtexel · simplify 1.4 s/M faces · uv 2.4 s/M faces"];
+  in -> import;
+
+  subgraph cluster_geo {
+    label="geometry"; fontsize=11; color="#bbbbbb"; style=rounded;
+    gc [label="already compressed\n(meshopt, Draco) and\nfaces ≤ budget?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+    keepgeo [label="keep geometry as it is\n(re-encoding grew 4 of 66 outputs)", fillcolor="#e9f5e9", color="#4a8a4a"];
+    nw [label="normals, weld\n(cheap, always)"];
+    dedup [label="dedup (always)"];
+    gt [label="fits the time budget?\nfast: faces × 1.4 s/M ≤ share", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+    simp [label="simplify --error E(quality)\n--max-faces F(quality)  NEW\nHigh: 1e-4, 1 M faces"];
+    rawgeo [label="geometry unsimplified\n(warned)", fillcolor="#fbeaea", color="#a54a4a"];
+    comp [label="compress"];
+    gc -> keepgeo [label="yes"];
+    gc -> nw [label="no"]; nw -> dedup -> gt;
+    gt -> simp [label="yes"]; gt -> rawgeo [label="no"];
+    simp -> comp; rawgeo -> comp;
+  }
+
+  subgraph cluster_tex {
+    label="each image"; fontsize=11; color="#bbbbbb"; style=rounded;
+    small [label="≤ 512² ?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+    keepimg [label="keep as it is\n(KTX2 gains little there)", fillcolor="#e9f5e9", color="#4a8a4a"];
+    side [label="target side = min(\n  quality cap 8192…512,\n  side fitting the GPU budget,\n  fast: side fitting the time budget)"];
+    occ [label="slow, occupancy < 0.6,\nuv fits time and memory?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+    uv [label="uv\n(repacks only below ~0.6)"];
+    fmt [label="fast?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+    ktx [label="ktx at target side\n(WebP/AVIF sources decoded: NEW)"];
+    avif [label="avif effort 2 at target side"];
+    small -> keepimg [label="yes"]; small -> side [label="no"];
+    side -> occ; occ -> uv [label="yes"]; occ -> fmt [label="no"]; uv -> fmt;
+    fmt -> ktx [label="no"]; fmt -> avif [label="yes"];
+  }
+
+  import -> gc; import -> small;
+
+  guard [label="output larger than input and\nno GPU memory saved?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  useinput [label="deliver the input as imported", fillcolor="#e9f5e9", color="#4a8a4a"];
+  export [label="export", shape=oval, fillcolor="#ffffff"];
+  comp -> guard; keepgeo -> guard; keepimg -> guard; ktx -> guard; avif -> guard;
+  guard -> useinput [label="yes"]; guard -> export [label="no"]; useinput -> export;
+
+  fail [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Any step that fails or overruns its share of the time:\lkeep the stage before it, warn, carry on.\lExtreme input: the import stage is the output (\"fully unoptimized\").\l"];
+  budgets [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Budgets for High (proposed):\l• 1 M faces (eCorpus's simplify ratio targets 1 M vertices)\l• 64 MB of GPU memory, geometry and textures together\l• over budget: faces first below 16 used texels a face,\l  else lower the model's max side, 256 at a time\l• fast: about 10 s for the whole run\l"];
+}

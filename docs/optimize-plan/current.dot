@@ -1,0 +1,38 @@
+// The plan optimize runs today (src/commands/optimize/plan.cpp). Render with:
+//   dot -Tsvg docs/optimize-plan/current.dot -o docs/optimize-plan/current.svg
+digraph current {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, label="optimize today: one path, steps skipped by condition", labelloc=t, fontsize=14];
+  node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#eef3fb", color="#4a6fa5"];
+  edge [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  in [label="input .gltf / .glb", shape=oval, fillcolor="#ffffff"];
+  import [label="import\nnormalized chain, report:\nfaces, images, occupancy"];
+  g1 [label="has geometry?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  normals [label="normals\n(no-op if smooth)"];
+  weld [label="weld\n(no-op if welded)"];
+  dedup [label="dedup\n(no-op if no duplicates)"];
+  g2 [label="geometry and\nquality ≠ Highest?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  simplify [label="simplify --error E\nHigh 1e-4 · Medium 1e-3\nLow 5e-3 · Thumb 1e-2\n(no face budget)"];
+  t1 [label="textures, slow preset,\noccupancy < 0.9,\nfaces × 65 B < memory / 2?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  uv [label="uv\nrepack charts, rebake\n(one core)"];
+  t2 [label="textures?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  t3 [label="fast preset or\n--textures avif?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  ktx [label="ktx --quality Q --max-size S\nETC1S color, UASTC data\nS: 8192 · 4096 · 2048 · 1024 · 512"];
+  avif [label="avif --quality Q --max-size S\n(effort 2 if fast)"];
+  g3 [label="has geometry?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  compress [label="compress\nmeshopt, quantized"];
+  export [label="export .glb / .gltf", shape=oval, fillcolor="#ffffff"];
+
+  in -> import -> g1;
+  g1 -> normals [label="yes"]; normals -> weld -> dedup;
+  g1 -> dedup [label="no"];
+  dedup -> g2;
+  g2 -> simplify [label="yes"]; g2 -> t1 [label="no"]; simplify -> t1;
+  t1 -> uv [label="yes"]; t1 -> t2 [label="no"]; uv -> t2;
+  t2 -> t3 [label="yes"]; t2 -> g3 [label="no"];
+  t3 -> avif [label="yes"]; t3 -> ktx [label="no"];
+  ktx -> g3; avif -> g3;
+  g3 -> compress [label="yes"]; g3 -> export [label="no"]; compress -> export;
+
+  note [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Not considered today:\l• face count or texture memory budgets (what a phone can draw)\l• time: every step runs, whatever it costs\l• image size against KTX2's benefit (all images encoded)\l• failure or timeout of a step: optimize fails\l"];
+}
