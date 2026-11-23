@@ -1,38 +1,40 @@
-// The plan optimize runs today (src/commands/optimize/plan.cpp). Render with:
+// optimize's plan (src/commands/optimize/plan.cpp, docs/optimize.md). Render with:
 //   dot -Tsvg docs/optimize-plan/current.dot -o docs/optimize-plan/current.svg
 digraph current {
-  graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.32, label="optimize today: one path, steps skipped by condition", labelloc=t, fontsize=14];
+  graph [rankdir=TB, fontname="Helvetica", nodesep=0.3, ranksep=0.28, label="optimize: the steps, in order, and what decides each", labelloc=t, fontsize=14];
   node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#eef3fb", color="#4a6fa5"];
   edge [fontname="Helvetica", fontsize=9, color="#555555"];
 
-  in [label="input .gltf / .glb", shape=oval, fillcolor="#ffffff"];
-  import [label="import\nnormalized chain, report:\nfaces, images, occupancy"];
-  g1 [label="has geometry?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
-  normals [label="normals\n(no-op if smooth)"];
-  weld [label="weld\n(no-op if welded)"];
-  dedup [label="dedup\n(no-op if no duplicates)"];
-  g2 [label="geometry and\nquality ≠ Highest?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
-  simplify [label="simplify --error E\nHigh 1e-4 · Medium 1e-3\nLow 5e-3 · Thumb 1e-2\n(no face budget)"];
-  t1 [label="textures, slow preset,\noccupancy < 0.9,\nfaces × 65 B < memory / 2?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
-  uv [label="uv\nrepack charts, rebake\n(one core)"];
-  t2 [label="textures?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
-  t3 [label="fast preset or\n--textures avif?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
-  ktx [label="ktx --quality Q --max-size S\nETC1S color, UASTC data\nS: 8192 · 4096 · 2048 · 1024 · 512"];
-  avif [label="avif --quality Q --max-size S\n(effort 2 if fast)"];
-  g3 [label="has geometry?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
-  compress [label="compress\nmeshopt, quantized"];
-  export [label="export .glb / .gltf", shape=oval, fillcolor="#ffffff"];
+  in [label="input", shape=oval, fillcolor="#ffffff"];
+  import [label="import\nprimitives and encodings, vertices, faces,\neach image's size, format and slots, occupancy"];
+  hasgeo [label="geometry?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  nw [label="normals, weld\n(copy what needs no change; keep Draco and meshopt)"];
+  dedup [label="dedup"];
+  simpq [label="quality ≠ Highest, and geometry not all\nDraco/meshopt within the GPU budget?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  simp [label="simplify --error E(quality)\nHigh 1e-4 · Medium 1e-3 · Low 5e-3 · Thumb 1e-2"];
+  uvq [label="slow, occupancy < 0.6,\n65 B/face fits half the memory?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  uv [label="uv"];
+  large [label="an image over 512, not KTX2?\n(any size, in slow, if the model misses the budget without)", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  side [label="--max-size: the quality's (8192 … 512),\nlowered by 256 until geometry + textures fit 256 MB (not under 1024),\nfast: until AVIF fits 6 s at 0.13 s/Mtexel (not under 512)"];
+  tex [label="ktx (slow) or avif effort 2 (fast)\n--min-size 512 (0 for the budget) · WebP and AVIF sources decoded"];
+  budget [label="still over 256 MB?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  warn [label="gpu-budget-exceeded", fillcolor="#fbeaea", color="#a54a4a"];
+  comp [label="compress (on geometry)"];
+  guard [label="output larger than the input, and\nless than a tenth of GPU memory saved?", shape=diamond, fillcolor="#fff6e0", color="#b8860b"];
+  last [label="export the last stage", shape=oval, fillcolor="#ffffff"];
+  first [label="export import's stage\n(input-kept)", shape=oval, fillcolor="#e9f5e9", color="#4a8a4a"];
 
-  in -> import -> g1;
-  g1 -> normals [label="yes"]; normals -> weld -> dedup;
-  g1 -> dedup [label="no"];
-  dedup -> g2;
-  g2 -> simplify [label="yes"]; g2 -> t1 [label="no"]; simplify -> t1;
-  t1 -> uv [label="yes"]; t1 -> t2 [label="no"]; uv -> t2;
-  t2 -> t3 [label="yes"]; t2 -> g3 [label="no"];
-  t3 -> avif [label="yes"]; t3 -> ktx [label="no"];
-  ktx -> g3; avif -> g3;
-  g3 -> compress [label="yes"]; g3 -> export [label="no"]; compress -> export;
+  in -> import -> hasgeo;
+  hasgeo -> nw [label="yes"]; hasgeo -> dedup [label="no"];
+  nw -> dedup -> simpq;
+  simpq -> simp [label="yes"]; simpq -> uvq [label="no"];
+  simp -> uvq;
+  uvq -> uv [label="yes"]; uvq -> large [label="no"]; uv -> large;
+  large -> side [label="yes"]; large -> budget [label="no"];
+  side -> tex -> budget;
+  budget -> warn [label="yes"]; budget -> comp [label="no"]; warn -> comp;
+  comp -> guard;
+  guard -> first [label="yes"]; guard -> last [label="no"];
 
-  note [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Not considered today:\l• face count or texture memory budgets (what a phone can draw)\l• time: every step runs, whatever it costs\l• image size against KTX2's benefit (all images encoded)\l• failure or timeout of a step: optimize fails\l"];
+  fail [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="A step that fails or is killed is left out (step-failed):\lthe next goes on from the stage before it.\lOnly import and export failing fail optimize.\lAt worst, the output is the model as imported.\l"];
 }

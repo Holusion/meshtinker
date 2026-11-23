@@ -941,7 +941,7 @@ function prng(seed) {
  * With `split`, each chart is its own primitive (`primitives`), as tiled scan exports write them: the
  * seams between charts become borders that two primitives share.
  */
-function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation = [0, 1, 0], split = false, normals = true }) {
+function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation = [0, 1, 0], split = false, normals = true, fill = 0.8 }) {
   const random = prng(seed);
   const waves = Array.from({ length: 6 }, () => ({ a: 0.02 + 0.04 * random(), m: 1 + Math.floor(7 * random()), n: 1 + Math.floor(7 * random()), p: 2 * Math.PI * random() }));
   const radius = (theta, phi) => 1 + waves.reduce((r, w) => r + w.a * Math.sin(w.m * theta + w.p) * Math.cos(w.n * phi), 0);
@@ -961,8 +961,9 @@ function scanBuilder({ rings, segments, charts, seed, scale = 0.5, translation =
       const k = radius(theta, phi);
       pos.push(...d.map((x) => Math.fround(k * x)));
       nor.push(...d);
-      // Each chart fills 80% of its cell, leaving a gutter, as atlas packers do.
-      uv.push(cellU + (0.1 + (0.8 * s) / perChart) / columns, cellV + (0.1 + (0.8 * r) / rings) / rows);
+      // Each chart fills 80% of its cell (`fill`), leaving a gutter, as atlas packers do.
+      const gutter = (1 - fill) / 2;
+      uv.push(cellU + (gutter + (fill * s) / perChart) / columns, cellV + (gutter + (fill * r) / rings) / rows);
     }
     for (let r = 0; r < rings; r++) for (let s = 0; s < perChart; s++) {
       const a = first + r * (perChart + 1) + s;
@@ -1004,6 +1005,22 @@ fixtures.scan = async (dir) => {
     images: [{ name: 'atlas', mimeType: 'image/jpeg', width: 128, height: 128, occupancy: 0.7119140625,
       why: 'not computed by hand: objtools\' figure (11,664 of 16,384 texels), which meshtinker matched independently' }],
     notes: ['Bounds are the generator\'s float32 positions through the node transform.'],
+  });
+};
+
+fixtures['scan-atlas'] = async (dir) => {
+  // The scan with a 1024² atlas its charts sample less than half of: optimize runs uv and ktx on it.
+  const { b, primitive, transform, bounds, vertices, faces } = scanBuilder({ rings: 16, segments: 32, charts: 4, seed: 1, fill: 0.5 });
+  const atlas = b.image('atlas.jpg', await jpeg(1024, 1024, 0), 'image/jpeg');
+  const material = b.add('materials', { name: 'Scan', pbrMetallicRoughness: { baseColorTexture: { index: b.texture(atlas) }, metallicFactor: 0 } });
+  const { node } = b.meshNode([{ ...primitive, material }], transform, 'Scan');
+  b.json.scene = b.scene([node]);
+  b.write(path.join(dir, 'scan-atlas.glb'), { mode: 'glb' });
+  writeExpected(dir, {
+    description: 'The synthetic scan on a 1024² JPEG atlas whose charts fill half of their cells, as a GLB: an image over 512 and an occupancy under 0.6, so that optimize runs uv and ktx.',
+    geometry: { meshes: 1, primitives: 1, vertices, faces }, bounds: { ...bounds, tolerance: 1e-6 },
+    images: [{ name: 'atlas', mimeType: 'image/jpeg', width: 1024, height: 1024 }],
+    notes: ['Bounds are the generator\'s float32 positions through the node transform.', 'Occupancy is not stated: about a quarter of the scan fixture\'s, which is what optimize needs.'],
   });
 };
 

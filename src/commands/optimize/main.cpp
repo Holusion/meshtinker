@@ -35,16 +35,10 @@ int run(int argc, char** argv) {
     const std::map<std::string, Preset> presets = {{"slow", Preset::slow}, {"fast", Preset::fast}};
     command.app()
         .add_option("--preset", options.settings.preset,
-                    "slow for the asset to publish, fast for a temporary model: no uv, AVIF at a low effort "
-                    "(default slow)")
+                    "slow for the asset to publish, with KTX2 textures; fast for a temporary model: no uv, AVIF "
+                    "at a low effort (default slow)")
         ->transform(CLI::CheckedTransformer(presets))
         ->option_text("<slow|fast>");
-    const std::map<std::string, Textures> textures = {{"ktx", Textures::ktx}, {"avif", Textures::avif}};
-    command.app()
-        .add_option("--textures", options.settings.textures,
-                    "KTX2, which stays compressed on the GPU, or AVIF, smaller to download (default ktx)")
-        ->transform(CLI::CheckedTransformer(textures))
-        ->option_text("<ktx|avif>");
     command.addJsonOption();
     command.addTrustedOption();
     command.addWorkspaceOptions();
@@ -53,7 +47,8 @@ int run(int argc, char** argv) {
         options.own_directory = common::currentExecutable(argv[0]).parent_path();
         command.outputDirectory();
         common::Workspace workspace = command.workspace();
-        const Report report = optimize(command.input(), *command.outputArgument(), workspace.directory(), options);
+        const Report report = optimize(command.input(), *command.outputArgument(), workspace.directory(), options,
+                                       command.diagnostics());
         const nlohmann::ordered_json json = toJson(report, command.jsonHeader(), command.diagnostics());
         if (command.json()) {
             std::cout << json.dump(2) << '\n';

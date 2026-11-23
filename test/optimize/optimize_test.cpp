@@ -73,7 +73,7 @@ bool onlyHolds(const fs::path& directory, const std::vector<std::string>& keep) 
 TEST_CASE(scan_through_every_step) {
     const fs::path work = test::workDirectory("optimize/scan");
     const fs::path output = work / "scan.glb";
-    const Run run = optimize({test::fixture("scan").model.string(), output.string()}, work);
+    const Run run = optimize({test::fixture("scan-atlas").model.string(), output.string()}, work);
     CHECK_EQ(run.code, 0);
     const std::vector<std::string> expected = {"import", "normals", "weld", "dedup", "simplify",
                                                "uv",     "ktx",     "compress", "export"};
@@ -82,8 +82,84 @@ TEST_CASE(scan_through_every_step) {
         CHECK_EQ(step["exitCode"].get<int>(), 0);
     }
     CHECK(run.json["output"]["byteSize"].get<std::uint64_t>() == fs::file_size(output));
+    CHECK(run.json["output"]["gpuBytes"].get<std::uint64_t>() < run.json["input"]["gpuBytes"].get<std::uint64_t>());
     CHECK(gltf::Document::read(output).data().meshes_count > 0);
     CHECK(onlyHolds(work, {"scan.glb", "stdout.json"}));
+}
+
+namespace {
+
+// A copy of the build's commands in `bin`, with `meshtinker-<name>` replaced
+// by a shell script.
+fs::path commandsWithStandIn(const fs::path& work, const std::string& name, const std::string& script) {
+    const fs::path bin = work / "bin";
+    fs::create_directories(bin);
+    for (const char* command : {"optimize", "import", "normals", "weld", "dedup", "simplify", "uv", "ktx", "compress",
+                                "export"}) {
+        if (command != name) {
+            fs::copy_file(fs::path(MESHTINKER_BUILD_DIR) / (std::string("meshtinker-") + command),
+                          bin / (std::string("meshtinker-") + command));
+        }
+    }
+    {
+        std::ofstream stand_in(bin / ("meshtinker-" + name));
+        stand_in << "#!/bin/sh\n" << script;
+    }
+    fs::permissions(bin / ("meshtinker-" + name), fs::perms::owner_all);
+    return bin;
+}
+
+} // namespace
+
+// A step that fails, or dies, is left out with a warning: the next one goes
+// on from the stage before it, and optimize succeeds.
+TEST_CASE(failing_step_is_left_out) {
+    for (const char* script : {"echo '{\"error\": {\"code\": \"broken\", \"message\": \"broken on purpose\"}}'\nexit 1\n",
+                               "kill -KILL $$\n"}) {
+        const fs::path work = test::workDirectory("optimize/left-out");
+        const fs::path bin = commandsWithStandIn(work, "simplify", script);
+        const fs::path out = work / "out";
+        fs::create_directories(out);
+        const std::string line = quote((bin / "meshtinker-optimize").string()) + " --json " +
+                                 quote(test::fixture("scan-atlas").model.string()) + " " +
+                                 quote((out / "scan.glb").string()) + " > " + quote((work / "stdout.json").string()) +
+                                 " 2>/dev/null";
+        const int status = std::system(line.c_str());
+        CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+        std::ifstream stream(work / "stdout.json");
+        const Json json = Json::parse(stream, nullptr, false);
+        CHECK(commands(json) ==
+              (std::vector<std::string>{"import", "normals", "weld", "dedup", "simplify", "uv", "ktx", "compress", "export"}));
+        CHECK(json["steps"][4]["exitCode"].get<int>() != 0 || !json["steps"][4]["signal"].is_null());
+        bool warned = false;
+        for (const Json& diagnostic : json["diagnostics"]) {
+            warned = warned || diagnostic["code"].get<std::string>() == "step-failed";
+        }
+        CHECK(warned);
+        CHECK(gltf::Document::read(out / "scan.glb").data().meshes_count > 0);
+    }
+}
+
+// uv lists the images of groups it leaves alone, without an output: they
+// keep their size, so the texture step still encodes them.
+TEST_CASE(images_uv_leaves_keep_their_size) {
+    const fs::path work = test::workDirectory("optimize/uv-no-gain");
+    const fs::path bin = commandsWithStandIn(
+        work, "uv",
+        "echo '{\"groups\": [{\"status\": \"no-gain\", \"images\": [{\"source\": \"scan-atlas_texture_0.jpg\", "
+        "\"width\": 1024, \"height\": 1024}]}], \"diagnostics\": []}'\n");
+    const fs::path out = work / "out";
+    fs::create_directories(out);
+    const std::string line = quote((bin / "meshtinker-optimize").string()) + " --json " +
+                             quote(test::fixture("scan-atlas").model.string()) + " " +
+                             quote((out / "scan.glb").string()) + " > " + quote((work / "stdout.json").string()) +
+                             " 2>/dev/null";
+    const int status = std::system(line.c_str());
+    CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    std::ifstream stream(work / "stdout.json");
+    const Json json = Json::parse(stream, nullptr, false);
+    CHECK(commands(json) ==
+          (std::vector<std::string>{"import", "normals", "weld", "dedup", "simplify", "uv", "ktx", "compress", "export"}));
 }
 
 // Without textures: no uv, no image step. Thumb and fast change the options.
@@ -97,9 +173,9 @@ TEST_CASE(options_reach_the_steps) {
     CHECK_EQ(run.json["settings"]["quality"].get<std::string>(), std::string("Thumb"));
 }
 
-// A step that fails makes optimize fail with its exit code and error, and the
-// workspace goes.
-TEST_CASE(failing_step_fails_optimize) {
+// An import that fails makes optimize fail with its exit code and error, and
+// the workspace goes.
+TEST_CASE(failing_import_fails_optimize) {
     const fs::path work = test::workDirectory("optimize/fail");
     // A JSON file that isn't glTF: import rejects it.
     const fs::path not_gltf = test::fixture("triangle").model.parent_path() / "expected.json";
@@ -114,22 +190,13 @@ TEST_CASE(failing_step_fails_optimize) {
 // commands.
 TEST_CASE(interruption_reaches_the_step) {
     const fs::path work = test::workDirectory("optimize/interrupt");
-    const fs::path bin = work / "bin";
-    fs::create_directories(bin);
-    for (const char* name : {"optimize", "import", "normals", "dedup", "export"}) {
-        fs::copy_file(fs::path(MESHTINKER_BUILD_DIR) / (std::string("meshtinker-") + name),
-                      bin / (std::string("meshtinker-") + name));
-    }
     const fs::path started = work / "weld-started";
     const fs::path marker = work / "weld-got-term";
-    {
-        std::ofstream weld(bin / "meshtinker-weld");
-        // Its sleep must not hold optimize's pipe: optimize reads the step's
-        // stdout to the end.
-        weld << "#!/bin/sh\ntrap 'touch " << marker.string() << "; kill $!; exit 143' TERM\ntouch " << started.string()
-             << "\nsleep 30 > /dev/null &\nwait\n";
-    }
-    fs::permissions(bin / "meshtinker-weld", fs::perms::owner_all);
+    // Its sleep must not hold optimize's pipe: optimize reads the step's
+    // stdout to the end.
+    const fs::path bin = commandsWithStandIn(work, "weld",
+                                             "trap 'touch " + marker.string() + "; kill $!; exit 143' TERM\ntouch " +
+                                                 started.string() + "\nsleep 30 > /dev/null &\nwait\n");
     const fs::path out = work / "out";
     fs::create_directories(out);
     const std::string program = (bin / "meshtinker-optimize").string();

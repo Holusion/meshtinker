@@ -87,7 +87,14 @@ def summarize(out_dir, name):
         "gpu_out_mb": round(gpu_out / 2**20) if ktx else "",
     }
     for step in ("import", "normals", "weld", "dedup", "simplify", "uv", "ktx", "avif", "compress", "export"):
-        row[f"t_{step}"] = round(steps[step]["seconds"], 1) if step in steps else ""
+        row[f"t_{step}"] = round(steps[step]["seconds"], 1) if "seconds" in steps.get(step, {}) else ""
+    row["skipped_steps"] = ",".join(s["command"] for s in result.get("steps", []) if s.get("skipped"))
+    row["warnings"] = ",".join(sorted({d.get("code", "") for d in result.get("diagnostics", [])
+                                       if not d.get("step") and d.get("severity", "warning") == "warning"}))
+    row["optimize_gpu_in_mb"] = round(result.get("input", {}).get("gpuBytes", 0) / 2**20) if result.get("input", {}).get("gpuBytes") is not None else ""
+    row["optimize_gpu_out_mb"] = round(result.get("output", {}).get("gpuBytes", 0) / 2**20) if result.get("output", {}).get("gpuBytes") is not None else ""
+    row["max_size"] = next((s["argv"][s["argv"].index("--max-size") + 1] for s in result.get("steps", [])
+                            if "--max-size" in s.get("argv", [])), "")
     row["failed_step"] = next((s["command"] for s in result.get("steps", []) if s.get("exitCode") not in (0, None)), "")
     return row
 
@@ -102,7 +109,8 @@ def main():
             writer.writeheader()
             writer.writerows(rows)
     cols = ["model", "exit", "seconds", "input_mb", "output_mb", "faces", "faces_out", "vertices_per_face",
-            "images", "largest_side", "mtexels", "occupancy", "gpu_in_mb", "gpu_out_mb", "t_simplify", "t_uv", "t_ktx"]
+            "images", "largest_side", "mtexels", "occupancy", "optimize_gpu_in_mb", "optimize_gpu_out_mb", "max_size", "t_simplify", "t_uv", "t_ktx",
+            "warnings"]
     print("\t".join(cols))
     for r in rows:
         print("\t".join(str(r[c])[:34] for c in cols))
