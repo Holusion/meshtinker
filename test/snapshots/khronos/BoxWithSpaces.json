@@ -36,12 +36,10 @@
       "Box With Spaces.bin"
     ],
     [
-      "glTF Logo With Spaces.png"
-    ]
-  ],
-  "optional": [
-    [
       "Normal Map.png"
+    ],
+    [
+      "glTF Logo With Spaces.png"
     ],
     [
       "Roughness Metallic.png"

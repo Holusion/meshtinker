@@ -96,14 +96,6 @@
       "ignored-alpha.png"
     ],
     [
-      "shared.png"
-    ],
-    [
-      "deep.png"
-    ]
-  ],
-  "optional": [
-    [
       "emissive.jpg"
     ],
     [
@@ -114,6 +106,12 @@
     ],
     [
       "occlusion.png"
+    ],
+    [
+      "shared.png"
+    ],
+    [
+      "deep.png"
     ]
   ]
 }

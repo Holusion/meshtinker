@@ -1,6 +1,6 @@
 {
   "description": "The base color image's file is missing.",
-  "error": "missing-base-color-image",
+  "error": "missing-image",
   "expect": "rejected by inspect and import; inspect --no-data, which looks for no file, lists it",
   "requires": [
     [
@@ -9,6 +9,5 @@
     [
       "color.png"
     ]
-  ],
-  "optional": []
+  ]
 }

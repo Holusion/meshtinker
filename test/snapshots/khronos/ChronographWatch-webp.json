@@ -64,15 +64,10 @@
       "watchface_basecolor.webp"
     ],
     [
-      "dgg_basecolor.webp"
+      "watchface_orm.webp"
     ],
     [
-      "khronos_basecolor.webp"
-    ]
-  ],
-  "optional": [
-    [
-      "watchface_orm.webp"
+      "dgg_basecolor.webp"
     ],
     [
       "dgg_rm.webp"
@@ -85,6 +80,9 @@
     ],
     [
       "carbonfiber_normal.webp"
+    ],
+    [
+      "khronos_basecolor.webp"
     ]
   ],
   "extensions": {

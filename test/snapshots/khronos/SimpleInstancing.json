@@ -12,7 +12,6 @@
     ]
   },
   "requires": [],
-  "optional": [],
   "extensions": {
     "used": [
       "EXT_mesh_gpu_instancing"

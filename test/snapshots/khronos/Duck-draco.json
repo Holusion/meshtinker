@@ -29,7 +29,6 @@
       "DuckCM.png"
     ]
   ],
-  "optional": [],
   "extensions": {
     "used": [
       "KHR_draco_mesh_compression"

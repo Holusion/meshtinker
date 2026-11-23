@@ -271,7 +271,7 @@ fixtures['textured-glb'] = async (dir) => {
   const { node } = b.meshNode([{ ...quad(b), material }], {}, 'Quad');
   b.json.scene = b.scene([node]);
   b.write(path.join(dir, 'textured.glb'), { mode: 'glb' });
-  writeExpected(dir, { description: 'Textured quad; the PNG is stored in the GLB binary chunk.', geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, 0], max: [1, 1, 0] }, images: [{ name: 'checker', mimeType: 'image/png', width: 32, height: 32, occupancy: 1 }], requires: [], optional: [] });
+  writeExpected(dir, { description: 'Textured quad; the PNG is stored in the GLB binary chunk.', geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, 0], max: [1, 1, 0] }, images: [{ name: 'checker', mimeType: 'image/png', width: 32, height: 32, occupancy: 1 }], requires: [] });
 };
 
 fixtures['data-uri'] = async (dir) => {
@@ -281,7 +281,7 @@ fixtures['data-uri'] = async (dir) => {
   const { node } = b.meshNode([{ ...quad(b), material }]);
   b.json.scene = b.scene([node]);
   b.write(path.join(dir, 'data-uri.gltf'), { mode: 'data-uri' });
-  writeExpected(dir, { description: 'Buffer and image embedded as base64 data URIs.', geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, 0], max: [1, 1, 0] }, images: [{ name: 'checker', mimeType: 'image/png', width: 16, height: 16, occupancy: 1 }], requires: [], optional: [] });
+  writeExpected(dir, { description: 'Buffer and image embedded as base64 data URIs.', geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, 0], max: [1, 1, 0] }, images: [{ name: 'checker', mimeType: 'image/png', width: 16, height: 16, occupancy: 1 }], requires: [] });
 };
 
 fixtures['uri-escaping'] = async (dir) => {
@@ -299,7 +299,7 @@ fixtures['uri-escaping'] = async (dir) => {
     description: 'Two buffers and two images whose file names need percent-encoding (space, %, #, non-ASCII). The model file name has a space.',
     geometry: { primitives: 2, vertices: 8, faces: 4 }, bounds: { min: [0, 0, 0], max: [3, 1, 0] },
     images: [{ name: 'base color ♻', mimeType: 'image/jpeg', width: 16, height: 16, occupancy: 1 }, { name: '100% #1', mimeType: 'image/png', width: 16, height: 16, occupancy: 1 }],
-    requires: [['geo metry ❤.bin'], ['second #2.bin'], ['base color ♻.jpg'], ['100% #1.png']], optional: [],
+    requires: [['geo metry ❤.bin'], ['second #2.bin'], ['base color ♻.jpg'], ['100% #1.png']],
   });
 };
 
@@ -669,9 +669,8 @@ fixtures.textures = async (dir) => {
     images: [image('alpha', 'image/png', 30, 18), image('opaque', 'image/png'), image('ignored-alpha', 'image/png'),
       image('emissive', 'image/jpeg'), image('normal', 'image/png'), image('orm', 'image/png'), image('occlusion', 'image/png'),
       image('shared', 'image/png'), image('deep', 'image/png')],
-    // Base colors are required, other maps optional; shared.png is both, so required.
-    requires: [['textures.bin'], ['alpha.png'], ['opaque.png'], ['ignored-alpha.png'], ['shared.png'], ['deep.png']],
-    optional: [['emissive.jpg'], ['normal.png'], ['orm.png'], ['occlusion.png']],
+    requires: [['textures.bin'], ['alpha.png'], ['opaque.png'], ['ignored-alpha.png'], ['emissive.jpg'], ['normal.png'],
+      ['orm.png'], ['occlusion.png'], ['shared.png'], ['deep.png']],
   });
 };
 
@@ -1318,13 +1317,9 @@ fixtures['missing-image'] = async (dir) => {
   fs.rmSync(path.join(dir, 'normal.png'));
   writeExpected(dir, {
     description: 'The normal map\'s file is missing; the base color is there.',
-    geometry: { primitives: 1, vertices: 4, faces: 2 }, bounds: { min: [0, 0, 0], max: [1, 1, 0] },
-    images: [
-      { name: 'color', mimeType: 'image/png', width: 16, height: 16, occupancy: 1 },
-      { name: 'normal', occupancy: null, why: 'missing: a warning, since only a base color is required' },
-    ],
-    requires: [['missing-image.bin'], ['color.png']], optional: [['normal.png']],
-    diagnostics: ['missing-image'],
+    error: 'missing-image',
+    expect: 'rejected by inspect and import, as for a base color: every image the scene uses is required; inspect --no-data, which looks for no file, lists it',
+    requires: [['missing-image.bin'], ['color.png'], ['normal.png']],
   });
 };
 
@@ -1338,9 +1333,9 @@ fixtures['missing-base-color'] = async (dir) => {
   fs.rmSync(path.join(dir, 'color.png'));
   writeExpected(dir, {
     description: 'The base color image\'s file is missing.',
-    error: 'missing-base-color-image',
+    error: 'missing-image',
     expect: 'rejected by inspect and import; inspect --no-data, which looks for no file, lists it',
-    requires: [['missing-base-color.bin'], ['color.png']], optional: [],
+    requires: [['missing-base-color.bin'], ['color.png']],
   });
 };
 

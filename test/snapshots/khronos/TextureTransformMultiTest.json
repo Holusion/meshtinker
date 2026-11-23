@@ -12,7 +12,6 @@
     ]
   },
   "requires": [],
-  "optional": [],
   "extensions": {
     "used": [
       "KHR_materials_clearcoat",

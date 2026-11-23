@@ -1,50 +1,16 @@
 {
   "description": "The normal map's file is missing; the base color is there.",
-  "geometry": {
-    "primitives": 1,
-    "vertices": 4,
-    "faces": 2
-  },
-  "bounds": {
-    "min": [
-      0,
-      0,
-      0
-    ],
-    "max": [
-      1,
-      1,
-      0
-    ]
-  },
-  "images": [
-    {
-      "name": "color",
-      "mimeType": "image/png",
-      "width": 16,
-      "height": 16,
-      "occupancy": 1
-    },
-    {
-      "name": "normal",
-      "occupancy": null,
-      "why": "missing: a warning, since only a base color is required"
-    }
-  ],
+  "error": "missing-image",
+  "expect": "rejected by inspect and import, as for a base color: every image the scene uses is required; inspect --no-data, which looks for no file, lists it",
   "requires": [
     [
       "missing-image.bin"
     ],
     [
       "color.png"
-    ]
-  ],
-  "optional": [
+    ],
     [
       "normal.png"
     ]
-  ],
-  "diagnostics": [
-    "missing-image"
   ]
 }

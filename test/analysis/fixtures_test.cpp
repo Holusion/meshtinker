@@ -103,7 +103,7 @@ void checkFixture(const test::Fixture& f) {
             }
         }
     }
-    for (const char* key : {"requires", "optional"}) {
+    for (const char* key : {"requires"}) {
         if (expected.contains(key)) {
             CHECK_EQ(report[key], expected[key]);
         }
@@ -251,7 +251,6 @@ TEST_CASE(no_data_rejects_what_the_text_refuses) {
             }
             const json report = analysis::toJson(light.report, json::object(), diagnostics);
             CHECK_EQ(report["requires"], f.expected["requires"]);
-            CHECK_EQ(report["optional"], f.expected["optional"]);
         } catch (const common::Failure& failure) {
             CHECK(!f.expected.contains("requires"));
             CHECK_EQ(failure.code(), f.expected.value("error", std::string("reference-refused")));
@@ -278,7 +277,6 @@ TEST_CASE(no_data_reads_a_gltf_without_its_files) {
         inspectWithoutData(directory / "textures.gltf", false, "no-data-alone-work", diagnostics);
     const json report = analysis::toJson(light.report, json::object(), diagnostics);
     CHECK_EQ(report["requires"], textures->expected["requires"]);
-    CHECK_EQ(report["optional"], textures->expected["optional"]);
     CHECK(diagnostics.entries().empty());
 }
 

@@ -21,7 +21,6 @@
       "AnimatedMorphCube.bin"
     ]
   ],
-  "optional": [],
   "extensions": {
     "used": [
       "KHR_mesh_quantization"

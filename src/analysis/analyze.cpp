@@ -37,12 +37,6 @@ bool isUnderstoodExtension(const std::string& name) {
     return gltf::isIndexAwareExtension(name);
 }
 
-// Slots holding the base color: core, and the archived specular-glossiness
-// extension's diffuse texture.
-bool isDiffuseSlot(const std::string& slot) {
-    return slot == "baseColorTexture" || slot == "KHR_materials_pbrSpecularGlossiness.diffuseTexture";
-}
-
 std::optional<std::string> nonEmptyName(const Json& object) {
     const auto name = object.find("name");
     if (name != object.end() && name->is_string() && !name->get<std::string>().empty()) {
@@ -238,39 +232,26 @@ std::set<std::size_t> sceneMaterials(const cgltf_data& data, const gltf::Selecti
     return materials;
 }
 
-// Fills `requires` and `optional`: the buffer files (`buffers`, one path per
-// buffer, empty when not a file) and the files of base color images, which
-// the model is rejected without, then the files of the other images. Each
-// path once, in index order, buffers first.
+// Fills `requires`: the buffer files (`buffers`, one path per buffer, empty
+// when not a file), then the image files, each path once, in index order.
+// The model is rejected without any of them.
 void listReferencedFiles(Report& report, const std::vector<std::string>& buffers) {
-    std::set<std::string> listed;
-    const auto add = [&](std::vector<std::string>& list, const std::string& path) {
-        if (!path.empty() && listed.insert(path).second) {
-            list.push_back(path);
-        }
-    };
     std::vector<const Report::Image*> images;
     for (const Report::Image& image : report.images) {
         images.push_back(&image);
     }
     std::sort(images.begin(), images.end(),
               [](const Report::Image* a, const Report::Image* b) { return a->index < b->index; });
-    const auto diffuse = [](const Report::Image& image) {
-        return std::any_of(image.uses.begin(), image.uses.end(),
-                           [](const Report::Use& use) { return isDiffuseSlot(use.slot); });
-    };
+    std::vector<std::string> paths = buffers;
+    for (const Report::Image* image : images) {
+        paths.push_back(image->path);
+    }
+    std::set<std::string> listed;
     report.required_files.clear();
-    report.optional_files.clear();
-    for (const std::string& path : buffers) {
-        add(report.required_files, path);
-    }
-    for (const Report::Image* image : images) {
-        if (diffuse(*image)) {
-            add(report.required_files, image->path);
+    for (const std::string& path : paths) {
+        if (!path.empty() && listed.insert(path).second) {
+            report.required_files.push_back(path);
         }
-    }
-    for (const Report::Image* image : images) {
-        add(report.optional_files, image->path);
     }
 }
 
@@ -375,21 +356,10 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
         image.path = source.path;
         const auto found_uses = uses.find(i);
         if (source.missing) {
-            image.file = source.reference;
-            // The base color carries what the model looks like: without it the
-            // model can't be shown as intended. Other maps only refine it.
-            const bool diffuse = found_uses != uses.end() &&
-                                 std::any_of(found_uses->second.begin(), found_uses->second.end(),
-                                             [](const Report::Use& use) { return isDiffuseSlot(use.slot); });
-            if (diffuse) {
-                throw common::rejected("missing-base-color-image", "image '" + source.reference +
-                                                                       "', used as a base color: " +
-                                                                       common::refused_reference_message);
-            }
-            diagnostics.warn("missing-image",
-                             "An image file is missing, or outside the model's folder: its size and occupancy are "
-                             "unknown",
-                             source.reference);
+            // Every image the scene reaches changes what it looks like: a
+            // normal or occlusion map as much as a base color.
+            throw common::rejected("missing-image",
+                                   "image '" + source.reference + "': " + common::refused_reference_message);
         } else if (!document.hasData()) {
             if (source.origin == gltf::ImageOrigin::file) {
                 image.file = source.reference;

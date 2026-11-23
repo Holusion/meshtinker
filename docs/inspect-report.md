@@ -6,7 +6,7 @@
 
 `inspect --no-data` prints a lighter report, which reads the model file alone: see [Without data](#without-data---no-data).
 
-Rejected inputs (exit code 1, with `error.code`): files that aren't glTF 2.0 (`not-gltf`, `invalid-json`, `invalid-gltf`), references that are missing or lead outside the model's folder without `--trusted` (`reference-refused`), buffers shorter than their `byteLength` (`buffer-too-short`) or without data (`buffer-missing`), data URIs that aren't base64 (`invalid-data-uri`), and a missing image file that a base color uses (`missing-base-color-image`: a `baseColorTexture` or specular-glossiness `diffuseTexture` slot of a material the scene uses). Any other missing image is a `missing-image` warning: the model still shows, less refined. Everything else is reported, with diagnostics where figures are incomplete.
+Rejected inputs (exit code 1, with `error.code`): files that aren't glTF 2.0 (`not-gltf`, `invalid-json`, `invalid-gltf`), references that are missing or lead outside the model's folder without `--trusted` (`reference-refused`), buffers shorter than their `byteLength` (`buffer-too-short`) or without data (`buffer-missing`), data URIs that aren't base64 (`invalid-data-uri`), and a missing image file that the scene reaches (`missing-image`): a normal or occlusion map changes what the model looks like as much as a base color does, and an alternative source (WebP, KTX2, AVIF) is what a viewer supporting it loads. Everything else is reported, with diagnostics where figures are incomplete.
 
 ## Example
 
@@ -26,7 +26,6 @@ Rejected inputs (exit code 1, with `error.code`): files that aren't glTF 2.0 (`n
     ]
   },
   "requires": [["model.bin"], ["diffuse.jpg"]], // files the model is rejected without
-  "optional": [["normal.png"]],                 // files it shows without, less refined
 
   "extensions": {
     "used": ["EXT_meshopt_compression", "KHR_texture_transform"],
@@ -70,11 +69,11 @@ Rejected inputs (exit code 1, with `error.code`): files that aren't glTF 2.0 (`n
 
   "diagnostics": [
     {
-      "code": "missing-image",
+      "code": "texture-alternative-source",
       "severity": "warning",                  // "warning" | "error"
       "count": 1,
-      "message": "An image file is missing, or outside the model's folder: its size and occupancy are unknown",
-      "examples": ["normal.png"]
+      "message": "A texture has both a core source and an extension alternative (WebP, KTX2, AVIF): the core source is the one measured",
+      "examples": ["texture 0"]
     }
   ]
 }
@@ -99,7 +98,7 @@ The cost column says what a field needs. **JSON** fields come from the model's J
 | --- | --- | --- |
 | `data` | `true`, or `false` in a [report without data](#without-data---no-data). | JSON |
 | `input.byteSize`, `input.files` | Every file the model consists of. A GLB is one file. | Document |
-| `requires`, `optional` | The files the model refers to (`buffers[].uri`, and `images[].uri` of the images below), as paths relative to its folder: decoded, with forward slashes, without `.` and `..` steps, each once. `requires` holds buffers, and images a base color uses, which the model is rejected without; `optional` the other images, which only give `missing-image` when missing. Buffers come first, then images, in index order. Each entry is the list of paths the file is looked for at, in order, as in mesh2gltf's `--inspect`: meshtinker looks at one. Data URIs and GLB chunks aren't files, so a GLB has `[]`. A reference the text refuses isn't listed. | JSON |
+| `requires` | The files the model refers to (`buffers[].uri`, and `images[].uri` of the images below), as paths relative to its folder: decoded, with forward slashes, without `.` and `..` steps, each once. The model is rejected without any of them. Buffers come first, then images, in index order. Each entry is the list of paths the file is looked for at, in order, as in mesh2gltf's `--inspect`: meshtinker looks at one. Data URIs and GLB chunks aren't files, so a GLB has `[]`. A reference the text refuses isn't listed. | JSON |
 | `extensions.used`, `.required` | As declared in the input. | JSON |
 | `scene` | The default scene, or scene 0 when `scene` is unset, as three.js's GLTFLoader does. Only this scene is inspected; see [the profile](normalized-profile.md). | JSON |
 | `scene.firstNamedRootNode` | The first root node of the scene with a non-empty name. eCorpus names models after it. | JSON |
@@ -125,7 +124,6 @@ The cost column says what a field needs. **JSON** fields come from the model's J
 | `texture-alternative-source` | A texture has a core `source` and an extension source; the core one is measured. Example: the texture. |
 | `unknown-required-extension` | `extensionsRequired` lists an extension meshtinker doesn't know. The model is still inspected and imported. Example: the extension. |
 | `image-unrecognized` | An image isn't PNG, JPEG, WebP, KTX2 or AVIF, or is truncated. |
-| `missing-image` | An image's file is missing or outside the model's folder, and no base color uses it. Its `file` is the reference, `byteSize` 0, size and occupancy `null`. `import` keeps the reference, without a file behind it. |
 | `draco-decode-failed` | Draco rejected a primitive's data, or it doesn't match its accessors: bounds, and occupancy of the images the primitive uses, are `null`. |
 | `missing-vertex-data` | An accessor's buffer view holds no data: same consequences. |
 | `meshopt-decode-failed` | meshoptimizer rejected compressed data: same consequences. |
@@ -136,9 +134,9 @@ The cost column says what a field needs. **JSON** fields come from the model's J
 
 ## Without data (`--no-data`)
 
-`inspect --no-data` reads the `.gltf`, or the GLB's header and JSON chunk, and opens nothing the model refers to. An upload route runs it on each `.gltf` or `.glb` as it arrives, to learn which other files to wait for (`requires`, `optional`), whether they are there yet or not. A missing file isn't an error here. Its cost is parsing the JSON: 0.06 s and 11 MB on `MAN63675_HP_44M.gltf` (44 M faces, a 1.3 GB `.bin`), against 19 s and 1 GB for the full report.
+`inspect --no-data` reads the `.gltf`, or the GLB's header and JSON chunk, and opens nothing the model refers to. An upload route runs it on each `.gltf` or `.glb` as it arrives, to learn which other files to wait for (`requires`), whether they are there yet or not. A missing file isn't an error here. Its cost is parsing the JSON: 0.06 s and 11 MB on `MAN63675_HP_44M.gltf` (44 M faces, a 1.3 GB `.bin`), against 19 s and 1 GB for the full report.
 
-References are checked from their text alone, with the rules of a full read: a URL, an absolute path, or a path whose `..` leads outside the model's folder (without `--trusted`) gets the answer a full read gives. A buffer is rejected (`reference-refused`), as is an image a base color uses (`missing-base-color-image`), and another image is a `missing-image` warning. A symlink leading out can't be seen without the file, so the full read catches it later. So can a buffer shorter than its `byteLength`, an image a base color uses that never arrives, or a corrupt one.
+References are checked from their text alone, with the rules of a full read: a URL, an absolute path, or a path whose `..` leads outside the model's folder (without `--trusted`) gets the answer a full read gives. A buffer is rejected with `reference-refused`, an image with `missing-image`. A symlink leading out can't be seen without the file, so the full read catches it later. So can a buffer shorter than its `byteLength`, a file that never arrives, or a corrupt one.
 
 The report has every **JSON** field of the table above, with the same meaning, and none of the others: `"data": false` says which report it is. A key is left out rather than `null`, because `null` means a figure couldn't be determined (with a diagnostic), where here it wasn't looked for:
 
@@ -154,7 +152,6 @@ The report has every **JSON** field of the table above, with the same meaning, a
   "data": false,
   "input": { "files": [{ "role": "gltf", "name": "model.gltf", "byteSize": 20480 }] },
   "requires": [["model.bin"], ["diffuse.jpg"]],
-  "optional": [["normal.png"]],
   "extensions": { "used": [], "required": [] },
   "scene": { "index": 0, "name": "Scene", "firstNamedRootNode": "Cube" },
   "geometry": { "meshes": 1, "primitives": 1, "vertices": 24, "faces": 12,
@@ -172,7 +169,7 @@ Consumers type the two reports as one base and two extensions, told apart by `da
 ```ts
 interface ReportBase {
   format: number; tool: Tool; extensions: Extensions; geometry: Geometry;
-  requires: string[][]; optional: string[][]; diagnostics: Diagnostic[];
+  requires: string[][]; diagnostics: Diagnostic[];
   input: { files: File[] };
   scene: SceneBase | null;      // index, name, firstNamedRootNode
   images: ImageBase[];          // index, name, file, uses

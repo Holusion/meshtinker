@@ -94,7 +94,6 @@ nlohmann::ordered_json toJson(const Report& report, Json header, const common::D
         return entries;
     };
     json["requires"] = paths(report.required_files);
-    json["optional"] = paths(report.optional_files);
     json["extensions"] = {{"used", report.extensions_used}, {"required", report.extensions_required}};
     if (report.scene) {
         const Report::Scene& scene = *report.scene;
@@ -155,15 +154,12 @@ void printText(std::ostream& out, const Report& report) {
     for (const Report::File& file : report.files) {
         out << "  " << file.name << "  " << roleName(file.role) << ", " << bytes(file.size) << '\n';
     }
-    for (const auto& [label, list] : {std::pair<const char*, const std::vector<std::string>*>{"Requires", &report.required_files},
-                                      {"Optional", &report.optional_files}}) {
-        if (!list->empty()) {
-            out << label << ": ";
-            for (std::size_t i = 0; i < list->size(); ++i) {
-                out << (i == 0 ? "" : ", ") << (*list)[i];
-            }
-            out << '\n';
+    if (!report.required_files.empty()) {
+        out << "Requires: ";
+        for (std::size_t i = 0; i < report.required_files.size(); ++i) {
+            out << (i == 0 ? "" : ", ") << report.required_files[i];
         }
+        out << '\n';
     }
     if (report.scene) {
         const Report::Scene& scene = *report.scene;

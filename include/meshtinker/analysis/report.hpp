@@ -70,10 +70,9 @@ struct Report {
     // whose report leaves out the fields that need them.
     bool data = true;
     std::vector<File> files;
-    // The files the model refers to, as paths relative to its folder: those it
-    // is rejected without (buffers, base color images), then the others.
+    // The files the model refers to, as paths relative to its folder, which
+    // it is rejected without: buffers, then images.
     std::vector<std::string> required_files;
-    std::vector<std::string> optional_files;
     std::vector<std::string> extensions_used;
     std::vector<std::string> extensions_required;
     std::optional<Scene> scene;
