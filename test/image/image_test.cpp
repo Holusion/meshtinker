@@ -1,9 +1,15 @@
 #include "meshtinker/image/image.hpp"
 
 #include "support/check.hpp"
+#include "support/fixtures.hpp"
 
+#include <fstream>
+#include <iterator>
+
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -113,6 +119,72 @@ TEST_CASE(undecodable_bytes_give_a_reason) {
     std::string error;
     CHECK(!decode(view(bytes), error).has_value());
     CHECK(!error.empty());
+}
+
+namespace {
+
+// tools/fixtures/generate.mjs's pattern(): four quadrants of a hue, with a red
+// gradient, opaque.
+std::vector<std::uint8_t> pattern(int width, int height, int hue) {
+    int colors[4][3] = {{230, 60, 60}, {60, 200, 60}, {60, 90, 230}, {240, 220, 60}};
+    for (auto& color : colors) {
+        for (int i = 0; i < 3; ++i) {
+            color[i] = (color[i] + hue * (i + 1) * 37) % 256;
+        }
+    }
+    std::vector<std::uint8_t> pixels;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int q = (2 * x < width ? 0 : 1) + (2 * y < height ? 0 : 2);
+            const int g = static_cast<int>(std::lround(double(x) / std::max(1, width - 1) * 40));
+            pixels.push_back(static_cast<std::uint8_t>(std::min(255, colors[q][0] + g)));
+            pixels.push_back(static_cast<std::uint8_t>(colors[q][1]));
+            pixels.push_back(static_cast<std::uint8_t>(colors[q][2]));
+            pixels.push_back(255);
+        }
+    }
+    return pixels;
+}
+
+std::vector<std::uint8_t> fixtureFile(const char* fixture, const char* name) {
+    std::ifstream in(meshtinker::test::fixture(fixture).model.parent_path() / name, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+} // namespace
+
+// Lossless WebP decodes to the generator's pixels, where the build decodes
+// WebP; elsewhere it fails with a reason.
+TEST_CASE(webp_decodes) {
+    const std::vector<std::uint8_t> bytes = fixtureFile("alt-sources", "webp-only.webp");
+    std::string error;
+    const std::optional<Image> decoded = decode(view(bytes), error);
+    if (!decodesWebp()) {
+        CHECK(!decoded && !error.empty());
+        return;
+    }
+    CHECK(decoded && decoded->width == 8 && decoded->height == 8 && decoded->source_channels == 3);
+    CHECK(decoded && decoded->pixels == pattern(8, 8, 2));
+}
+
+// AVIF (quality 50) decodes close to the generator's pixels.
+TEST_CASE(avif_decodes) {
+    const std::vector<std::uint8_t> bytes = fixtureFile("avif", "existing.avif");
+    std::string error;
+    const std::optional<Image> decoded = decode(view(bytes), error);
+    if (!decodesAvif()) {
+        CHECK(!decoded && !error.empty());
+        return;
+    }
+    CHECK(decoded && decoded->width == 32 && decoded->height == 32);
+    if (decoded) {
+        const std::vector<std::uint8_t> expected = pattern(32, 32, 6);
+        double difference = 0;
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+            difference += std::abs(int(decoded->pixels[i]) - int(expected[i]));
+        }
+        CHECK(difference / double(expected.size()) < 8);
+    }
 }
 
 TEST_CASE(channel_analysis) {

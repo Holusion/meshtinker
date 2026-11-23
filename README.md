@@ -11,7 +11,17 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 build/meshtinker <command> [args...]
 ```
 
-`build/` then holds the `meshtinker` wrapper and one `meshtinker-<command>` executable per command. Copy them to the same directory, or put each on `PATH`, to install them. They need only the system C library.
+`build/` then holds the `meshtinker` wrapper and one `meshtinker-<command>` executable per command. They need only the system C library.
+
+To install them, for instance in `~/.local/bin`, build a release in its own directory and install it:
+
+```sh
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release
+cmake --install build/release --prefix ~/.local --strip
+```
+
+The wrapper looks for the commands in its own directory first, so they stay together. `--strip` removes debug symbols, which the default build type (RelWithDebInfo) keeps. To update, run the last two commands again. To uninstall, run `xargs rm < build/release/install_manifest.txt`.
 
 ## Releases
 
@@ -90,7 +100,7 @@ meshtinker export work/ scan-opt.glb   # writes the last stage as .glb or .gltf
 
 ### optimize
 
-Runs the other commands on a chain in its workspace, with the steps and options that suit the model, and writes the result as a `.glb` or `.gltf`: `import`, then `normals`, `weld`, `dedup`, `simplify`, `uv`, `ktx` or `avif`, and `compress`, each when the model needs it, then `export`. `--quality` sets `simplify`'s error and the textures' size and quality, after eCorpus's presets; `--preset fast` makes a temporary model quickly, without `uv` and with AVIF at a low effort; `--textures avif` encodes AVIF rather than KTX2. Each step's warnings appear as it runs. The report lists the steps with their times and the bytes before and after; with `--json`, each step's own report, and its diagnostics tagged with the step. A failing step's exit code becomes `optimize`'s, and an interruption reaches the running step before the workspace goes. [docs/optimize.md](docs/optimize.md) has the rules each step follows, in `src/commands/optimize/plan.cpp`.
+Runs the other commands on a chain in its workspace, with the steps and options that suit the model, and writes the result as a `.glb` or `.gltf`: `import`, then `normals`, `weld`, `dedup`, `simplify`, `uv`, `ktx` or `avif`, and `compress`, each when the model needs it, then `export`. `--quality` sets `simplify`'s error and the textures' size and quality, after eCorpus's presets; the default slow preset writes KTX2 textures, which stay compressed on the GPU, and `--preset fast` makes a temporary model quickly, without `uv` and with AVIF at a low effort. Textures and geometry are fitted to 256 MB of GPU memory, best effort, by lowering the textures' size; images of 512 and less (unless there are too many for the budget), and Draco or meshopt geometry, are kept as they are; in fast, textures are sized for AVIF to take about 6 s, and the geometry steps run however long they take. Each step's warnings appear as it runs. A step that fails is left out with a warning (`step-failed`), and the next one goes on from the stage before it; only a failing `import` or `export` makes `optimize` fail, with its exit code. When the output would be larger than the input for little GPU memory saved, the input is written as imported (`input-kept`). The report lists the steps with their times, the bytes and the estimated GPU memory before and after; with `--json`, each step's own report, and its diagnostics tagged with the step. An interruption reaches the running step before the workspace goes. [docs/optimize.md](docs/optimize.md) has the rules each step follows, in `src/commands/optimize/plan.cpp`.
 
 ```console
 $ meshtinker optimize --help
@@ -116,10 +126,8 @@ OPTIONS:
           --quality <Highest|High|Medium|Low|Thumb> 
                                 Geometry and texture quality, as eCorpus's presets name it
                                 (default High)
-          --preset <slow|fast>  slow for the asset to publish, fast for a temporary model: no uv,
-                                AVIF at a low effort (default slow)
-          --textures <ktx|avif> KTX2, which stays compressed on the GPU, or AVIF, smaller to
-                                download (default ktx)
+          --preset <slow|fast>  slow for the asset to publish, with KTX2 textures; fast for a
+                                temporary model: no uv, AVIF at a low effort (default slow)
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
@@ -448,9 +456,9 @@ OPTIONS:
 
 ### ktx
 
-Encodes the scene's PNG and JPEG images as KTX2 with Basis Universal and points their textures at them through `KHR_texture_basisu`, as eCorpus does with `ktx create` through glTF-Transform. Color slots (base color, emissive, sheen and specular color, spec-gloss diffuse and specular) get ETC1S in sRGB; normal maps, ORM and every other data slot get UASTC in linear, with Zstandard. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. Every image gets a full mip chain, and sides that aren't multiples of 4 are rounded up, as the extension requires. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` or `EXT_texture_avif` alternative. `KHR_texture_basisu` is then required. Images are left as they are, each with a counted warning, when they are WebP or AVIF only (`image-format-unsupported`), already KTX2 (`image-already-compressed`), used as color by one slot and as data by another (`image-color-space-conflict`), used only by slots `ktx` doesn't know (`image-slot-unknown`), or can't be decoded. [docs/ktx.md](docs/ktx.md) has the details, and the benchmark that set the presets.
+Encodes the scene's PNG, JPEG, WebP and AVIF images as KTX2 with Basis Universal and points their textures at them through `KHR_texture_basisu`, as eCorpus does with `ktx create` through glTF-Transform. Color slots (base color, emissive, sheen and specular color, spec-gloss diffuse and specular) get ETC1S in sRGB; normal maps, ORM and every other data slot get UASTC in linear, with Zstandard. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. Every image gets a full mip chain, and sides that aren't multiples of 4 are rounded up, as the extension requires. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` or `EXT_texture_avif` alternative. A texture with both takes its PNG or JPEG, the original; one with a WebP or AVIF source only takes that ([images.md](docs/images.md#formats)). `KHR_texture_basisu` is then required. Images are left as they are, each with a counted warning, when the build doesn't decode their format (`image-format-unsupported`: WebP and AVIF in builds without libwebp or libavif), already KTX2 (`image-already-compressed`), used as color by one slot and as data by another (`image-color-space-conflict`), used only by slots `ktx` doesn't know (`image-slot-unknown`), or can't be decoded. [docs/ktx.md](docs/ktx.md) has the details, and the benchmark that set the presets.
 
-`--quality` takes eCorpus's names: ETC1S quality levels 250, 240 (`High`, the default), 220, 180 and 128; UASTC is level 1 at every quality. `--max-size N` scales down images whose longest side is over N texels; without it, `ktx` doesn't resize. Large images are encoded one at a time on every CPU the process may use (its affinity, capped by the cgroup's `cpu.max`), and images under a megatexel several at a time. DamagedHelmet's five 2k images take 16 s with a 365 MiB peak, a 4k scan texture 15 s and 1.1 GB.
+`--quality` takes eCorpus's names: ETC1S quality levels 250, 240 (`High`, the default), 220, 180 and 128; UASTC is level 1 at every quality. `--max-size N` scales down images whose longest side is over N texels; without it, `ktx` doesn't resize. `--min-size N` leaves images whose longest side is N texels or less as they are, without a warning; the report counts them (`totals.small`). Large images are encoded one at a time on every CPU the process may use (its affinity, capped by the cgroup's `cpu.max`), and images under a megatexel several at a time. DamagedHelmet's five 2k images take 16 s with a 365 MiB peak, a 4k scan texture 15 s and 1.1 GB.
 
 The report gives, per image, its source format and size, codec, transfer function, whether alpha was kept, the output's size, bytes before and after, and the time; then the totals and the files written. Given a [chain](#chains), `ktx` adds a stage and records one `lossy.imageEncoding` round per image (`codec`, and `qualityLevel` or `uastcLevel`). It warns `repeated-lossy-image-encoding` when an earlier stage recorded one, such as `import` for a JPEG source. Run `uv` and other image commands before it: they leave KTX2 images as they are.
 
@@ -458,9 +466,9 @@ The report gives, per image, its source format and size, codec, transfer functio
 $ meshtinker ktx --help
 Encode the images of a glTF or GLB model as KTX2
 
-Encodes PNG and JPEG images with Basis Universal and references them through
-KHR_texture_basisu: ETC1S for color, UASTC for normal maps and other data. The
-textures' other sources are removed.
+Encodes PNG, JPEG, WebP and AVIF images with Basis Universal and references them
+through KHR_texture_basisu: ETC1S for color, UASTC for normal maps and other
+data. The textures' other sources are removed.
 
 
 meshtinker ktx [OPTIONS] input [output]
@@ -479,6 +487,7 @@ OPTIONS:
                                 ETC1S quality, as eCorpus's presets name it (default High)
           --max-size N          Scale down images whose longest side is over N texels, keeping
                                 their aspect ratio
+          --min-size N          Leave images whose longest side is N texels or less as they are
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
@@ -486,11 +495,12 @@ OPTIONS:
 
 ### avif
 
-Encodes the scene's PNG and JPEG images as AVIF with libavif and libaom, and points their textures at them through `EXT_texture_avif`. It's the web-image alternative to `ktx`: smaller downloads, but textures that decode to RGBA8 on the GPU. Color slots get 4:2:0, normal maps, ORM and every other data slot 4:4:4, gray images 4:0:0. Every file gets the sRGB color description, which browsers leave as it is. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` alternative. `EXT_texture_avif` is then required, so browsers without AVIF (Safari and iOS before 16, Edge before 121) can't load the model. KTX2 textures are kept.
+Encodes the scene's PNG, JPEG and WebP images as AVIF with libavif and libaom, and points their textures at them through `EXT_texture_avif`. It's the web-image alternative to `ktx`: smaller downloads, but textures that decode to RGBA8 on the GPU. Color slots get 4:2:0, normal maps, ORM and every other data slot 4:4:4, gray images 4:0:0. Every file gets the sRGB color description, which browsers leave as it is. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` alternative. `EXT_texture_avif` is then required, so browsers without AVIF (Safari and iOS before 16, Edge before 121) can't load the model. KTX2 textures are kept.
 
 Some images are left as they are:
 - An image whose AVIF isn't smaller than its source keeps its source; tiny placeholders are smaller as PNG.
-- With a counted warning: WebP-only textures (`image-format-unsupported`), images used only by slots `avif` doesn't know (`image-slot-unknown`), and images that can't be decoded.
+- With `--min-size N`, images whose longest side is N texels or less, counted in `totals.small`.
+- With a counted warning: WebP-only textures in builds without libwebp (`image-format-unsupported`), images used only by slots `avif` doesn't know (`image-slot-unknown`), and images that can't be decoded.
 
 [docs/avif.md](docs/avif.md) has the details, and [docs/experiments/webp-avif.md](docs/experiments/webp-avif.md) the comparison that chose AVIF and set the presets.
 
@@ -508,9 +518,10 @@ The build downloads and compiles libavif, libaom and nasm ([vendor/README.md](ve
 $ meshtinker avif --help
 Encode the images of a glTF or GLB model as AVIF
 
-Encodes PNG and JPEG images with libavif and libaom and references them through
-EXT_texture_avif, which becomes required: color in 4:2:0, normal maps and other
-data in 4:4:4. The textures' other sources are removed; KTX2 textures are kept.
+Encodes PNG, JPEG and WebP images with libavif and libaom and references them
+through EXT_texture_avif, which becomes required: color in 4:2:0, normal maps
+and other data in 4:4:4. The textures' other sources are removed; KTX2 textures
+are kept.
 
 
 meshtinker avif [OPTIONS] input [output]
@@ -533,6 +544,7 @@ OPTIONS:
                                 inflate some images (default 3)
           --max-size N          Scale down images whose longest side is over N texels, keeping
                                 their aspect ratio
+          --min-size N          Leave images whose longest side is N texels or less as they are
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
@@ -582,6 +594,8 @@ Writes the last stage of a [chain](#chains) as one `.gltf` file with its `.bin` 
 
 `--remove-chain` removes the chain once the output is published, under the chain's lock: `chain.json` first, then everything else in the chain's directory, other files included, and the directory itself. The chain's files then become the output's by hard link, rather than by copy. An output inside the chain's directory is refused (exit code 2). A directory that can't be removed, such as a mount point, is left empty, with a warning (`chain-directory-kept`).
 
+`--stage N` writes the stage numbered N instead of the last; 0 is `import`'s. A chain without that stage fails with `stage-missing` (exit code 1).
+
 The report gives the stage written and the files, with their sizes.
 
 ```console
@@ -606,6 +620,8 @@ OPTIONS:
           --version             Print the version and exit
           --remove-chain        Remove the chain's directory, with everything in it, once the
                                 output is written
+          --stage N             Write the stage with this number instead of the last: 0 is
+                                import's
           --json                Print the result as one JSON object on stdout, even on failure
 ```
 

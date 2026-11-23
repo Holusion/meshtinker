@@ -183,6 +183,10 @@ TEST_CASE(sources_smaller_than_their_avif_stay) {
     for (const auto& name : fixture.expected["avif"]["notSmaller"]) {
         expected.push_back(name.get<std::string>());
     }
+    // The 8×8 WebP too, where the build decodes WebP.
+    if (image::decodesWebp()) {
+        expected.emplace_back("webp-only.webp");
+    }
     CHECK(run.report.not_smaller == expected);
     CHECK(fs::exists(run.directory / "tiny.png"));
     CHECK(!fs::exists(run.directory / "tiny.avif"));
@@ -197,16 +201,19 @@ TEST_CASE(sources_smaller_than_their_avif_stay) {
 }
 
 // WebP alternatives go with the source they were an alternative to; KTX2 and
-// AVIF textures stay as they are; a WebP-only texture stays, with a warning.
+// AVIF textures stay as they are; a WebP-only texture is encoded where the
+// build decodes WebP (and kept here, its AVIF being larger), and stays with a
+// warning elsewhere.
 TEST_CASE(other_sources_are_removed_and_unsupported_ones_kept) {
     Run run = encode("avif", "alt-sources");
-    CHECK_EQ(run.report.skipped, std::uint64_t{1});
+    const bool webp = image::decodesWebp();
+    CHECK_EQ(run.report.skipped, std::uint64_t{webp ? 0U : 1U});
     const Json diagnostics = run.diagnostics.toJson();
     bool unsupported = false;
     for (const Json& diagnostic : diagnostics) {
         unsupported = unsupported || diagnostic["code"] == "image-format-unsupported";
     }
-    CHECK(unsupported);
+    CHECK(unsupported != webp);
     CHECK(!fs::exists(run.directory / "alternative.webp"));
     CHECK(!fs::exists(run.directory / "fallback.png"));
     CHECK(fs::exists(run.directory / "fallback.avif"));
@@ -245,6 +252,17 @@ TEST_CASE(presets_trade_size_for_quality) {
           psnr(decodeAvif(high.directory / "color.avif").rgba, pixels, false));
     CHECK_EQ(avif::qualityLevel(avif::Quality::thumb), 30);
     CHECK_EQ(avif::qualityLevel(avif::Quality::highest), 80);
+}
+
+// --min-size leaves small images as they are.
+TEST_CASE(min_size_leaves_small_images) {
+    avif::Options options;
+    options.min_size = 32;
+    Run run = encode("avif", "min-size", options);
+    CHECK(find(run.report, "normal.png") != nullptr);
+    CHECK(find(run.report, "tiny.png") == nullptr);
+    CHECK(!run.report.small.empty());
+    CHECK(fs::exists(run.directory / "tiny.png"));
 }
 
 // --max-size scales down, without rounding sizes to a block multiple.

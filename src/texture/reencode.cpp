@@ -89,6 +89,34 @@ bool contains(const std::vector<const char*>& names, const char* name) {
     return std::any_of(names.begin(), names.end(), [&](const char* n) { return std::string(n) == name; });
 }
 
+// Whether image::decode reads this extension's sources in this build.
+bool decodable(const char* extension) {
+    const std::string name = extension;
+    return (name == "EXT_texture_webp" && image::decodesWebp()) || (name == "EXT_texture_avif" && image::decodesAvif());
+}
+
+bool decodable(gltf::ImageFormat format) {
+    return format == gltf::ImageFormat::png || format == gltf::ImageFormat::jpeg ||
+           (format == gltf::ImageFormat::webp && image::decodesWebp()) ||
+           (format == gltf::ImageFormat::avif && image::decodesAvif());
+}
+
+// "PNG and JPEG", or with the formats this build decodes besides.
+std::string decodedFormats() {
+    std::vector<std::string> formats = {"PNG", "JPEG"};
+    if (image::decodesWebp()) {
+        formats.emplace_back("WebP");
+    }
+    if (image::decodesAvif()) {
+        formats.emplace_back("AVIF");
+    }
+    std::string text;
+    for (std::size_t i = 0; i < formats.size(); ++i) {
+        text += (i == 0 ? "" : i + 1 == formats.size() ? " and " : ", ") + formats[i];
+    }
+    return text;
+}
+
 // One image to encode.
 struct Job {
     std::size_t source = 0;
@@ -181,7 +209,7 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
     }
     std::string undecodable;
     for (const SourceExtension& extension : source_extensions) {
-        if (!contains(kept, extension.name)) {
+        if (!contains(kept, extension.name) && !decodable(extension.name)) {
             undecodable += std::string(undecodable.empty() ? "" : " or ") + extension.format;
         }
     }
@@ -189,7 +217,7 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
     only_undecodable += undecodable;
     only_undecodable += " source are left as they are: ";
     only_undecodable += command;
-    only_undecodable += " decodes PNG and JPEG";
+    only_undecodable += " decodes " + decodedFormats();
     std::string unknown_slots = "images only slots unknown to ";
     unknown_slots += command;
     unknown_slots += " use are left as they are: their transfer function can't be told";
@@ -210,14 +238,22 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
         if (std::any_of(kept.begin(), kept.end(), [&](const char* name) { return sourceOf(texture, name).has_value(); })) {
             continue; // Kept as it is: not re-encoded.
         }
-        const std::optional<std::size_t> source = sourceOf(texture, nullptr);
-        if (!source) {
-            std::optional<std::size_t> other;
-            for (const SourceExtension& extension : source_extensions) {
-                if (!other && !contains(kept, extension.name)) {
-                    other = sourceOf(texture, extension.name);
-                }
+        // The core source first, the original where there is one; then the
+        // first extension source this build decodes.
+        std::optional<std::size_t> source = sourceOf(texture, nullptr);
+        std::optional<std::size_t> other;
+        for (const SourceExtension& extension : source_extensions) {
+            if (source || contains(kept, extension.name)) {
+                continue;
             }
+            const std::optional<std::size_t> found = sourceOf(texture, extension.name);
+            if (found && decodable(extension.name)) {
+                source = found;
+            } else if (found && !other) {
+                other = found;
+            }
+        }
+        if (!source) {
             if (other) {
                 skip(*other, "image-format-unsupported", only_undecodable);
             }
@@ -244,12 +280,16 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
             skip(image, "image-missing", "images whose file is missing are left as they are");
             continue;
         }
+        if (data.header && std::max(data.header->width, data.header->height) <= options.min_size) {
+            result.small.push_back(source_names[layout.image_sources[image]]);
+            continue;
+        }
         if (data.header && data.header->format == gltf::ImageFormat::ktx2) {
             skip(image, "image-already-compressed", "images already in KTX2 are left as they are");
             continue;
         }
-        if (!data.header || (data.header->format != gltf::ImageFormat::png && data.header->format != gltf::ImageFormat::jpeg)) {
-            skip(image, "image-format-unsupported", "images other than PNG and JPEG are left as they are");
+        if (!data.header || !decodable(data.header->format)) {
+            skip(image, "image-format-unsupported", "images other than " + decodedFormats() + " are left as they are");
             continue;
         }
         if (!codec.mixedUse() && use.color && (use.data || use.normal)) {

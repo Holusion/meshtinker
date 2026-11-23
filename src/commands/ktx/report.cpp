@@ -24,6 +24,7 @@ nlohmann::ordered_json toJson(const Report& report, nlohmann::ordered_json heade
     Json json = std::move(header);
     json["quality"] = qualityName(report.quality);
     json["maxSize"] = report.max_size == 0 ? Json(nullptr) : Json(report.max_size);
+    json["minSize"] = report.min_size == 0 ? Json(nullptr) : Json(report.min_size);
     json["threads"] = report.threads;
     Json images = Json::array();
     std::uint64_t before = 0;
@@ -48,6 +49,7 @@ nlohmann::ordered_json toJson(const Report& report, nlohmann::ordered_json heade
     json["images"] = std::move(images);
     json["totals"] = {{"encoded", report.encoded.size()},
                       {"skipped", report.skipped},
+                      {"small", report.small.size()},
                       {"byteSize", {{"before", before}, {"after", after}}},
                       {"seconds", report.seconds}};
     Json files = Json::array();
@@ -69,6 +71,9 @@ void printText(std::ostream& out, const Report& report) {
     out << "Encoded " << report.encoded.size() << " images at quality " << qualityName(report.quality);
     if (report.skipped > 0) {
         out << ", left " << report.skipped << " as they were";
+    }
+    if (!report.small.empty()) {
+        out << ", left " << report.small.size() << " small ones as they were";
     }
     out << ", " << std::fixed << std::setprecision(1) << report.seconds << " s\n";
     out << "Image bytes: " << before << " -> " << after << " (" << percent(after, before) << ")\n";

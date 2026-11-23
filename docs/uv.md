@@ -9,7 +9,7 @@ meshtinker uv in.gltf out/ --max-size 4096
 
 ## Order in a pipeline
 
-`uv` runs before `ktx`. It doesn't decode KTX2: a material with a KTX2 texture is left as it is, with the warning `image-already-compressed`, whose message says to run `uv` first ([images.md](images.md#formats)). WebP and AVIF are left as they are too (`image-format-unsupported`). `uv` runs best after `simplify`, on a mesh that xatlas packs in reasonable time ([Time and memory](#time-and-memory)).
+`uv` runs before `ktx`. It doesn't decode KTX2: a material with a KTX2 texture is left as it is, with the warning `image-already-compressed`, whose message says to run `uv` first ([images.md](images.md#formats)). WebP and AVIF images are baked like PNG and JPEG where the build decodes them; a texture whose only source is a WebP or AVIF extension is left as it is (`image-format-unsupported`). `uv` runs best after `simplify`, on a mesh that xatlas packs in reasonable time ([Time and memory](#time-and-memory)).
 
 ## Repack, don't re-chart
 
@@ -55,7 +55,7 @@ Each of these is a counted warning, and the material is left as it is:
 - `KHR_texture_transform` (`uv-texture-transform`);
 - UVs outside [0, 1] on a `REPEAT` or `MIRRORED_REPEAT` sampler, which is tiling on purpose (`uv-texture-repeats`);
 - morph targets with `TEXCOORD_n` deltas (`uv-morphed-texcoords`);
-- images it can't decode: KTX2 (`image-already-compressed`, run `uv` before `ktx`), WebP and AVIF (`image-format-unsupported`), missing files (`image-missing`), and corrupt ones (`image-decode-failed`) ([images.md](images.md#formats));
+- images it can't decode: KTX2 (`image-already-compressed`, run `uv` before `ktx`), textures whose only source is a WebP or AVIF extension, and formats the build doesn't decode (`image-format-unsupported`), missing files (`image-missing`), and corrupt ones (`image-decode-failed`) ([images.md](images.md#formats));
 - images that aren't whole multiples of each other in size (`uv-image-sizes`);
 - points, lines, or a primitive without the texture coordinate set its material uses (`uv-unreadable-geometry`);
 - a UV mesh xatlas refuses, or vertices left in no chart (`uv-pack-failed`, `uv-unplaced-vertices`).

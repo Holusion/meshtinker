@@ -1,0 +1,34 @@
+{
+  "description": "The synthetic scan on a 1024² JPEG atlas whose charts fill half of their cells, as a GLB: an image over 512 and an occupancy under 0.6, so that optimize runs uv and ktx.",
+  "geometry": {
+    "meshes": 1,
+    "primitives": 1,
+    "vertices": 612,
+    "faces": 1024
+  },
+  "bounds": {
+    "min": [
+      -0.509565532207489,
+      0.5156963169574738,
+      -0.5480682253837585
+    ],
+    "max": [
+      0.5577057003974915,
+      1.5019702911376953,
+      0.5480682253837585
+    ],
+    "tolerance": 0.000001
+  },
+  "images": [
+    {
+      "name": "atlas",
+      "mimeType": "image/jpeg",
+      "width": 1024,
+      "height": 1024
+    }
+  ],
+  "notes": [
+    "Bounds are the generator's float32 positions through the node transform.",
+    "Occupancy is not stated: about a quarter of the scan fixture's, which is what optimize needs."
+  ]
+}

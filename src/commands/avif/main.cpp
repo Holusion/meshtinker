@@ -14,7 +14,7 @@ namespace {
 
 int run(int argc, char** argv) {
     cli::Command command("avif", "Encode the images of a glTF or GLB model as AVIF",
-                         "Encodes PNG and JPEG images with libavif and libaom and references them through "
+                         "Encodes PNG, JPEG and WebP images with libavif and libaom and references them through "
                          "EXT_texture_avif, which becomes required: color in 4:2:0, normal maps and other data in "
                          "4:4:4. The textures' other sources are removed; KTX2 textures are kept.",
                          cli::Kind::transform);
@@ -47,6 +47,10 @@ int run(int argc, char** argv) {
             const bool valid = end != value.c_str() && *end == '\0' && size >= 1 && size <= (1ul << 24);
             return valid ? std::string() : std::string("N must be a whole number from 1 to 16777216");
         });
+    command.app()
+        .add_option("--min-size", options.min_size,
+                    "Leave images whose longest side is N texels or less as they are")
+        ->type_name("N");
     command.addJsonOption();
     command.addTrustedOption();
     return command.run(argc, argv, [&] {

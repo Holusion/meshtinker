@@ -43,6 +43,13 @@ const char* statusName(Status status) {
 
 namespace {
 
+// Formats image::decode reads in this build.
+bool decodable(gltf::ImageFormat format) {
+    return format == gltf::ImageFormat::png || format == gltf::ImageFormat::jpeg ||
+           (format == gltf::ImageFormat::webp && image::decodesWebp()) ||
+           (format == gltf::ImageFormat::avif && image::decodesAvif());
+}
+
 using Clock = std::chrono::steady_clock;
 
 double secondsSince(Clock::time_point start) { return std::chrono::duration<double>(Clock::now() - start).count(); }
@@ -248,8 +255,7 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
                 missing = true;
             } else if (image.header && image.header->format == gltf::ImageFormat::ktx2) {
                 compressed = true;
-            } else if (!image.header ||
-                       (image.header->format != gltf::ImageFormat::png && image.header->format != gltf::ImageFormat::jpeg)) {
+            } else if (!image.header || !decodable(image.header->format)) {
                 undecodable = true;
             }
             group.images.push_back({source_names[layout.image_sources[i]], image.header ? image.header->width : 0,
@@ -270,7 +276,9 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
             continue;
         }
         if (undecodable) {
-            skip("image-format-unsupported", "materials with images other than PNG and JPEG are left as they are");
+            skip("image-format-unsupported",
+                 "materials with images other than PNG, JPEG, and WebP or AVIF where the build decodes them, are left "
+                 "as they are");
             finish();
             continue;
         }

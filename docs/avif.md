@@ -55,7 +55,8 @@ An image whose AVIF isn't smaller than its source keeps its source, and its text
 - **An `EXT_texture_webp` alternative goes too,** with the source it was an alternative to, and the extension leaves the lists once no texture uses it.
 - **KTX2 textures stay as they are:** they are block-compressed on the GPU, which AVIF isn't, and `avif` can't decode them. So do textures that are already AVIF.
 - **Left as they are, each with a counted warning:**
-  - a texture whose only source is WebP (`image-format-unsupported`), as is an image in a format other than PNG and JPEG;
+  - a texture whose only source is WebP in a build without libwebp (`image-format-unsupported`), as is an image in a format other than PNG, JPEG and WebP; where WebP is decoded, a WebP-only texture is encoded, and kept when its AVIF isn't smaller;
+  - with `--min-size N`, an image whose longest side is N or less, without a warning;
   - an image whose file is missing (`image-missing`), that can't be decoded (`image-decode-failed`), or that libavif fails on (`image-encode-failed`);
   - an image only slots unknown to `avif` use (`image-slot-unknown`).
 - **Files:** the new image keeps the source image's `name`, `extras` and extensions, and its file keeps the source's stem: `wall.jpg` becomes `wall.avif`. Each file is written as soon as it is encoded.
@@ -101,7 +102,7 @@ There's no reference output to compare against ([validation.md](validation.md)).
 - each file's pixel format, alpha plane and color description, against the table above, and that `readImageHeader` reads its size;
 - PSNR against the decoded source between 20 and 60 dB: the fixture's added noise is what AVIF smooths away;
 - the 4×4 PNG kept as it is, with its core source;
-- the WebP alternative removed, and the KTX2, WebP-only and AVIF textures kept, with the WebP-only one's warning;
+- the WebP alternative removed, and the KTX2 and AVIF textures kept; the 8×8 WebP-only texture kept as smaller than its AVIF, or with a warning where the build doesn't decode WebP;
 - lower presets writing smaller files further from the source;
 - `--max-size`, without rounding sizes to a block multiple;
 - in a chain (`test/commands/chain_test.cpp`), one round per image, nothing to encode on a second run, and `ktx` leaving the AVIF textures with its warning.

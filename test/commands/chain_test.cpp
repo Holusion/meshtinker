@@ -187,6 +187,17 @@ TEST_CASE(export_writes_the_last_stage) {
     CHECK_EQ(fs::hard_link_count(root / "out" / "scan_texture_0.jpg"), std::uintmax_t{1});
     CHECK_EQ(run("inspect", {(root / "out" / "model.gltf").string()}).json["geometry"], last.json["geometry"]);
 
+    // --stage writes an earlier stage: 0 is import's.
+    const Run first = run("export", {"--stage", "0", work, (root / "out" / "imported.glb").string()});
+    CHECK_EQ(first.code, 0);
+    CHECK_EQ(first.json["stage"].get<std::string>(), chain.stages().front().text());
+    CHECK_EQ(run("inspect", {(root / "out" / "imported.glb").string()}).json["geometry"]["faces"],
+             run("inspect", {test::fixture("scan").model.string()}).json["geometry"]["faces"]);
+    const Run missing = run("export", {"--stage", "7", work, (root / "out" / "missing.glb").string()});
+    CHECK_EQ(missing.code, 1);
+    CHECK_EQ(missing.json["error"]["code"].get<std::string>(), "stage-missing");
+    CHECK(!fs::exists(root / "out" / "missing.glb"));
+
     // Outputs are never overwritten, and a file is not a chain.
     CHECK_EQ(run("export", {work, (root / "out" / "model.glb").string()}).code, 4);
     CHECK_EQ(run("export", {test::fixture("scan").model.string(), (root / "out" / "other.glb").string()}).code, 2);
@@ -295,9 +306,12 @@ TEST_CASE(avif_records_a_round_per_image) {
     const Run again = run("avif", {work});
     CHECK_EQ(again.code, 0);
     CHECK_EQ(again.json["totals"]["encoded"].get<int>(), 0);
+    // ktx encodes the AVIF images to KTX2, decoding them with libavif.
     const Run ktx = run("ktx", {work});
     CHECK_EQ(ktx.code, 0);
-    CHECK(hasDiagnostic(ktx.json, "image-format-unsupported"));
+    CHECK(!hasDiagnostic(ktx.json, "image-format-unsupported"));
+    CHECK(ktx.json["totals"]["encoded"].get<int>() > 0);
+    CHECK(hasDiagnostic(ktx.json, "repeated-lossy-image-encoding"));
 }
 #endif
 

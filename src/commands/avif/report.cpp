@@ -26,6 +26,7 @@ nlohmann::ordered_json toJson(const Report& report, nlohmann::ordered_json heade
     json["qualityLevel"] = qualityLevel(report.quality);
     json["effort"] = report.effort;
     json["maxSize"] = report.max_size == 0 ? Json(nullptr) : Json(report.max_size);
+    json["minSize"] = report.min_size == 0 ? Json(nullptr) : Json(report.min_size);
     json["threads"] = report.threads;
     Json images = Json::array();
     std::uint64_t before = 0;
@@ -51,6 +52,7 @@ nlohmann::ordered_json toJson(const Report& report, nlohmann::ordered_json heade
     json["notSmaller"] = report.not_smaller;
     json["totals"] = {{"encoded", report.encoded.size()},
                       {"skipped", report.skipped},
+                      {"small", report.small.size()},
                       {"notSmaller", report.not_smaller.size()},
                       {"byteSize", {{"before", before}, {"after", after}}},
                       {"seconds", report.seconds}};
@@ -74,6 +76,9 @@ void printText(std::ostream& out, const Report& report) {
         << qualityLevel(report.quality) << "), effort " << report.effort;
     if (report.skipped > 0) {
         out << ", left " << report.skipped << " as they were";
+    }
+    if (!report.small.empty()) {
+        out << ", left " << report.small.size() << " small ones as they were";
     }
     if (!report.not_smaller.empty()) {
         out << ", kept " << report.not_smaller.size() << " smaller as they were";

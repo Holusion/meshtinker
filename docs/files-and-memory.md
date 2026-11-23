@@ -53,7 +53,7 @@ Expected failures throw `common::Failure`, which carries an exit code and a stab
 
 `classifySystemError` decides the class of an `errno` value:
 - `ENOSPC`, `EFBIG` and `EDQUOT` are resource limits (3).
-- `ENOENT`, `EISDIR`, `ENOTDIR`, `ENAMETOOLONG` and `ELOOP` reject the input (1) when reading the input or a file it references, and are machine problems (4) elsewhere.
+- `ENOENT`, `EISDIR`, `ENOTDIR`, `ENAMETOOLONG` and `ELOOP` reject the input (1) when reading the input or a file it references, and are machine problems (4) elsewhere. A missing input is one exception: `export` reads chains only, which an earlier command made, so a chain that isn't there is the caller's problem (4), not the model's.
 - Everything else is a machine problem (4).
 
 Messages name files, never their folders.
