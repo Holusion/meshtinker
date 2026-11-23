@@ -6,13 +6,13 @@ How `optimize`'s plan (docs/optimize.md) holds up on the 66 local models, agains
 2. **A careless upload** (low texture occupancy, vertex soup, textures too large, too many faces) is handled mostly right: viewable on commodity hardware, phones where possible, and compact, at the cost of some damage when that makes the model significantly more usable.
 3. **A mostly-ok output in a few seconds** for normal models, degrading gracefully as inputs get worse, down to a fully unoptimized output rather than a run that hangs.
 
-Diagrams: [the plan today](../optimize-plan/current.svg) and [the plan proposed below](../optimize-plan/proposed.svg) (Graphviz sources beside them).
+The first plan ran first; its gaps became corrections, and the corpus ran again on the plan with them ([With the corrections](#with-the-corrections)), which docs/optimize.md describes and [optimize-plan/current.svg](../optimize-plan/current.svg) draws.
 
 ## Method
 
-`tools/experiments/optimize/survey.sh` runs `inspect`, then `optimize --json`, on every local model, smallest first, with a 10-minute cap; `summary.py` reads the reports into one row per model ([slow](optimize-survey-slow.csv), [fast](optimize-survey-fast.csv)). Release build, 4 cores, `--quality High`, KTX2, then `--preset fast`. GPU memory is estimated from image sizes and codecs, with mipmaps: PNG, JPEG, WebP and AVIF upload as RGBA8 (4 bytes a texel), ETC1S as BC1 or ETC2 (0.5), UASTC as BC7 or ASTC (1).
+`tools/experiments/optimize/survey.sh` runs `inspect`, then `optimize --json`, on every local model, smallest first, with a 10-minute cap; `summary.py` reads the reports into one row per model: the first plan's ([slow](optimize-survey-before-slow.csv), [fast](optimize-survey-before-fast.csv)), and the corrected plan's ([slow](optimize-survey-slow.csv), [fast](optimize-survey-fast.csv)). Release build, 4 cores, `--quality High`, KTX2, then `--preset fast`. GPU memory is estimated from image sizes and codecs, with mipmaps: PNG, JPEG, WebP and AVIF upload as RGBA8 (4 bytes a texel), ETC1S as BC1 or ETC2 (0.5), UASTC as BC7 or ASTC (1).
 
-## Results
+## Results of the first plan
 
 Every model went through, slow and fast: no failure, no timeout.
 
@@ -54,7 +54,7 @@ Every other model ends under 1 M faces and 64 MB of GPU textures. Nine keep more
 - Already compressed inputs: `Ebauche_statue_grecque` (Draco and KTX2) grows from 1.8 to 3.4 MB, and the two compressed `Lion` files by 10 to 33 %. `simplify` rewrites their geometry, and meshopt at 14 bits is larger than their Draco. Their textures were KTX2 already, or WebP, which `ktx` leaves alone.
 - KTX2 itself: UASTC normal and occlusion maps are 2 to 3 times their JPEG (`tasse` 5.5 → 14 MB, `athlete` 21 → 30 MB). That is the price goal 1 accepts for GPU memory.
 
-## What the current plan gets wrong
+## What the first plan got wrong
 
 | Goal | Today | Correction |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ Every other model ends under 1 M faces and 64 MB of GPU textures. Nine keep more
 | 3 | fast's time grows with texels and faces, unbounded | Estimate each step from the cost table; in fast, shrink images until AVIF fits about 6 s, skip `simplify` past about 3 s (unsimplified geometry, with a warning) |
 | 3 | A failing step fails optimize | Keep the stage before it, warn, carry on; at worst the import stage is the output |
 
-With these, the estimates for the four careless models at High: the 44M scan simplifies to 1 M faces (about 60 s) and its textures fit the 64 MB budget at 2048 (about 45 s of `ktx`); `02-73` and `Lion` fit with some images at 2048, in about 40 s instead of 107 to 137 s. Fast stays near 10 s for all but the 44M scan, whose import and weld alone take 22 s: its fast output is unsimplified geometry with small AVIF textures, the "fully unoptimized" end of goal 3.
+The corrections went in as proposed, with these changes. There is no `simplify --max-faces`, and the budget went in as 256 MB for geometry and textures, with no face ceiling: models too heavy at the quality's error stay over budget, with a warning, since the plan is best effort and shouldn't damage them further. In fast, `simplify` always runs: a model left with all its faces can be too heavy to look at, which is worse than a long wait. And small images are encoded after all when there are enough of them to keep a model over budget ([below](#with-the-corrections)).
 
 ## Budgets
 
@@ -86,7 +86,26 @@ Textures shrink through one maximum side for the whole model, as `ktx --max-size
 
 **Texel density** (used color texels a face: texture texels × occupancy / faces) tells geometry that is denser than its texture can show. The careful 200,000-face exports have about 50 at 4096; the 44M scan has 1 at input. As a ceiling of its own, it only cuts ordinary 600,000 to 1 M face scans (Pietà, Mascaron, Chapiteau) that are well under budget: about 5 MB of GPU memory saved each, for damage. Its use is as the tie-breaker once over budget: below the target density, cut faces first; above it, lower the textures' side first. On this corpus that changes one model, `trema` (854,000 → 550,000 faces, its textures at 3840 rather than 3584). The target, 16, is a guess that renders have to settle. Density is undefined without a color texture (a megatexel at least): `Lion`'s normal-map-only files, models with a vertex-color-like 300² texture.
 
+## With the corrections
+
+The same 66 models, slow and fast, on the corrected plan:
+
+| | slow (KTX2) | fast (AVIF effort 2, no `uv`) |
+| --- | --- | --- |
+| Median, 90th percentile, maximum | 18 s, 75 s, 233 s | 3.3 s, 7.5 s, 94 s |
+| Over 10 s, over 60 s | 50, 10 models | 3, 1 models |
+| Share of the time | `ktx` 78 %, `uv` 14 %, `simplify` 5 % | `avif` 54 %, `simplify` 24 %, `import` 12 % |
+| Estimated GPU memory out, at most | 245 MB; 5 models over 64 MB | 373 MB; 1 model over 256 MB |
+| Input kept (`input-kept`) | 3 | 5 |
+
+- **The common case doesn't change:** the 18 200,000-face scans with one 8k texture take 18 s (median), 17 → 4.5 MB, 16 MB of GPU memory.
+- **`uv`** runs on the 27 models below 0.6 occupancy only: 14 % of slow's time, from 19 %.
+- **The careless models fit 256 MB in slow:** `02-73` 174 MB and `Lion` 217 MB, both at 4096, `MAN63675_HP_44M` 245 MB at 3328, from 299 MB of textures alone. The 256 MB budget lowers the side of that scan only.
+- **The campus scan's 634 images** are mostly 512 or less. Left as RGBA8, as correction 2 had it, they came to 311 MB; the plan now encodes small images too when they keep a model over budget, and it ends at 59 MB (77 s, 60 s of it `ktx`).
+- **Compressed inputs** come out as they went in (`input-kept`): `Ebauche` with KTX2, `Lion` with KTX2, and the box of 8 faces. With WebP textures they grow but save GPU memory, so they're kept as optimized: `Ebauche` 2.2 → 3.4 MB for 28 → 9 MB, `Lion` 6 → 24 MB for 178 → 39 MB.
+- **fast:** 63 of 66 under 10 s. `trema` (11 s) and `Lion` (10 s) have many large images, and their sides go down to 3840 and 1792 for time. The 44M scan takes 94 s, 59 of them `simplify`, and gives a 16 MB model of 2.24 M faces and 240 MB. The campus, at 373 MB in AVIF, is the one model over budget, with a warning: its images are at 1024 or less already, and AVIF uploads as RGBA8.
+
 ## Open questions
 
 - **A careful manual reference.** Nothing here measures goal 1's "as small as a careful manual optimization" directly: the 200k exports are careful on geometry, and `ktx`'s settings match eCorpus's within a few percent ([ktx.md](../ktx.md)). gltfpack (`-cc -tc`) would be an independent reference; it isn't installed.
-- **Damage.** The renders (docs/validation.md, field notes) cover eight models, all sensible. The budget corrections damage careless models on purpose; render them once implemented.
+- **Damage.** The renders (docs/validation.md, field notes) cover eight models, all sensible. The budget damages careless models on purpose: render `MAN63675_HP_44M` at 3328 and the fast outputs at reduced sides against their inputs.
