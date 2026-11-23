@@ -11,7 +11,17 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 build/meshtinker <command> [args...]
 ```
 
-`build/` then holds the `meshtinker` wrapper and one `meshtinker-<command>` executable per command. Copy them to the same directory, or put each on `PATH`, to install them. They need only the system C library.
+`build/` then holds the `meshtinker` wrapper and one `meshtinker-<command>` executable per command. They need only the system C library.
+
+To install them, for instance in `~/.local/bin`, build a release in its own directory and install it:
+
+```sh
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release
+cmake --install build/release --prefix ~/.local --strip
+```
+
+The wrapper looks for the commands in its own directory first, so they stay together. `--strip` removes debug symbols, which the default build type (RelWithDebInfo) keeps. To update, run the last two commands again. To uninstall, run `xargs rm < build/release/install_manifest.txt`.
 
 ## Releases
 
