@@ -144,9 +144,12 @@ Reports statistics about a `.gltf` or `.glb` file, for the scene it shows (the d
 - the extensions it uses and requires;
 - the scene: its name, its first named root node, and its exact world-space bounds;
 - geometry: meshes, primitives, vertices (as uploaded to the GPU) and triangles, each mesh counted once however many nodes use it, and primitives by encoding (plain, meshopt, Draco, quantized);
-- every image: format and size from its header, size in bytes, the material slots that use it, and its texture occupancy: the fraction of its texels a renderer actually samples, following [objtools' definition](https://github.com/sdumetz/objtools/wiki/Texture-occupancy).
+- every image: format and size from its header, size in bytes, the material slots that use it, and its texture occupancy: the fraction of its texels a renderer actually samples, following [objtools' definition](https://github.com/sdumetz/objtools/wiki/Texture-occupancy);
+- the files the model refers to, as paths relative to its folder: `requires` lists those it is rejected without (buffers, and images a base color uses), `optional` the other images. A GLB, or a `.gltf` with data URIs, has none.
 
 Bounds read every vertex the scene draws, and occupancy rasterizes every UV triangle into a coverage map kept in a workspace file. meshopt, Draco and `KHR_mesh_quantization` data are decoded.
+
+`--no-data` reads only the `.gltf`, or the GLB's JSON chunk, and opens nothing it refers to. It is for uploads, whose files arrive in any order: it lists the files the model still needs, whether they are there yet or not, in the shape mesh2gltf's `--inspect` uses for OBJ files. References are checked from their text alone, and what the text refuses (URLs, and paths leading outside the model's folder without `--trusted`) gets the answer a full read gives: a buffer is rejected (`reference-refused`), as is an image a base color uses (`missing-base-color-image`), and another image gets a `missing-image` warning. The figures that need the files (sizes, bounds, image formats and sizes, occupancy) are left out of the report, which says `"data": false`.
 
 Given a [chain](#chains), `inspect` reports on its last stage, without taking the chain's lock.
 
@@ -155,8 +158,8 @@ $ meshtinker inspect --help
 Report statistics about a glTF or GLB file
 
 Sizes, geometry, bounds, images and texture occupancy of the scene the file
-shows. Only the default scene counts, as `import` keeps only that one. Given a
-chain, reads its last stage.
+shows, and the files the model needs. Only the default scene counts, as `import`
+keeps only that one. Given a chain, reads its last stage.
 
 
 meshtinker inspect [OPTIONS] input
@@ -168,6 +171,9 @@ POSITIONALS:
 OPTIONS:
   -h,     --help                Print this help message and exit
           --version             Print the version and exit
+          --no-data             Read the .gltf, or the GLB's JSON chunk, and nothing it refers
+                                to: list the files the model needs, without the figures that read
+                                them (sizes, bounds, image formats, occupancy)
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks

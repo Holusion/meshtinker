@@ -238,13 +238,51 @@ std::set<std::size_t> sceneMaterials(const cgltf_data& data, const gltf::Selecti
     return materials;
 }
 
+// Fills `requires` and `optional`: the buffer files (`buffers`, one path per
+// buffer, empty when not a file) and the files of base color images, which
+// the model is rejected without, then the files of the other images. Each
+// path once, in index order, buffers first.
+void listReferencedFiles(Report& report, const std::vector<std::string>& buffers) {
+    std::set<std::string> listed;
+    const auto add = [&](std::vector<std::string>& list, const std::string& path) {
+        if (!path.empty() && listed.insert(path).second) {
+            list.push_back(path);
+        }
+    };
+    std::vector<const Report::Image*> images;
+    for (const Report::Image& image : report.images) {
+        images.push_back(&image);
+    }
+    std::sort(images.begin(), images.end(),
+              [](const Report::Image* a, const Report::Image* b) { return a->index < b->index; });
+    const auto diffuse = [](const Report::Image& image) {
+        return std::any_of(image.uses.begin(), image.uses.end(),
+                           [](const Report::Use& use) { return isDiffuseSlot(use.slot); });
+    };
+    report.required_files.clear();
+    report.optional_files.clear();
+    for (const std::string& path : buffers) {
+        add(report.required_files, path);
+    }
+    for (const Report::Image* image : images) {
+        if (diffuse(*image)) {
+            add(report.required_files, image->path);
+        }
+    }
+    for (const Report::Image* image : images) {
+        add(report.optional_files, image->path);
+    }
+}
+
 } // namespace
+
 
 Report analyzeDocument(const gltf::Document& document, const gltf::Selection& selection,
                        common::Diagnostics& diagnostics) {
     const cgltf_data& data = document.data();
     const Json& json = document.json();
     Report report;
+    report.data = document.hasData();
 
     for (const gltf::InputFile& file : document.files()) {
         report.files.push_back({file.role, file.name, file.size});
@@ -334,6 +372,7 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
             image.file = document.files()[*source.file].name;
         }
         image.byte_size = source.bytes.size;
+        image.path = source.path;
         const auto found_uses = uses.find(i);
         if (source.missing) {
             image.file = source.reference;
@@ -351,6 +390,10 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
                              "An image file is missing, or outside the model's folder: its size and occupancy are "
                              "unknown",
                              source.reference);
+        } else if (!document.hasData()) {
+            if (source.origin == gltf::ImageOrigin::file) {
+                image.file = source.reference;
+            }
         } else if (source.header) {
             image.mime_type = gltf::mimeType(source.header->format);
             image.width = source.header->width;
@@ -368,6 +411,11 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
         }
         report.images.push_back(std::move(image));
     }
+    std::vector<std::string> buffers;
+    for (std::size_t i = 0; i < data.buffers_count; ++i) {
+        buffers.push_back(document.bufferPath(i));
+    }
+    listReferencedFiles(report, buffers);
     return report;
 }
 
@@ -635,8 +683,12 @@ Report outputReport(const Report& input, const gltf::Layout& layout, const std::
                     const std::vector<std::string>& image_names) {
     Report output = input;
     output.files.clear();
+    std::vector<std::string> buffers;
     for (const gltf::WrittenFile& file : files) {
         output.files.push_back({file.role, file.name, file.size});
+        if (file.role == gltf::FileRole::buffer) {
+            buffers.push_back(file.name);
+        }
     }
     const auto remap = [&](Kind kind, std::size_t index) {
         return layout.remap[static_cast<std::size_t>(kind)][index];
@@ -648,11 +700,13 @@ Report outputReport(const Report& input, const gltf::Layout& layout, const std::
         const std::size_t source = image.index;
         image.index = remap(Kind::image, source);
         image.file = image_names[source];
+        image.path = image_names[source];
         for (Report::Use& use : image.uses) {
             use.material = remap(Kind::material, use.material);
             use.texture = remap(Kind::texture, use.texture);
         }
     }
+    listReferencedFiles(output, buffers);
     return output;
 }
 

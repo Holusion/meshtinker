@@ -70,12 +70,31 @@ std::uint64_t Report::byteSize() const {
 }
 
 nlohmann::ordered_json toJson(const Report& report, Json header, const common::Diagnostics& diagnostics) {
+    // Without data, the fields that need the referenced files are left out,
+    // not null: null means a figure couldn't be determined.
+    const bool data = report.data;
     Json json = std::move(header);
+    json["data"] = data;
     Json files = Json::array();
     for (const Report::File& file : report.files) {
         files.push_back({{"role", roleName(file.role)}, {"name", file.name}, {"byteSize", file.size}});
     }
-    json["input"] = {{"byteSize", report.byteSize()}, {"files", files}};
+    json["input"] = Json::object();
+    if (data) {
+        json["input"]["byteSize"] = report.byteSize();
+    }
+    json["input"]["files"] = files;
+    // mesh2gltf's shape: each entry lists the paths a file is looked for at,
+    // in order. meshtinker looks at one.
+    const auto paths = [](const std::vector<std::string>& list) {
+        Json entries = Json::array();
+        for (const std::string& path : list) {
+            entries.push_back(Json::array({path}));
+        }
+        return entries;
+    };
+    json["requires"] = paths(report.required_files);
+    json["optional"] = paths(report.optional_files);
     json["extensions"] = {{"used", report.extensions_used}, {"required", report.extensions_required}};
     if (report.scene) {
         const Report::Scene& scene = *report.scene;
@@ -85,8 +104,10 @@ nlohmann::ordered_json toJson(const Report& report, Json header, const common::D
         }
         json["scene"] = {{"index", scene.index},
                          {"name", optional(scene.name)},
-                         {"firstNamedRootNode", optional(scene.first_named_root_node)},
-                         {"bounds", bounds}};
+                         {"firstNamedRootNode", optional(scene.first_named_root_node)}};
+        if (data) {
+            json["scene"]["bounds"] = bounds;
+        }
     } else {
         json["scene"] = nullptr;
     }
@@ -103,26 +124,46 @@ nlohmann::ordered_json toJson(const Report& report, Json header, const common::D
         for (const Report::Use& use : image.uses) {
             uses.push_back({{"material", use.material}, {"slot", use.slot}, {"texture", use.texture}});
         }
-        images.push_back({{"index", image.index},
-                          {"name", optional(image.name)},
-                          {"file", optional(image.file)},
-                          {"mimeType", optional(image.mime_type)},
-                          {"width", optional(image.width)},
-                          {"height", optional(image.height)},
-                          {"byteSize", image.byte_size},
-                          {"uses", uses},
-                          {"occupancy", optional(image.occupancy)}});
+        Json entry = {{"index", image.index}, {"name", optional(image.name)}, {"file", optional(image.file)}};
+        if (data) {
+            entry["mimeType"] = optional(image.mime_type);
+            entry["width"] = optional(image.width);
+            entry["height"] = optional(image.height);
+            entry["byteSize"] = image.byte_size;
+        }
+        entry["uses"] = uses;
+        if (data) {
+            entry["occupancy"] = optional(image.occupancy);
+        }
+        images.push_back(std::move(entry));
     }
     json["images"] = images;
-    json["texels"] = {{"total", report.texels_total}, {"occupancy", optional(report.texels_occupancy)}};
+    if (data) {
+        json["texels"] = {{"total", report.texels_total}, {"occupancy", optional(report.texels_occupancy)}};
+    }
     json["diagnostics"] = diagnostics.toJson();
     return json;
 }
 
 void printText(std::ostream& out, const Report& report) {
-    out << "Files: " << bytes(report.byteSize()) << " in " << plural(report.files.size(), "file", "files") << '\n';
+    const bool data = report.data;
+    if (data) {
+        out << "Files: " << bytes(report.byteSize()) << " in " << plural(report.files.size(), "file", "files") << '\n';
+    } else {
+        out << "Files: not read, besides the model file\n";
+    }
     for (const Report::File& file : report.files) {
         out << "  " << file.name << "  " << roleName(file.role) << ", " << bytes(file.size) << '\n';
+    }
+    for (const auto& [label, list] : {std::pair<const char*, const std::vector<std::string>*>{"Requires", &report.required_files},
+                                      {"Optional", &report.optional_files}}) {
+        if (!list->empty()) {
+            out << label << ": ";
+            for (std::size_t i = 0; i < list->size(); ++i) {
+                out << (i == 0 ? "" : ", ") << (*list)[i];
+            }
+            out << '\n';
+        }
     }
     if (report.scene) {
         const Report::Scene& scene = *report.scene;
@@ -135,7 +176,9 @@ void printText(std::ostream& out, const Report& report) {
         }
         out << '\n';
         out << "Bounds: ";
-        if (scene.bounds) {
+        if (!data) {
+            out << "not read\n";
+        } else if (scene.bounds) {
             out << vector3(scene.bounds->min) << " to " << vector3(scene.bounds->max) << '\n';
         } else {
             out << "not computed\n";
@@ -150,15 +193,20 @@ void printText(std::ostream& out, const Report& report) {
         out << "  primitives: " << g.plain << " plain, " << g.meshopt << " meshopt, " << g.draco << " Draco, "
             << g.quantized << " quantized\n";
     }
-    out << "Images: " << report.images.size() << ", " << report.texels_total << " texels in use, occupancy "
-        << percent(report.texels_occupancy) << '\n';
+    out << "Images: " << report.images.size();
+    if (data) {
+        out << ", " << report.texels_total << " texels in use, occupancy " << percent(report.texels_occupancy);
+    }
+    out << '\n';
     for (const Report::Image& image : report.images) {
-        out << "  " << image.index << " " << (image.file ? *image.file : image.name.value_or("(embedded)")) << "  "
-            << image.mime_type.value_or("unknown format");
-        if (image.width && image.height) {
-            out << " " << *image.width << "x" << *image.height;
+        out << "  " << image.index << " " << (image.file ? *image.file : image.name.value_or("(embedded)"));
+        if (data) {
+            out << "  " << image.mime_type.value_or("unknown format");
+            if (image.width && image.height) {
+                out << " " << *image.width << "x" << *image.height;
+            }
+            out << ", " << bytes(image.byte_size) << ", occupancy " << percent(image.occupancy);
         }
-        out << ", " << bytes(image.byte_size) << ", occupancy " << percent(image.occupancy);
         for (std::size_t i = 0; i < image.uses.size(); ++i) {
             out << (i == 0 ? ", used as " : ", ") << image.uses[i].slot;
         }

@@ -101,6 +101,9 @@ struct Document::State {
     std::vector<ImageData> images;
     // The entry in files for each buffer read from a file.
     std::vector<std::optional<std::size_t>> buffer_files;
+    // Where each buffer's file reference points (References::locate).
+    std::vector<std::string> buffer_paths;
+    bool has_data = true;
     Json json;
     // The JSON text cgltf parsed, for a normalized document: cgltf keeps
     // pointers into it (extras offsets).
@@ -128,10 +131,26 @@ struct Document::State {
     void loadBuffers(const common::References& references, std::map<fs::path, std::size_t>& by_path) {
         cgltf_data& model = *data;
         buffer_files.assign(model.buffers_count, std::nullopt);
+        buffer_paths.assign(model.buffers_count, std::string());
         for (std::size_t i = 0; i < model.buffers_count; ++i) {
             cgltf_buffer& buffer = model.buffers[i];
             const std::string what = "buffer " + std::to_string(i);
             ByteView bytes;
+            if (buffer.uri != nullptr && !isDataUri(buffer.uri)) {
+                const std::string reference = decodeUri(buffer.uri);
+                const std::optional<std::string> located = references.locate(reference);
+                if (!located) {
+                    throw rejected("reference-refused",
+                                   what + " '" + reference + "': " + common::refused_reference_message);
+                }
+                buffer_paths[i] = *located;
+            }
+            if (!has_data) {
+                if (buffer.uri == nullptr && !(i == 0 && model.bin != nullptr) && !isFallbackBuffer(json["buffers"][i])) {
+                    throw rejected("buffer-missing", what + " has no uri and no data");
+                }
+                continue;
+            }
             if (buffer.uri == nullptr) {
                 if (i == 0 && model.bin != nullptr) {
                     bytes = {static_cast<const std::uint8_t*>(model.bin), model.bin_size};
@@ -174,6 +193,23 @@ struct Document::State {
             const cgltf_image& image = model.images[i];
             const std::string what = "image " + std::to_string(i);
             ImageData result;
+            if (image.uri != nullptr && !isDataUri(image.uri)) {
+                result.reference = decodeUri(image.uri);
+                result.path = references.locate(result.reference).value_or(std::string());
+            }
+            if (!has_data) {
+                if (image.buffer_view != nullptr) {
+                    result.origin = ImageOrigin::buffer_view;
+                } else if (image.uri != nullptr && isDataUri(image.uri)) {
+                    result.origin = ImageOrigin::data_uri;
+                } else if (image.uri != nullptr) {
+                    result.missing = result.path.empty();
+                } else {
+                    throw rejected("invalid-gltf", what + " has neither a uri nor a bufferView");
+                }
+                images.push_back(result);
+                continue;
+            }
             if (image.buffer_view != nullptr) {
                 result.origin = ImageOrigin::buffer_view;
                 const auto view_index = static_cast<std::size_t>(image.buffer_view - model.buffer_views);
@@ -191,7 +227,6 @@ struct Document::State {
                 decoded.push_back(std::move(*decoded_bytes));
                 result.bytes = {decoded.back().data(), decoded.back().size()};
             } else if (image.uri != nullptr) {
-                result.reference = decodeUri(image.uri);
                 if (!references.resolve(path.parent_path(), result.reference)) {
                     result.missing = true;
                     images.push_back(result);
@@ -226,6 +261,7 @@ Document::~Document() = default;
 Document Document::read(const fs::path& path, const ReadOptions& options) {
     auto state = std::make_unique<State>();
     state->path = path;
+    state->has_data = options.data;
     const std::string name = fileName(path);
     common::MappedFile main = common::MappedFile::open(path, common::Side::input, "'" + name + "'");
     const ByteView bytes = main.bytes();
@@ -348,6 +384,11 @@ const Json& Document::json() const { return state_->json; }
 Container Document::container() const { return state_->container; }
 const fs::path& Document::path() const { return state_->path; }
 const std::vector<InputFile>& Document::files() const { return state_->files; }
+bool Document::hasData() const { return state_->has_data; }
+
+std::string Document::bufferPath(std::size_t index) const {
+    return index < state_->buffer_paths.size() ? state_->buffer_paths[index] : std::string();
+}
 
 std::optional<std::size_t> Document::bufferFile(std::size_t index) const {
     return index < state_->buffer_files.size() ? state_->buffer_files[index] : std::nullopt;

@@ -25,5 +25,7 @@
       "height": 32,
       "occupancy": 1
     }
-  ]
+  ],
+  "requires": [],
+  "optional": []
 }

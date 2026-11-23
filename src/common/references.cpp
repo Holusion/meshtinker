@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <system_error>
+#include <vector>
 
 namespace meshtinker::common {
 namespace fs = std::filesystem;
@@ -126,6 +127,45 @@ std::optional<fs::path> References::resolve(const fs::path& base, const std::str
         return std::nullopt;
     }
     return regularFile(canonical_base / fs::u8path(written), root_);
+}
+
+std::optional<std::string> References::locate(const std::string& reference) const {
+    std::string written = reference;
+    std::replace(written.begin(), written.end(), '\\', '/');
+    if (root_.empty() ? (written.empty() || written.find('\0') != std::string::npos || hasScheme(written))
+                      : (!looksRelative(written) || climbsOut(written, 0))) {
+        return std::nullopt;
+    }
+    // Lexically: `..` cancels the step before it, and stays only where it
+    // climbs above a relative start, which only a trusted reference can.
+    const bool absolute = written.front() == '/';
+    std::vector<std::string> steps;
+    std::size_t start = 0;
+    while (start <= written.size()) {
+        std::size_t end = written.find('/', start);
+        if (end == std::string::npos) {
+            end = written.size();
+        }
+        std::string part = written.substr(start, end - start);
+        if (part == "..") {
+            if (!steps.empty() && steps.back() != "..") {
+                steps.pop_back();
+            } else if (!absolute) {
+                steps.push_back(std::move(part));
+            }
+        } else if (!part.empty() && part != ".") {
+            steps.push_back(std::move(part));
+        }
+        start = end + 1;
+    }
+    if (steps.empty()) {
+        return std::nullopt;
+    }
+    std::string located = absolute ? "/" : "";
+    for (std::size_t i = 0; i < steps.size(); ++i) {
+        located += (i == 0 ? "" : "/") + steps[i];
+    }
+    return located;
 }
 
 } // namespace meshtinker::common

@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 2017,
     "files": [
@@ -20,6 +21,15 @@
       }
     ]
   },
+  "requires": [
+    [
+      "MultipleScenes_triangle.bin"
+    ],
+    [
+      "MultipleScenes_square.bin"
+    ]
+  ],
+  "optional": [],
   "extensions": {
     "used": [],
     "required": []

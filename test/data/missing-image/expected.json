@@ -31,6 +31,19 @@
       "why": "missing: a warning, since only a base color is required"
     }
   ],
+  "requires": [
+    [
+      "missing-image.bin"
+    ],
+    [
+      "color.png"
+    ]
+  ],
+  "optional": [
+    [
+      "normal.png"
+    ]
+  ],
   "diagnostics": [
     "missing-image"
   ]

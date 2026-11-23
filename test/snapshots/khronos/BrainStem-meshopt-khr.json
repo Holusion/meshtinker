@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 409991,
     "files": [
@@ -15,6 +16,12 @@
       }
     ]
   },
+  "requires": [
+    [
+      "BrainStem.bin"
+    ]
+  ],
+  "optional": [],
   "extensions": {
     "used": [
       "KHR_mesh_quantization",

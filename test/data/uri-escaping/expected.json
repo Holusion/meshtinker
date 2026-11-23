@@ -32,5 +32,20 @@
       "height": 16,
       "occupancy": 1
     }
-  ]
+  ],
+  "requires": [
+    [
+      "geo metry ❤.bin"
+    ],
+    [
+      "second #2.bin"
+    ],
+    [
+      "base color ♻.jpg"
+    ],
+    [
+      "100% #1.png"
+    ]
+  ],
+  "optional": []
 }

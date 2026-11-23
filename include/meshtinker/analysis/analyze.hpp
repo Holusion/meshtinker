@@ -14,7 +14,7 @@ namespace meshtinker::analysis {
 
 // Stage 1, document fields: what the JSON, file sizes and image headers say.
 // Everything except bounds and occupancy (docs/inspect-report.md, "Cost").
-// A fast analysis can stop here.
+// `inspect --no-data` stops here, on a document read without its files.
 Report analyzeDocument(const gltf::Document& document, const gltf::Selection& selection,
                        common::Diagnostics& diagnostics);
 

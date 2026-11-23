@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 30467,
     "files": [
@@ -20,6 +21,15 @@
       }
     ]
   },
+  "requires": [
+    [
+      "Duck.bin"
+    ],
+    [
+      "DuckCM.png"
+    ]
+  ],
+  "optional": [],
   "extensions": {
     "used": [
       "KHR_draco_mesh_compression"

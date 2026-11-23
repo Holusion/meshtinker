@@ -9,7 +9,9 @@ Inspection inspect(const std::filesystem::path& path, const gltf::ReadOptions& o
     gltf::Document document = gltf::Document::read(path, options);
     gltf::Selection selection = gltf::selectScene(document);
     Report report = analyzeDocument(document, selection, diagnostics);
-    analyzeData(document, selection, report, workspace, diagnostics);
+    if (document.hasData()) {
+        analyzeData(document, selection, report, workspace, diagnostics);
+    }
     return {std::move(document), std::move(selection), std::move(report)};
 }
 

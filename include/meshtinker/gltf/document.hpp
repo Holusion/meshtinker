@@ -44,8 +44,11 @@ struct ImageData {
     std::optional<std::size_t> file;
     // For file images: the `uri` as written, decoded.
     std::string reference;
+    // For file images: where `reference` points, relative to the input's
+    // folder (common::References::locate). Empty when its text is refused.
+    std::string path;
     // A file image whose file is missing, or that confinement refuses: it has
-    // no bytes. Whether that rejects the model depends on how the image is
+    // no bytes. Without data (ReadOptions::data), only a refused one. Whether that rejects the model depends on how the image is
     // used, which the analysis decides.
     bool missing = false;
     // Empty when the bytes are not a recognized image format.
@@ -55,6 +58,10 @@ struct ImageData {
 struct ReadOptions {
     // Allow references outside the model's folder (`--trusted`).
     bool trusted = false;
+    // Map the buffer and image files, and decode data URIs. Without, only the
+    // model file is read (`inspect --no-data`): references are checked from
+    // their text, and buffers, buffer views and images hold no bytes.
+    bool data = true;
 };
 
 // A parsed glTF or GLB file and the data it references.
@@ -94,6 +101,8 @@ public:
     Container container() const;
     const std::filesystem::path& path() const;
     const std::vector<InputFile>& files() const;
+    // Whether buffers and images were read (ReadOptions::data).
+    bool hasData() const;
 
     // The bytes of buffer `index`. Empty for a buffer that holds no data, such
     // as a meshopt fallback buffer.
@@ -101,6 +110,10 @@ public:
     // The entry in files() that buffer `index` was read from, whole: none for
     // a GLB chunk, a data URI or a buffer without data.
     std::optional<std::size_t> bufferFile(std::size_t index) const;
+    // Where buffer `index`'s `uri` points, relative to the input's folder
+    // (common::References::locate): empty for a GLB chunk, a data URI or a
+    // buffer without data.
+    std::string bufferPath(std::size_t index) const;
     // The bytes of buffer view `index`. Empty if its buffer holds no data.
     common::ByteView bufferView(std::size_t index) const;
     const ImageData& image(std::size_t index) const;

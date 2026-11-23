@@ -103,11 +103,42 @@ void checkFixture(const test::Fixture& f) {
             }
         }
     }
+    for (const char* key : {"requires", "optional"}) {
+        if (expected.contains(key)) {
+            CHECK_EQ(report[key], expected[key]);
+        }
+    }
     if (expected.contains("diagnostics")) {
         for (const json& code : expected["diagnostics"]) {
             CHECK(hasDiagnostic(diagnostics, code.get<std::string>()));
         }
     }
+}
+
+// The full report without what reading the files gives: what `inspect
+// --no-data` must print.
+json withoutData(json report) {
+    report["data"] = false;
+    report["input"].erase("byteSize");
+    json& files = report["input"]["files"];
+    files.erase(files.begin() + 1, files.end());
+    if (report["scene"].is_object()) {
+        report["scene"].erase("bounds");
+    }
+    for (json& image : report["images"]) {
+        for (const char* key : {"mimeType", "width", "height", "byteSize", "occupancy"}) {
+            image.erase(key);
+        }
+    }
+    report.erase("texels");
+    report.erase("diagnostics");
+    return report;
+}
+
+analysis::Inspection inspectWithoutData(const fs::path& model, bool trusted, const std::string& work,
+                                        common::Diagnostics& diagnostics) {
+    common::Workspace workspace(test::workDirectory(work), false);
+    return analysis::inspect(model, {trusted, false}, workspace, diagnostics);
 }
 
 // import's report against inspecting what it wrote.
@@ -175,6 +206,80 @@ TEST_CASE(rejected_fixtures_fail_with_their_code) {
             CHECK(failure.exitCode() == common::ExitCode::input_rejected);
         }
     }
+}
+
+// Without data, the report is the full one less the fields that need the
+// files, and only the model file is opened.
+TEST_CASE(no_data_leaves_out_what_needs_the_files) {
+    for (const test::Fixture& f : test::fixtures()) {
+        if (!readable(f)) {
+            continue;
+        }
+        const int before = test::failureCount();
+        common::Workspace workspace(test::workDirectory("fixtures/" + f.name), false);
+        common::Diagnostics full_diagnostics;
+        const analysis::Inspection full = analysis::inspect(f.model, {trustedFor(f)}, workspace, full_diagnostics);
+        common::Diagnostics diagnostics;
+        const analysis::Inspection light = inspectWithoutData(f.model, trustedFor(f), "no-data/" + f.name, diagnostics);
+        CHECK_EQ(light.document.files().size(), std::size_t{1});
+        json report = analysis::toJson(light.report, json::object(), diagnostics);
+        report.erase("diagnostics");
+        const json wanted = withoutData(analysis::toJson(full.report, json::object(), full_diagnostics));
+        if (report != wanted) {
+            test::fail("--no-data report:\n  got:      " + report.dump() + "\n  expected: " + wanted.dump(), __FILE__,
+                       __LINE__);
+        }
+        if (test::failureCount() > before) {
+            std::fprintf(stderr, "  in fixture %s\n", f.name.c_str());
+        }
+    }
+}
+
+// A rejected fixture is rejected the same way without data, unless the
+// rejection needs the files: then its expected.json lists what is required.
+TEST_CASE(no_data_rejects_what_the_text_refuses) {
+    for (const test::Fixture& f : test::fixtures()) {
+        if (!rejected(f)) {
+            continue;
+        }
+        common::Diagnostics diagnostics;
+        try {
+            const analysis::Inspection light = inspectWithoutData(f.model, trustedFor(f), "no-data/" + f.name, diagnostics);
+            if (!f.expected.contains("requires")) {
+                test::fail(f.name + " was accepted without data", __FILE__, __LINE__);
+                continue;
+            }
+            const json report = analysis::toJson(light.report, json::object(), diagnostics);
+            CHECK_EQ(report["requires"], f.expected["requires"]);
+            CHECK_EQ(report["optional"], f.expected["optional"]);
+        } catch (const common::Failure& failure) {
+            CHECK(!f.expected.contains("requires"));
+            CHECK_EQ(failure.code(), f.expected.value("error", std::string("reference-refused")));
+        }
+    }
+}
+
+// Uploads arrive in any order: a .gltf alone lists the files it still needs.
+TEST_CASE(no_data_reads_a_gltf_without_its_files) {
+    const test::Fixture* textures = nullptr;
+    for (const test::Fixture& f : test::fixtures()) {
+        if (f.name == "textures") {
+            textures = &f;
+        }
+    }
+    CHECK(textures != nullptr);
+    if (textures == nullptr) {
+        return;
+    }
+    const fs::path directory = test::workDirectory("no-data-alone");
+    fs::copy_file(textures->model, directory / "textures.gltf", fs::copy_options::overwrite_existing);
+    common::Diagnostics diagnostics;
+    const analysis::Inspection light =
+        inspectWithoutData(directory / "textures.gltf", false, "no-data-alone-work", diagnostics);
+    const json report = analysis::toJson(light.report, json::object(), diagnostics);
+    CHECK_EQ(report["requires"], textures->expected["requires"]);
+    CHECK_EQ(report["optional"], textures->expected["optional"]);
+    CHECK(diagnostics.entries().empty());
 }
 
 TEST_CASE(import_reports_what_it_wrote) {

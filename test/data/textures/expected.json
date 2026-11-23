@@ -81,5 +81,39 @@
       "height": 16,
       "occupancy": 1
     }
+  ],
+  "requires": [
+    [
+      "textures.bin"
+    ],
+    [
+      "alpha.png"
+    ],
+    [
+      "opaque.png"
+    ],
+    [
+      "ignored-alpha.png"
+    ],
+    [
+      "shared.png"
+    ],
+    [
+      "deep.png"
+    ]
+  ],
+  "optional": [
+    [
+      "emissive.jpg"
+    ],
+    [
+      "normal.png"
+    ],
+    [
+      "orm.png"
+    ],
+    [
+      "occlusion.png"
+    ]
   ]
 }
