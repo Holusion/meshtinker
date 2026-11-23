@@ -49,5 +49,5 @@ digraph proposed {
   guard -> useinput [label="yes"]; guard -> export [label="no"]; useinput -> export;
 
   fail [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Any step that fails or overruns its share of the time:\lkeep the stage before it, warn, carry on.\lExtreme input: the import stage is the output (\"fully unoptimized\").\l"];
-  budgets [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Budgets for High (proposed):\l• 1 M faces (eCorpus's simplify ratio targets 1 M vertices)\l• 128 MB of GPU textures, 4096 per side\l• fast: about 10 s for the whole run\l"];
+  budgets [shape=note, fillcolor="#f7f7f7", color="#999999", fontsize=9, label="Budgets for High (proposed):\l• 1 M faces (eCorpus's simplify ratio targets 1 M vertices)\l• 64 MB of GPU memory, geometry and textures together\l• over budget: faces first below 16 used texels a face,\l  else halve the costliest image\l• fast: about 10 s for the whole run\l"];
 }

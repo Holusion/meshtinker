@@ -62,15 +62,29 @@ Every other model ends under 1 M faces and 64 MB of GPU textures. Nine keep more
 | 1 | Images of 512² and less go to KTX2 | Keep them as they are: GPU memory is negligible there |
 | 1 | Already compressed inputs grow | Keep compressed geometry under the face budget as it is; a final guard keeps the input when the output is larger and saves no GPU memory |
 | 2 | No face budget: the 44M scan keeps 2.24 M faces at High | `simplify --max-faces` (new): 1 M at High, as eCorpus's simplify ratio targets 1 M vertices |
-| 2 | No texture budget: 166 to 299 MB of GPU textures | Lower the largest images' side until the estimate fits 128 MB at High |
+| 2 | No texture budget: 166 to 299 MB of GPU textures | One 64 MB GPU budget for geometry and textures: halve the costliest image until it fits, or cut faces first when the texture density is low ([Budgets](#budgets)) |
 | 2 | WebP and AVIF sources stay RGBA8 on the GPU | Decode them for `ktx` (already a TODO for AVIF) |
 | 3 | fast's time grows with texels and faces, unbounded | Estimate each step from the cost table; in fast, shrink images until AVIF fits about 6 s, skip `simplify` past about 3 s (unsimplified geometry, with a warning) |
 | 3 | A failing step fails optimize | Keep the stage before it, warn, carry on; at worst the import stage is the output |
 
-With these, the estimates for the four careless models at High: the 44M scan simplifies to 1 M faces (about 60 s) and its textures fit 128 MB at 2048 (about 45 s of `ktx`); `02-73` and `Lion` fit 128 MB at 2048 for some images, in about 40 s instead of 107 to 137 s. Fast stays near 10 s for all but the 44M scan, whose import and weld alone take 22 s: its fast output is unsimplified geometry with small AVIF textures, the "fully unoptimized" end of goal 3.
+With these, the estimates for the four careless models at High: the 44M scan simplifies to 1 M faces (about 60 s) and its textures fit the 64 MB budget at 2048 (about 45 s of `ktx`); `02-73` and `Lion` fit with some images at 2048, in about 40 s instead of 107 to 137 s. Fast stays near 10 s for all but the 44M scan, whose import and weld alone take 22 s: its fast output is unsimplified geometry with small AVIF textures, the "fully unoptimized" end of goal 3.
+
+## Budgets
+
+Geometry is cheap next to textures. After `compress`, 1 M faces cost about 8 MB to download and 20 MB of GPU memory (16 bytes a quantized vertex, 12 bytes a face with 32-bit indices); one 4096² ETC1S texture costs 2.5 MB and 11 MB, a UASTC one twice that. So one GPU budget for geometry and textures together, 64 MB, with a 1 M face ceiling, is phone-sized without simplifying ordinary scans: `tools/experiments/optimize/budget.py` simulates it on the slow survey.
+
+| Rule (64 MB for geometry and textures) | Models changed | Over budget after |
+| --- | --- | --- |
+| 1 M faces, then halve the costliest image until it fits | 5 | 0 |
+| 500,000 faces, then the same | 12 | 0 |
+| 1 M faces, and at most 1 face per 16 used color texels | 12 | 0 |
+| 1 M faces; over budget, cut faces to 16 used texels a face before halving images | 5 | 0 |
+
+The five over budget are the careless models plus two large ones: `02-73` (166 → 54 MB, textures halved), `Lion` (213 → 58 MB), `MAN63675_HP_44M` (1 M faces, 21 MB; textures 299 → 43 MB, at 2048), `johannisfriedhof` (64 → 48 MB) and `trema-retablebelvaux` (18 MB of geometry and 53 of textures).
+
+**Texel density** (used color texels a face: texture texels × occupancy / faces) tells geometry that is denser than its texture can show. The careful 200,000-face exports have about 50 at 4096; the 44M scan has 1 at input. As a ceiling of its own, it only cuts ordinary 600,000 to 1 M face scans (Pietà, Mascaron, Chapiteau) that are well under budget: about 5 MB of GPU memory saved each, for damage. Its use is as the tie-breaker once over budget: below the target density, cut faces first; above it, halve textures first. On this corpus that changes one model, `trema` (854,000 → 550,000 faces rather than a halved texture). The target, 16, is a guess that renders have to settle. Density is undefined without a color texture (a megatexel at least): `Lion`'s normal-map-only files, models with a vertex-color-like 300² texture.
 
 ## Open questions
 
-- **Phone budgets.** 1 M faces and 128 MB are desktop-safe guesses that only bite on the four careless models. A phone budget (500,000 faces, 64 MB) would also simplify the nine models between 500,000 and 1 M faces. Which device is the target, at which quality?
 - **A careful manual reference.** Nothing here measures goal 1's "as small as a careful manual optimization" directly: the 200k exports are careful on geometry, and `ktx`'s settings match eCorpus's within a few percent ([ktx.md](../ktx.md)). gltfpack (`-cc -tc`) would be an independent reference; it isn't installed.
 - **Damage.** The renders (docs/validation.md, field notes) cover eight models, all sensible. The budget corrections damage careless models on purpose; render them once implemented.
