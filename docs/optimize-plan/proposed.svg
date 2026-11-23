@@ -359,7 +359,7 @@
 <text text-anchor="start" x="781.5" y="-927.8" font-family="Helvetica,sans-Serif" font-size="9.00">• 1 M faces (eCorpus&#39;s simplify ratio targets 1 M vertices)</text>
 <text text-anchor="start" x="781.5" y="-917.8" font-family="Helvetica,sans-Serif" font-size="9.00">• 64 MB of GPU memory, geometry and textures together</text>
 <text text-anchor="start" x="781.5" y="-907.8" font-family="Helvetica,sans-Serif" font-size="9.00">• over budget: faces first below 16 used texels a face,</text>
-<text text-anchor="start" x="781.5" y="-897.8" font-family="Helvetica,sans-Serif" font-size="9.00"> &#160;else halve the costliest image</text>
+<text text-anchor="start" x="781.5" y="-897.8" font-family="Helvetica,sans-Serif" font-size="9.00"> &#160;else lower the model&#39;s max side, 256 at a time</text>
 <text text-anchor="start" x="781.5" y="-887.8" font-family="Helvetica,sans-Serif" font-size="9.00">• fast: about 10 s for the whole run</text>
 </g>
 </g>
