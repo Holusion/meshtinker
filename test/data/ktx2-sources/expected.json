@@ -1,5 +1,5 @@
 {
-  "description": "KTX2-only textures, as KTX-Software 4.4 encodes them: ETC1S color, ETC1S with an alpha gradient, and a UASTC normal map (zstd), 64×64 each.",
+  "description": "KTX2-only textures, as KTX-Software 4.4 encodes them: ETC1S color, ETC1S with an alpha gradient, and a UASTC normal map (zstd), 64×64 each. The color and normal images are sampled in their top-left quarter only.",
   "geometry": {
     "primitives": 3,
     "vertices": 12,
@@ -24,7 +24,8 @@
       "codec": "ETC1S",
       "width": 64,
       "height": 64,
-      "used": true
+      "used": true,
+      "occupancy": 0.2822265625
     },
     {
       "name": "alpha",
@@ -32,7 +33,8 @@
       "codec": "ETC1S",
       "width": 64,
       "height": 64,
-      "used": true
+      "used": true,
+      "occupancy": 1
     },
     {
       "name": "normal",
@@ -40,13 +42,14 @@
       "codec": "UASTC",
       "width": 64,
       "height": 64,
-      "used": true
+      "used": true,
+      "occupancy": 0.2822265625
     }
   ],
   "ktx2": {
     "alpha": [
       "alpha.ktx2"
     ],
-    "why": "ETC1S is BasisLZ-supercompressed; UASTC has vkFormat 0 and colorModel 166. Only alpha.ktx2 has an alpha slice, a gradient from 0 at the left to 255 at the right. Decoded, each image is close to the PNG it was encoded from: the four quadrants of the test pattern, or a smooth normal map pointing outwards from the center."
+    "why": "ETC1S is BasisLZ-supercompressed; UASTC has vkFormat 0 and colorModel 166. Only alpha.ktx2 has an alpha slice, a gradient from 0 at the left to 255 at the right. The quarter-sampled images, with linear filtering and REPEAT wrapping, reach 34 texels a side: 0 to 32, and 63 across the wrap. Decoded, each image is close to the PNG it was encoded from: the four quadrants of the test pattern, or a smooth normal map pointing outwards from the center."
   }
 }

@@ -51,6 +51,11 @@ void copyAccessorProperties(const Layout& layout, std::size_t source, Json& acce
 // Adds `name` to extensionsUsed, and to extensionsRequired if `required`.
 void useExtension(Json& json, const std::string& name, bool required);
 
+// Removes `name` from extensionsUsed and extensionsRequired (and an emptied
+// list) when no texture has it any more: for texture source extensions a
+// command replaced.
+void removeUnusedTextureExtension(Json& json, const std::string& name);
+
 // True if an attribute uses a component type that core glTF doesn't allow for
 // it, which KHR_mesh_quantization does: integer positions, normals, tangents
 // and morph targets, non-normalized integer texture coordinates, signed

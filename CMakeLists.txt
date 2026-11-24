@@ -105,10 +105,17 @@ target_include_directories(draco-decoder SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_D
 target_link_libraries(meshtinker-vendor PUBLIC draco-decoder)
 
 # basis_universal's encoder and transcoder, with Zstandard, as upstream's
-# basisu_encoder target builds them (vendor/README.md). Only `ktx` and its
-# tests link it, so other commands don't carry it.
+# basisu_encoder target builds them (vendor/README.md). The transcoder and
+# Zstandard are a library of their own, which meshtinker-core links to decode
+# KTX2 (image::decode); the encoder, which only `ktx` and its tests link, is
+# built on it, so other commands don't carry the encoder.
 find_package(Threads REQUIRED)
 set(basisu_dir "${CMAKE_CURRENT_SOURCE_DIR}/vendor/basisu")
+add_library(basisu-transcoder STATIC "${basisu_dir}/transcoder/basisu_transcoder.cpp" "${basisu_dir}/zstd/zstd.c")
+meshtinker_configure_base(basisu-transcoder)
+target_compile_options(basisu-transcoder PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w -fno-strict-aliasing>)
+target_include_directories(basisu-transcoder SYSTEM PUBLIC "${basisu_dir}")
+target_compile_definitions(basisu-transcoder PUBLIC BASISD_SUPPORT_KTX2_ZSTD=1 BASISU_SUPPORT_OPENCL=0)
 # Upstream's ENCODER_LIB_SRC_LIST, with Zstandard and without astcenc.
 set(basisu_sources
     encoder/basisu_backend.cpp
@@ -140,15 +147,13 @@ set(basisu_sources
     encoder/basisu_tinyexr.cpp
     encoder/jpgd.cpp
     encoder/pvpngreader.cpp
-    encoder/3rdparty/android_astc_decomp.cpp
-    transcoder/basisu_transcoder.cpp
-    zstd/zstd.c)
+    encoder/3rdparty/android_astc_decomp.cpp)
 list(TRANSFORM basisu_sources PREPEND "${basisu_dir}/")
 add_library(basisu STATIC ${basisu_sources})
 meshtinker_configure_base(basisu)
 target_compile_options(basisu PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/W0,-w -fno-strict-aliasing>)
 target_include_directories(basisu SYSTEM PUBLIC "${basisu_dir}")
-target_compile_definitions(basisu PUBLIC BASISD_SUPPORT_KTX2_ZSTD=1 BASISU_SUPPORT_OPENCL=0 PRIVATE BASISU_SUPPORT_ASTCENC=0)
+target_compile_definitions(basisu PRIVATE BASISU_SUPPORT_ASTCENC=0)
 # Upstream builds the whole library with SSE 4.1 on x86, and calls one of its
 # kernels without checking the CPU, so it needs x86-64-v2.
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
@@ -157,7 +162,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
 else()
     target_compile_definitions(basisu PUBLIC BASISU_SUPPORT_SSE=0)
 endif()
-target_link_libraries(basisu PUBLIC Threads::Threads)
+target_link_libraries(basisu PUBLIC basisu-transcoder Threads::Threads)
 
 # xatlas, for `uv` only.
 add_library(xatlas STATIC vendor/xatlas/xatlas.cpp)
@@ -180,7 +185,7 @@ add_library(meshtinker-core STATIC ${meshtinker_core_sources})
 meshtinker_configure(meshtinker-core)
 target_include_directories(meshtinker-core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_definitions(meshtinker-core PRIVATE MESHTINKER_VERSION="${PROJECT_VERSION}")
-target_link_libraries(meshtinker-core PUBLIC meshtinker-vendor)
+target_link_libraries(meshtinker-core PUBLIC meshtinker-vendor PRIVATE basisu-transcoder)
 if(MESHTINKER_WEBP)
     include(cmake/webp-deps.cmake)
     target_link_libraries(meshtinker-core PRIVATE meshtinker-webp-codec)

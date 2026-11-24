@@ -45,7 +45,7 @@ The rule is the one eCorpus uses and the spec's implementation note recommends: 
 - `gltf::prune` then removes the images nothing uses any more, and `EXT_texture_webp` and `EXT_texture_avif` leave `extensionsUsed` and `extensionsRequired` once no texture uses them.
 - The new image keeps the source image's `name`, `extras` and extensions, and its file the source's stem: `wall.jpg` becomes `wall.ktx2` (`gltf::ImageNames`, [gltf-io.md](gltf-io.md#editing)). Each file is written as soon as it is encoded.
 - A texture whose only source is WebP or AVIF is encoded from it, where the build decodes that format ([images.md](images.md#formats)); in a build without libwebp or libavif it is left as it is, with `image-format-unsupported`. So is an image in another format than PNG, JPEG, WebP or AVIF, with the same warning. `--min-size N` leaves images whose longest side is N or less as they are, without a warning: `optimize` passes 512. Also left as they are, with a warning: an image whose file is missing (`image-missing`), that can't be decoded (`image-decode-failed`), or that basisu fails on (`image-encode-failed`).
-- A texture already in KTX2 is kept and not re-encoded.
+- A texture already in KTX2 is kept and not re-encoded, unless `--max-size` is under its image's longest side: the image is then decoded ([images.md](images.md#formats)), shrunk and encoded again for its slots, like any other source, and the second lossy round is recorded (`repeated-lossy-image-encoding`). This is how `optimize` fits a model compressed carelessly into the GPU budget.
 
 ## Presets
 

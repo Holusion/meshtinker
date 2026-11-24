@@ -45,7 +45,7 @@ namespace {
 
 // Formats image::decode reads in this build.
 bool decodable(gltf::ImageFormat format) {
-    return format == gltf::ImageFormat::png || format == gltf::ImageFormat::jpeg ||
+    return format == gltf::ImageFormat::png || format == gltf::ImageFormat::jpeg || format == gltf::ImageFormat::ktx2 ||
            (format == gltf::ImageFormat::webp && image::decodesWebp()) ||
            (format == gltf::ImageFormat::avif && image::decodesAvif());
 }
@@ -69,6 +69,8 @@ std::size_t find(std::vector<std::size_t>& parent, std::size_t i) {
 struct TextureUse {
     std::size_t texture = 0;
     std::optional<std::size_t> image;
+    // The image is the texture's KHR_texture_basisu source.
+    bool basisu = false;
     int texcoord = 0;
     bool transform = false;
     bool repeats = false;
@@ -171,8 +173,17 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
             use.texcoord = slot.info->value("texCoord", 0);
             use.transform = slot.info->contains("extensions") && (*slot.info)["extensions"].contains("KHR_texture_transform");
             use.content = contentOf(slot.path);
-            if (texture_json.contains("source") && texture_json["source"].is_number_unsigned() &&
-                !(texture_json.contains("extensions") && texture_json["extensions"].contains("KHR_texture_basisu"))) {
+            // A KTX2 source wins over a core one: it is what viewers load.
+            const Json* basisu = texture_json.contains("extensions") && texture_json["extensions"].is_object() &&
+                                         texture_json["extensions"].contains("KHR_texture_basisu")
+                                     ? &texture_json["extensions"]["KHR_texture_basisu"]
+                                     : nullptr;
+            if (basisu != nullptr) {
+                use.basisu = true;
+                if (basisu->contains("source") && (*basisu)["source"].is_number_unsigned()) {
+                    use.image = (*basisu)["source"].get<std::size_t>();
+                }
+            } else if (texture_json.contains("source") && texture_json["source"].is_number_unsigned()) {
                 use.image = texture_json["source"].get<std::size_t>();
             }
             int wrap_s = repeat;
@@ -237,8 +248,6 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
                 transform = transform || use.transform;
                 repeats = repeats || use.repeats;
                 if (!use.image) {
-                    const Json& texture = json["textures"][use.texture];
-                    compressed = compressed || (texture.contains("extensions") && texture["extensions"].contains("KHR_texture_basisu"));
                     undecodable = true;
                     continue;
                 }
@@ -253,7 +262,9 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
             const gltf::ImageData& image = document.image(layout.image_sources[i]);
             if (image.missing) {
                 missing = true;
-            } else if (image.header && image.header->format == gltf::ImageFormat::ktx2) {
+            } else if (image.header && image.header->format == gltf::ImageFormat::ktx2 &&
+                       !(options.max_size != 0 && std::max(image.header->width, image.header->height) > options.max_size)) {
+                // KTX2 is baked again only when --max-size shrinks it (docs/images.md#formats).
                 compressed = true;
             } else if (!image.header || !decodable(image.header->format)) {
                 undecodable = true;
@@ -266,7 +277,8 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
             report.groups.push_back(std::move(group));
         };
         if (compressed) {
-            skip("image-already-compressed", "materials with KTX2 images are left as they are: run uv before ktx");
+            skip("image-already-compressed",
+                 "materials with KTX2 images are left as they are, unless --max-size shrinks them: run uv before ktx");
             finish();
             continue;
         }
@@ -694,7 +706,14 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
             for (const TextureUse& use : uses[m]) {
                 // Uniform images keep their file.
                 if (const auto found = new_image.find(*use.image); found != new_image.end()) {
-                    json["textures"][use.texture]["source"] = found->second;
+                    Json& texture = json["textures"][use.texture];
+                    texture["source"] = found->second;
+                    if (use.basisu) {
+                        texture["extensions"].erase("KHR_texture_basisu");
+                        if (texture["extensions"].empty()) {
+                            texture.erase("extensions");
+                        }
+                    }
                 }
             }
         }
@@ -738,6 +757,7 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         finish();
     }
 
+    gltf::removeUnusedTextureExtension(json, "KHR_texture_basisu");
     gltf::prune(layout);
     report.files = gltf::writeSeparate(document, layout, directory, stem, outputs);
     report.seconds = secondsSince(start);

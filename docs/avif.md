@@ -53,7 +53,7 @@ An image whose AVIF isn't smaller than its source keeps its source, and its text
 - An encoded texture gets `extensions.EXT_texture_avif.source`, pointing to the new image (`mimeType: image/avif`).
 - **The core `source` is removed,** and `EXT_texture_avif` goes into `extensionsUsed` and `extensionsRequired`, as `ktx` does with `KHR_texture_basisu`. A browser without AVIF (Safari and iOS before 16, Edge before 121) can't load the model. A PNG or JPEG fallback would make the output larger than its input.
 - **An `EXT_texture_webp` alternative goes too,** with the source it was an alternative to, and the extension leaves the lists once no texture uses it.
-- **KTX2 textures stay as they are:** they are block-compressed on the GPU, which AVIF isn't, and `avif` can't decode them. So do textures that are already AVIF.
+- **KTX2 textures stay as they are:** they are block-compressed on the GPU, which AVIF isn't, whatever their size. So do textures that are already AVIF, unless `--max-size` shrinks them: they are then decoded and encoded again, with a second lossy round ([images.md](images.md#formats)).
 - **Left as they are, each with a counted warning:**
   - a texture whose only source is WebP in a build without libwebp (`image-format-unsupported`), as is an image in a format other than PNG, JPEG and WebP; where WebP is decoded, a WebP-only texture is encoded, and kept when its AVIF isn't smaller;
   - with `--min-size N`, an image whose longest side is N or less, without a warning;
@@ -61,7 +61,7 @@ An image whose AVIF isn't smaller than its source keeps its source, and its text
   - an image only slots unknown to `avif` use (`image-slot-unknown`).
 - **Files:** the new image keeps the source image's `name`, `extras` and extensions, and its file keeps the source's stem: `wall.jpg` becomes `wall.avif`. Each file is written as soon as it is encoded.
 
-`ktx` and `avif` leave each other's textures alone: `ktx` can't decode AVIF, and `avif` keeps KTX2. Run one of them, after every other image command ([chaining.md](chaining.md#step-order)).
+`avif` leaves KTX2 textures alone, and `ktx` encodes AVIF ones to KTX2 for the GPU memory. Run one of them, after every other image command ([chaining.md](chaining.md#step-order)).
 
 ## Report
 

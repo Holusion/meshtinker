@@ -32,11 +32,11 @@ protected:
         }
         if (command == "ktx") {
             // Encodes every image over --min-size at --max-size, ETC1S for
-            // color.
+            // color, and KTX2 ones only if --max-size shrinks them.
             const std::uint32_t side = static_cast<std::uint32_t>(std::stoul(step_options[3]));
             const std::uint32_t min_size = static_cast<std::uint32_t>(std::stoul(step_options[5]));
             for (optimize::Image& image : model_.images) {
-                if (!image.ktx2 && image.longestSide() > min_size) {
+                if (image.ktx2 ? image.longestSide() > side : image.longestSide() > min_size) {
                     if (image.longestSide() > side) {
                         image.width = static_cast<std::uint32_t>(std::uint64_t{image.width} * side / image.longestSide());
                         image.height = static_cast<std::uint32_t>(std::uint64_t{image.height} * side / image.longestSide());
@@ -184,8 +184,8 @@ TEST_CASE(gpu_budget_sets_the_texture_side) {
     CHECK(over.warnings == std::vector<std::string>{"gpu-budget-exceeded"});
 }
 
-// Images of 512 and less, and KTX2 ones, are left as they are: without
-// others, there's no texture step.
+// Images of 512 and less, and KTX2 ones within the side, are left as they
+// are: without others, there's no texture step.
 TEST_CASE(small_and_ktx2_images_have_no_texture_step) {
     Model small = texturedScan();
     small.images = {image(512, true), image(256, false)};
@@ -193,10 +193,39 @@ TEST_CASE(small_and_ktx2_images_have_no_texture_step) {
 
     Model ktx2 = texturedScan();
     for (optimize::Image& image : ktx2.images) {
+        image.width = image.height = 2048;
         image.ktx2 = true;
-        image.gpu_bytes_per_texel = 1;
+        image.gpu_bytes_per_texel = image.color ? 0.5 : 1;
     }
-    CHECK(run(ktx2, Settings{}).size() == 6);
+    Recorder recorder(ktx2);
+    optimize::plan(recorder, Settings{}, plenty);
+    CHECK(recorder.steps.size() == 6);
+    CHECK(optionsOf(recorder, "uv") != nullptr && optionsOf(recorder, "uv")->empty());
+}
+
+// KTX2 images over the texture step's side are encoded again at it, and uv
+// gets the same side to repack them first (docs/images.md#formats): 103 ETC1S
+// images of 4096, as MAN80287 has, go to the budget's side.
+TEST_CASE(ktx2_images_over_the_side_are_encoded_again) {
+    Model model = texturedScan();
+    model.faces = 450000;
+    model.vertices = 225000;
+    model.images.clear();
+    for (int i = 0; i < 103; ++i) {
+        optimize::Image etc1s = image(4096, true);
+        etc1s.file = std::to_string(i) + ".ktx2";
+        etc1s.ktx2 = true;
+        etc1s.gpu_bytes_per_texel = 0.5;
+        model.images.push_back(etc1s);
+    }
+    model.occupancy = 0.47;
+    Recorder recorder(model);
+    optimize::plan(recorder, Settings{}, plenty);
+    CHECK(recorder.steps == (std::vector<std::string>{"normals", "weld", "dedup", "simplify", "uv", "ktx", "compress"}));
+    const std::vector<std::string>* ktx = optionsOf(recorder, "ktx");
+    CHECK(ktx != nullptr && *ktx == textureOptions("High", "1792"));
+    CHECK(*optionsOf(recorder, "uv") == (std::vector<std::string>{"--max-size", "1792"}));
+    CHECK(recorder.warnings.empty());
 }
 
 // Small images stay as they are unless there are so many that the model

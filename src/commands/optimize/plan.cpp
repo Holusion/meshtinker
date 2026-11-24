@@ -98,11 +98,20 @@ double texelsAt(const Image& image, std::uint32_t side) {
     return std::floor(image.width * scale) * std::floor(image.height * scale);
 }
 
+// A KTX2 image that ktx encodes again: only when its side shrinks it, which
+// accepts a second lossy round for the memory (docs/images.md#formats). avif
+// leaves KTX2 as it is.
+bool reencoded(const Image& image, const Settings& settings, std::uint32_t side) {
+    return image.ktx2 && textureCommand(settings) == "ktx" && image.longestSide() > side;
+}
+
 // The textures' GPU memory once the texture step has encoded them at `side`.
 double textureGpuBytesAt(const Model& model, const Settings& settings, std::uint32_t side, std::uint32_t min_size) {
     double bytes = 0;
     for (const Image& image : model.images) {
-        if (!encoded(image, min_size)) {
+        if (reencoded(image, settings, side)) {
+            bytes += texelsAt(image, side) * (image.color ? 0.5 : 1.0);
+        } else if (!encoded(image, min_size)) {
             bytes += double(image.width) * image.height * image.gpu_bytes_per_texel;
         } else if (textureCommand(settings) == "ktx") {
             bytes += texelsAt(image, side) * (image.color ? 0.5 : 1.0);
@@ -134,12 +143,6 @@ std::uint32_t minSize(const Model& model, const Settings& settings) {
     return small_ones && !fits && textureCommand(settings) == "ktx" ? 0 : small_image;
 }
 
-bool hasImagesToEncode(const Model& model, const Settings& settings) {
-    const std::uint32_t min_size = minSize(model, settings);
-    return std::any_of(model.images.begin(), model.images.end(),
-                       [&](const Image& image) { return encoded(image, min_size); });
-}
-
 // The largest side, in steps of 256 under the quality's, whose textures fit
 // the GPU budget with the geometry, and in fast, whose encoding fits its time.
 std::uint32_t textureSide(const Model& model, const Settings& settings, std::uint32_t min_size) {
@@ -153,6 +156,30 @@ std::uint32_t textureSide(const Model& model, const Settings& settings, std::uin
         side = std::max(fast_floor, side - side_step);
     }
     return side;
+}
+
+// KTX2 images that the texture step's side shrinks, and that ktx encodes again.
+bool hasKtx2ToShrink(const Model& model, const Settings& settings) {
+    const std::uint32_t side = textureSide(model, settings, minSize(model, settings));
+    return std::any_of(model.images.begin(), model.images.end(),
+                       [&](const Image& image) { return reencoded(image, settings, side); });
+}
+
+bool hasImagesToEncode(const Model& model, const Settings& settings) {
+    const std::uint32_t min_size = minSize(model, settings);
+    return std::any_of(model.images.begin(), model.images.end(),
+                       [&](const Image& image) { return encoded(image, min_size); }) ||
+           hasKtx2ToShrink(model, settings);
+}
+
+// uv bakes KTX2 images only when its --max-size shrinks them, as ktx encodes
+// them again: given the texture step's side when ktx will shrink some, so that
+// it repacks them first (docs/optimize.md#plan).
+std::vector<std::string> uvOptions(const Model& model, const Settings& settings) {
+    if (!hasKtx2ToShrink(model, settings)) {
+        return {};
+    }
+    return {"--max-size", std::to_string(textureSide(model, settings, minSize(model, settings)))};
 }
 
 bool overBudget(const Model& model) { return geometryGpuBytes(model) + textureGpuBytes(model) > gpu_budget; }
@@ -213,7 +240,9 @@ void plan(Steps& run, const Settings& settings, const Machine& machine) {
     if (model.hasGeometry()) run("weld");
     run("dedup");
     if (simplifies()) run("simplify", {"--error", number(error)});
-    if (model.hasTextures() && !fast && texturesWasteSpace(model) && uvFits(model, machine)) run("uv");
+    if (model.hasTextures() && !fast && texturesWasteSpace(model) && uvFits(model, machine)) {
+        run("uv", uvOptions(model, settings));
+    }
     if (hasImagesToEncode(model, settings)) run(textureCommand(settings), textureOptions(model, settings));
     if (overBudget(model)) run.warn("gpu-budget-exceeded", overBudgetMessage(model));
     if (model.hasGeometry()) run("compress");

@@ -58,7 +58,7 @@ async function ktx2FromPng(pngBytes, { uastc = false } = {}) {
   try {
     fs.writeFileSync(path.join(tmp, 'in.png'), pngBytes);
     const encoding = uastc
-      ? ['--format', 'R8G8B8A8_UNORM', '--encode', 'uastc', '--zstd', '18']
+      ? ['--format', 'R8G8B8A8_UNORM', '--encode', 'uastc', '--zstd', '18', '--assign-tf', 'linear']
       : ['--format', 'R8G8B8A8_SRGB', '--encode', 'basis-lz', '--assign-tf', 'srgb'];
     execFileSync('ktx', ['create', ...encoding, path.join(tmp, 'in.png'), path.join(tmp, 'out.ktx2')],
       { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -1359,23 +1359,25 @@ fixtures['ktx2-sources'] = async (dir) => {
     { name: 'Etc1sAlpha', alphaMode: 'BLEND', pbrMetallicRoughness: { baseColorTexture: { index: t(alpha) } } },
     { name: 'Uastc', normalTexture: { index: t(normal) }, pbrMetallicRoughness: { baseColorTexture: { index: t(color) } } },
   ];
+  // The ETC1S and UASTC quads sample a quarter of their images, for uv to repack.
+  const uvs = [[0, 0, 0.5, 0.5], [0, 0, 1, 1], [0, 0, 0.5, 0.5]];
   const nodes = materials.map((m, i) =>
-    b.meshNode([{ ...quad(b, { x0: 2 * i, x1: 2 * i + 1 }), material: b.add('materials', m) }], {}, m.name).node);
+    b.meshNode([{ ...quad(b, { x0: 2 * i, x1: 2 * i + 1, uv: uvs[i] }), material: b.add('materials', m) }], {}, m.name).node);
   b.json.extensionsUsed = ['KHR_texture_basisu'];
   b.json.extensionsRequired = ['KHR_texture_basisu'];
   b.json.scene = b.scene(nodes);
   b.write(path.join(dir, 'ktx2-sources.gltf'));
   writeExpected(dir, {
-    description: 'KTX2-only textures, as KTX-Software 4.4 encodes them: ETC1S color, ETC1S with an alpha gradient, and a UASTC normal map (zstd), 64×64 each.',
+    description: 'KTX2-only textures, as KTX-Software 4.4 encodes them: ETC1S color, ETC1S with an alpha gradient, and a UASTC normal map (zstd), 64×64 each. The color and normal images are sampled in their top-left quarter only.',
     geometry: { primitives: 3, vertices: 12, faces: 6 }, bounds: { min: [0, 0, 0], max: [5, 1, 0] },
     images: [
-      { name: 'color', mimeType: 'image/ktx2', codec: 'ETC1S', width: side, height: side, used: true },
-      { name: 'alpha', mimeType: 'image/ktx2', codec: 'ETC1S', width: side, height: side, used: true },
-      { name: 'normal', mimeType: 'image/ktx2', codec: 'UASTC', width: side, height: side, used: true },
+      { name: 'color', mimeType: 'image/ktx2', codec: 'ETC1S', width: side, height: side, used: true, occupancy: (34 * 34) / (side * side) },
+      { name: 'alpha', mimeType: 'image/ktx2', codec: 'ETC1S', width: side, height: side, used: true, occupancy: 1 },
+      { name: 'normal', mimeType: 'image/ktx2', codec: 'UASTC', width: side, height: side, used: true, occupancy: (34 * 34) / (side * side) },
     ],
     ktx2: {
       alpha: ['alpha.ktx2'],
-      why: 'ETC1S is BasisLZ-supercompressed; UASTC has vkFormat 0 and colorModel 166. Only alpha.ktx2 has an alpha slice, a gradient from 0 at the left to 255 at the right. Decoded, each image is close to the PNG it was encoded from: the four quadrants of the test pattern, or a smooth normal map pointing outwards from the center.',
+      why: 'ETC1S is BasisLZ-supercompressed; UASTC has vkFormat 0 and colorModel 166. Only alpha.ktx2 has an alpha slice, a gradient from 0 at the left to 255 at the right. The quarter-sampled images, with linear filtering and REPEAT wrapping, reach 34 texels a side: 0 to 32, and 63 across the wrap. Decoded, each image is close to the PNG it was encoded from: the four quadrants of the test pattern, or a smooth normal map pointing outwards from the center.',
     },
   });
 };

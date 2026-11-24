@@ -274,4 +274,9 @@ TEST_CASE(max_size_scales_down) {
     CHECK(normal != nullptr && normal->image.output_width == 20 && normal->image.output_height == 20);
     const Decoded decoded = decodeAvif(run.directory / "normal.avif");
     CHECK(decoded.ok && decoded.rgba.width == 20 && decoded.rgba.height == 20);
+    // An AVIF source is encoded again only when it is shrunk: 32 to 20. The
+    // 16-texel KTX2 source stays, as every KTX2 source does with avif.
+    const avif::EncodedImage* existing = find(run.report, "existing.avif");
+    CHECK(existing != nullptr && existing->image.output_width == 20);
+    CHECK(fs::exists(run.directory / "ktx-only.ktx2"));
 }

@@ -71,7 +71,10 @@ struct Model {
 };
 
 image::Image imageOf(const gltf::Document& document, std::size_t texture) {
-    const std::size_t source = document.json()["textures"][texture]["source"].get<std::size_t>();
+    const Json& texture_json = document.json()["textures"][texture];
+    const std::size_t source = texture_json.contains("source")
+                                   ? texture_json["source"].get<std::size_t>()
+                                   : texture_json["extensions"]["KHR_texture_basisu"]["source"].get<std::size_t>();
     std::string error;
     std::optional<image::Image> decoded = image::decode(document.image(source).bytes, error);
     return decoded ? *decoded : image::Image{};
@@ -229,6 +232,43 @@ TEST_CASE(what_is_left_as_it_is) {
     const Run alt = repack("alt-sources", "alt-sources");
     CHECK(groupWith(alt.report, "KtxOnly") != nullptr && groupWith(alt.report, "KtxOnly")->reason == "image-already-compressed");
     CHECK(groupWith(alt.report, "WebpOnly") != nullptr && groupWith(alt.report, "WebpOnly")->reason == "image-format-unsupported");
+}
+
+// KTX2 images are left as they are, unless --max-size shrinks them: then
+// they are baked into PNG, and the textures lose KHR_texture_basisu.
+TEST_CASE(ktx2_is_baked_only_when_shrunk) {
+    const Run kept = repack("ktx2-sources", "ktx2-kept");
+    const uv::Group* group = groupWith(kept.report, "Etc1s");
+    CHECK(group != nullptr && group->reason == "image-already-compressed");
+
+    // 48 is under the images' 64, and over the repacked pages: they are baked,
+    // and not resampled after.
+    uv::Options options;
+    options.max_size = 48;
+    const Run run = repack("ktx2-sources", "ktx2-shrunk", options);
+    group = groupWith(run.report, "Etc1s");
+    CHECK(group != nullptr && group->status == uv::Status::repacked);
+    CHECK(groupWith(run.report, "Uastc") == group);
+    if (group != nullptr) {
+        for (const uv::GroupImage& image : group->images) {
+            CHECK(image.output_width <= 48 && image.output_height <= 48);
+        }
+    }
+    // The fully used alpha image has nothing to gain, and stays KTX2.
+    const Json json = Json::parse(std::ifstream(run.model));
+    std::size_t basisu = 0;
+    for (const Json& texture : json["textures"]) {
+        if (texture.contains("extensions") && texture["extensions"].contains("KHR_texture_basisu")) {
+            ++basisu;
+        }
+    }
+    CHECK_EQ(basisu, std::size_t{1});
+    CHECK(json.contains("extensionsUsed"));
+    // Old textures at old UVs read close to new textures at new UVs: the
+    // ETC1S and UASTC blocks are baked as decoded.
+    const double difference =
+        largestDifference(test::fixture("ktx2-sources").model, run.model, test::workDirectory("uv/scratch-ktx2"));
+    CHECK(difference < 0.01);
 }
 
 TEST_CASE(max_size_scales_the_atlas_down) {

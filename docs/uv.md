@@ -9,7 +9,7 @@ meshtinker uv in.gltf out/ --max-size 4096
 
 ## Order in a pipeline
 
-`uv` runs before `ktx`. It doesn't decode KTX2: a material with a KTX2 texture is left as it is, with the warning `image-already-compressed`, whose message says to run `uv` first ([images.md](images.md#formats)). WebP and AVIF images are baked like PNG and JPEG where the build decodes them; a texture whose only source is a WebP or AVIF extension is left as it is (`image-format-unsupported`). `uv` runs best after `simplify`, on a mesh that xatlas packs in reasonable time ([Time and memory](#time-and-memory)).
+`uv` runs before `ktx`. A material with a KTX2 texture is left as it is, with the warning `image-already-compressed`, whose message says to run `uv` first, unless `--max-size` is under one of its KTX2 images' longest side: then the images are decoded and baked into PNG like the others, and the textures lose their `KHR_texture_basisu` source, for `ktx` to encode them again ([images.md](images.md#formats)). A texture's KTX2 source wins over a core one, since it is what viewers load. `optimize` passes `--max-size` only when its texture step will shrink KTX2 images. WebP and AVIF images are baked like PNG and JPEG where the build decodes them; a texture whose only source is a WebP or AVIF extension is left as it is (`image-format-unsupported`). `uv` runs best after `simplify`, on a mesh that xatlas packs in reasonable time ([Time and memory](#time-and-memory)).
 
 ## Repack, don't re-chart
 
@@ -55,7 +55,7 @@ Each of these is a counted warning, and the material is left as it is:
 - `KHR_texture_transform` (`uv-texture-transform`);
 - UVs outside [0, 1] on a `REPEAT` or `MIRRORED_REPEAT` sampler, which is tiling on purpose (`uv-texture-repeats`);
 - morph targets with `TEXCOORD_n` deltas (`uv-morphed-texcoords`);
-- images it can't decode: KTX2 (`image-already-compressed`, run `uv` before `ktx`), textures whose only source is a WebP or AVIF extension, and formats the build doesn't decode (`image-format-unsupported`), missing files (`image-missing`), and corrupt ones (`image-decode-failed`) ([images.md](images.md#formats));
+- KTX2 images within `--max-size` (`image-already-compressed`, run `uv` before `ktx`), and images it can't decode: textures whose only source is a WebP or AVIF extension, and formats the build doesn't decode (`image-format-unsupported`), missing files (`image-missing`), and corrupt ones (`image-decode-failed`) ([images.md](images.md#formats));
 - images that aren't whole multiples of each other in size (`uv-image-sizes`);
 - points, lines, or a primitive without the texture coordinate set its material uses (`uv-unreadable-geometry`);
 - a UV mesh xatlas refuses, or vertices left in no chart (`uv-pack-failed`, `uv-unplaced-vertices`).
@@ -87,6 +87,7 @@ There's no reference output to compare against ([validation.md](validation.md)).
 - **Sampled comparison**, as objatlas measures it: at 8 random points in every triangle, the source texture at the old UV against the new texture at the new UV, with bilinear filtering, on `scan-tiles`, `scan-meshes`, `atlas`, `occupancy` and `udim`. The largest difference must be under 0.01 of 255: whole-texel moves read the same texels under the same weights.
 - The `atlas` fixture: three charts spread over a 128×128 base color and a 64×64 normal map, and a second material sharing the base color, packed together, with the images' 2:1 ratio kept.
 - What is left as it is, on `occupancy` (texture transform, tiling, two texture coordinate sets, an image already full) and `alt-sources` (KTX2, WebP).
+- KTX2 on `ktx2-sources`: left without `--max-size`; with one under the images' side, ETC1S and UASTC images baked, sampling as before, and `KHR_texture_basisu` kept only for the image that had nothing to gain.
 - `--max-size`.
 - In a chain (`test/commands/chain_test.cpp`): a stage with no lossy round, then `ktx`, then `uv` warning on the KTX2 images.
 

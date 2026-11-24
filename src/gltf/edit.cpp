@@ -176,6 +176,33 @@ void useExtension(Json& json, const std::string& name, bool required) {
     }
 }
 
+void removeUnusedTextureExtension(Json& json, const std::string& name) {
+    if (json.contains("textures") && json["textures"].is_array()) {
+        for (const Json& texture : json["textures"]) {
+            if (texture.is_object() && texture.contains("extensions") && texture["extensions"].is_object() &&
+                texture["extensions"].contains(name)) {
+                return;
+            }
+        }
+    }
+    for (const char* list : {"extensionsUsed", "extensionsRequired"}) {
+        if (!json.contains(list) || !json[list].is_array()) {
+            continue;
+        }
+        Json kept = Json::array();
+        for (const Json& entry : json[list]) {
+            if (!(entry.is_string() && entry.get<std::string>() == name)) {
+                kept.push_back(entry);
+            }
+        }
+        if (kept.empty()) {
+            json.erase(list);
+        } else {
+            json[list] = std::move(kept);
+        }
+    }
+}
+
 bool needsMeshQuantization(const Json& json) {
     const std::size_t accessors = count(json, Kind::accessor);
     bool needed = false;

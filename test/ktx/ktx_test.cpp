@@ -222,6 +222,56 @@ TEST_CASE(max_size_scales_down) {
     CHECK(decoded.ok && decoded.width == 8 && decoded.levels == 4);
 }
 
+// KTX2 sources are kept as they are, unless --max-size shrinks them: then
+// they are decoded and encoded again, each for its slots (docs/images.md#formats).
+TEST_CASE(ktx2_sources_are_encoded_again_only_when_shrunk) {
+    Run kept = encode("ktx2-sources", "ktx2-kept");
+    CHECK(kept.report.encoded.empty());
+    CHECK_EQ(kept.report.skipped, std::uint64_t{0});
+    CHECK(kept.diagnostics.toJson().empty());
+    ktx::Options options;
+    options.max_size = 64;
+    Run same = encode("ktx2-sources", "ktx2-same-size", options);
+    CHECK(same.report.encoded.empty());
+
+    options.max_size = 32;
+    options.quality = ktx::Quality::thumb;
+    Run run = encode("ktx2-sources", "ktx2-shrunk", options);
+    CHECK_EQ(run.report.encoded.size(), std::size_t{3});
+    CHECK(run.diagnostics.toJson().empty());
+    struct Case {
+        const char* source;
+        ktx::Codec codec;
+        bool alpha;
+    };
+    for (const Case& c : {Case{"color.ktx2", ktx::Codec::etc1s, false}, Case{"alpha.ktx2", ktx::Codec::etc1s, true},
+                          Case{"normal.ktx2", ktx::Codec::uastc, false}}) {
+        const ktx::EncodedImage* image = find(run.report, c.source);
+        CHECK(image != nullptr);
+        if (image == nullptr) {
+            continue;
+        }
+        CHECK_EQ(image->source_format, std::string("image/ktx2"));
+        CHECK(image->codec == c.codec);
+        CHECK_EQ(image->alpha, c.alpha);
+        CHECK(image->output_width == 32 && image->output_height == 32);
+        const Decoded decoded = decodeKtx2(run.directory / image->output);
+        CHECK(decoded.ok && decoded.width == 32 && decoded.etc1s == (c.codec == ktx::Codec::etc1s));
+        // Close to the source, decoded and shrunk the same way.
+        const image::Image source = decodeSource(test::fixture("ktx2-sources").model.parent_path() / c.source);
+        const image::Image expected = image::resize(source, {32, 32},
+                                                    c.codec == ktx::Codec::uastc ? image::Content::normal
+                                                                                 : image::Content::srgb,
+                                                    c.alpha);
+        CHECK(psnr(decoded.level0, expected, c.alpha) > 25);
+    }
+    // Only the new files are left, each 32 texels wide.
+    CHECK_EQ(run.json["images"].size(), std::size_t{3});
+    for (const Json& image : run.json["images"]) {
+        CHECK(decodeKtx2(run.directory / image["uri"].get<std::string>()).width == 32);
+    }
+}
+
 // --min-size leaves small images as they are, without a warning.
 TEST_CASE(min_size_leaves_small_images) {
     ktx::Options options;

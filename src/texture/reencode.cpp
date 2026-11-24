@@ -92,18 +92,19 @@ bool contains(const std::vector<const char*>& names, const char* name) {
 // Whether image::decode reads this extension's sources in this build.
 bool decodable(const char* extension) {
     const std::string name = extension;
-    return (name == "EXT_texture_webp" && image::decodesWebp()) || (name == "EXT_texture_avif" && image::decodesAvif());
+    return (name == "EXT_texture_webp" && image::decodesWebp()) || (name == "EXT_texture_avif" && image::decodesAvif()) ||
+           name == "KHR_texture_basisu";
 }
 
 bool decodable(gltf::ImageFormat format) {
-    return format == gltf::ImageFormat::png || format == gltf::ImageFormat::jpeg ||
+    return format == gltf::ImageFormat::png || format == gltf::ImageFormat::jpeg || format == gltf::ImageFormat::ktx2 ||
            (format == gltf::ImageFormat::webp && image::decodesWebp()) ||
            (format == gltf::ImageFormat::avif && image::decodesAvif());
 }
 
 // "PNG and JPEG", or with the formats this build decodes besides.
 std::string decodedFormats() {
-    std::vector<std::string> formats = {"PNG", "JPEG"};
+    std::vector<std::string> formats = {"PNG", "JPEG", "KTX2"};
     if (image::decodesWebp()) {
         formats.emplace_back("WebP");
     }
@@ -163,31 +164,6 @@ void run(Job& job, const gltf::Document& document, std::uint32_t max_size, std::
 // their own, and are encoded several at a time (docs/images.md#memory-and-threads).
 constexpr std::uint64_t small_texels = std::uint64_t{1024} * 1024;
 
-void removeUnusedExtension(Json& json, const char* name, const Json& textures) {
-    for (const Json& texture : textures) {
-        const Json* extensions = child(texture, "extensions");
-        if (extensions != nullptr && child(*extensions, name) != nullptr) {
-            return;
-        }
-    }
-    for (const char* list : {"extensionsUsed", "extensionsRequired"}) {
-        if (!json.contains(list)) {
-            continue;
-        }
-        Json kept = Json::array();
-        for (const Json& entry : json[list]) {
-            if (!(entry.is_string() && entry.get<std::string>() == name)) {
-                kept.push_back(entry);
-            }
-        }
-        if (kept.empty()) {
-            json.erase(list);
-        } else {
-            json[list] = std::move(kept);
-        }
-    }
-}
-
 } // namespace
 
 Result reencode(const fs::path& input, const fs::path& directory, const std::string& stem, const Options& options,
@@ -233,14 +209,32 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
     };
     const Json empty = Json::array();
     const Json& textures = json.contains("textures") ? json["textures"] : empty;
+    // An image in the codec's own format is encoded again only when this step
+    // shrinks it, accepting a second lossy round for the memory
+    // (docs/images.md#formats).
+    const auto shrinks = [&](std::size_t image) {
+        const gltf::ImageData& data = document.image(layout.image_sources[image]);
+        return options.max_size != 0 && !data.missing && data.header && decodable(data.header->format) &&
+               std::max(data.header->width, data.header->height) > options.max_size;
+    };
     for (std::size_t t = 0; t < textures.size(); ++t) {
         const Json& texture = textures[t];
-        if (std::any_of(kept.begin(), kept.end(), [&](const char* name) { return sourceOf(texture, name).has_value(); })) {
+        const std::optional<std::size_t> own = sourceOf(texture, codec.extension());
+        if (std::any_of(kept.begin(), kept.end(), [&](const char* name) {
+                return std::string(name) != codec.extension() && sourceOf(texture, name).has_value();
+            })) {
             continue; // Kept as it is: not re-encoded.
         }
+        if (own && !shrinks(*own)) {
+            continue;
+        }
         // The core source first, the original where there is one; then the
-        // first extension source this build decodes.
+        // codec's own source when this step shrinks it; then the first
+        // extension source this build decodes.
         std::optional<std::size_t> source = sourceOf(texture, nullptr);
+        if (!source) {
+            source = own;
+        }
         std::optional<std::size_t> other;
         for (const SourceExtension& extension : source_extensions) {
             if (source || contains(kept, extension.name)) {
@@ -284,8 +278,10 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
             result.small.push_back(source_names[layout.image_sources[image]]);
             continue;
         }
-        if (data.header && data.header->format == gltf::ImageFormat::ktx2) {
-            skip(image, "image-already-compressed", "images already in KTX2 are left as they are");
+        const bool own_format = data.header && std::string(gltf::mimeType(data.header->format)) == codec.mimeType();
+        if (data.header && data.header->format == gltf::ImageFormat::ktx2 && !(own_format && shrinks(image))) {
+            skip(image, "image-already-compressed",
+                 "images already in KTX2 are left as they are, unless ktx's --max-size shrinks them");
             continue;
         }
         if (!data.header || !decodable(data.header->format)) {
@@ -416,7 +412,7 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
     if (!encoded.empty()) {
         gltf::useExtension(json, codec.extension(), true);
         for (const char* extension : replaced) {
-            removeUnusedExtension(json, extension, json["textures"]);
+            gltf::removeUnusedTextureExtension(json, extension);
         }
     }
     gltf::prune(layout);

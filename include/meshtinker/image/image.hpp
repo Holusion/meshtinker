@@ -1,6 +1,6 @@
 #pragma once
 
-// Decoded images, for the commands that change pixels (`uv`, `ktx`):
+// Decoded images, for the commands that change pixels (`uv`, `ktx`, `avif`):
 // decoding, channel analysis, resizing and writing (docs/images.md).
 
 #include "meshtinker/common/bytes.hpp"
@@ -31,9 +31,9 @@ struct Image {
 bool decodesWebp();
 bool decodesAvif();
 
-// Decodes PNG, JPEG, and WebP and AVIF where the build decodes them, from
-// `bytes`, the mapped file, to RGBA8. Higher bit depths are reduced to 8 bits;
-// an animated WebP isn't decoded. Empty if the bytes can't be decoded, with the decoder's
+// Decodes PNG, JPEG, KTX2 (ETC1S and UASTC, the first level), and WebP and
+// AVIF where the build decodes them, from `bytes`, the mapped file, to RGBA8.
+// Higher bit depths are reduced to 8 bits; an animated WebP isn't decoded. Empty if the bytes can't be decoded, with the decoder's
 // reason in `error`. Throws std::bad_alloc if the pixels don't fit in memory.
 std::optional<Image> decode(common::ByteView bytes, std::string& error);
 

@@ -17,6 +17,7 @@
 #endif
 
 #include <stb/stb_image.h>
+#include <transcoder/basisu_transcoder.h>
 #include <stb/stb_image_resize2.h>
 #include <stb/stb_image_write.h>
 
@@ -102,6 +103,48 @@ std::optional<Image> decodeAvif(common::ByteView bytes, std::string& error) {
 }
 #endif
 
+bool isKtx2(common::ByteView bytes) { return startsWith(bytes, 0, "\xABKTX 20\xBB\r\n\x1A\n"); }
+
+// KTX2 with ETC1S or UASTC, the codecs KHR_texture_basisu allows: the first
+// level, layer and face, transcoded by basisu to RGBA8, as three.js's
+// KTX2Loader transcodes for a GPU without a compressed format.
+std::optional<Image> decodeKtx2(common::ByteView bytes, std::string& error) {
+    static const bool initialized = (basist::basisu_transcoder_init(), true);
+    static_cast<void>(initialized);
+    if (bytes.size > std::numeric_limits<std::uint32_t>::max()) {
+        error = "the KTX2 file is over 4 GiB";
+        return std::nullopt;
+    }
+    basist::ktx2_transcoder transcoder;
+    if (!transcoder.init(bytes.data, static_cast<std::uint32_t>(bytes.size))) {
+        error = "not a KTX2 file basisu transcodes: only ETC1S and UASTC are";
+        return std::nullopt;
+    }
+    if (!transcoder.is_etc1s() && !transcoder.is_uastc()) {
+        error = "KTX2 other than ETC1S and UASTC";
+        return std::nullopt;
+    }
+    if (!transcoder.start_transcoding()) {
+        error = "the KTX2 file's ETC1S tables can't be read";
+        return std::nullopt;
+    }
+    Image image;
+    image.width = transcoder.get_width();
+    image.height = transcoder.get_height();
+    image.source_channels = transcoder.get_has_alpha() ? 4 : 3;
+    if (image.texels() > std::numeric_limits<std::uint32_t>::max()) {
+        error = "the KTX2 image has over 4 G texels";
+        return std::nullopt;
+    }
+    image.pixels.resize(image.texels() * 4);
+    if (!transcoder.transcode_image_level(0, 0, 0, image.pixels.data(), static_cast<std::uint32_t>(image.texels()),
+                                          basist::transcoder_texture_format::cTFRGBA32)) {
+        error = "basisu couldn't transcode the KTX2 file's first level";
+        return std::nullopt;
+    }
+    return image;
+}
+
 } // namespace
 
 bool decodesWebp() {
@@ -121,6 +164,9 @@ bool decodesAvif() {
 }
 
 std::optional<Image> decode(common::ByteView bytes, std::string& error) {
+    if (isKtx2(bytes)) {
+        return decodeKtx2(bytes, error);
+    }
 #ifdef MESHTINKER_DECODES_WEBP
     if (isWebp(bytes)) {
         return decodeWebp(bytes, error);

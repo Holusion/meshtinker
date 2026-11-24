@@ -187,6 +187,45 @@ TEST_CASE(avif_decodes) {
     }
 }
 
+// KTX2 decodes through basisu's transcoder: ETC1S close to the generator's
+// pattern, ETC1S with its alpha slice, UASTC (zstd) normals.
+TEST_CASE(ktx2_decodes) {
+    std::string error;
+    const std::vector<std::uint8_t> color = fixtureFile("ktx2-sources", "color.ktx2");
+    std::optional<Image> decoded = decode(view(color), error);
+    CHECK(decoded && decoded->width == 64 && decoded->height == 64 && decoded->source_channels == 3);
+    if (decoded) {
+        const std::vector<std::uint8_t> expected = pattern(64, 64, 1);
+        double difference = 0;
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+            difference += std::abs(int(decoded->pixels[i]) - int(expected[i]));
+        }
+        CHECK(difference / double(expected.size()) < 8);
+    }
+    const std::vector<std::uint8_t> alpha = fixtureFile("ktx2-sources", "alpha.ktx2");
+    decoded = decode(view(alpha), error);
+    CHECK(decoded && decoded->source_channels == 4);
+    if (decoded) {
+        // The alpha gradient: 0 at the left, 255 at the right.
+        CHECK(decoded->pixels[3] < 16);
+        CHECK(decoded->pixels[63 * 4 + 3] > 239);
+    }
+    const std::vector<std::uint8_t> normal = fixtureFile("ktx2-sources", "normal.ktx2");
+    decoded = decode(view(normal), error);
+    CHECK(decoded && decoded->source_channels == 3);
+    if (decoded) {
+        // Near the center the normal points up the tangent space's Z.
+        const std::size_t center = (32 * 64 + 32) * 4;
+        CHECK(std::abs(int(decoded->pixels[center]) - 128) < 8);
+        CHECK(std::abs(int(decoded->pixels[center + 1]) - 128) < 8);
+        CHECK(decoded->pixels[center + 2] > 245);
+    }
+    // A truncated file fails with a reason.
+    const std::vector<std::uint8_t> cut(color.begin(), color.begin() + 80);
+    error.clear();
+    CHECK(!decode(view(cut), error) && !error.empty());
+}
+
 TEST_CASE(channel_analysis) {
     Image gray = filled(4, 4, 90, 90, 90, 255);
     Channels channels = analyze(gray);
