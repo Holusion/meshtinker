@@ -1,5 +1,7 @@
 #include "meshtinker/texture/reencode.hpp"
 
+#include "meshtinker/common/format.hpp"
+#include "meshtinker/common/log.hpp"
 #include "meshtinker/gltf/edit.hpp"
 #include "meshtinker/gltf/graph.hpp"
 #include "meshtinker/gltf/layout.hpp"
@@ -319,20 +321,29 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
 
     std::vector<Encoded> encoded;
     const std::vector<const char*> replaced = codec.replacedExtensions();
+    // Each image is logged as it is done, for callers following progress
+    // (docs/logs.md), in the order they finish: large ones first.
+    std::size_t done = 0;
     const auto finish = [&](Job& job) {
         const std::size_t source = layout.image_sources[job.source];
         const gltf::ImageData& data = document.image(source);
         const std::string& source_name = source_names[source];
+        const std::string position = "image " + std::to_string(++done) + " of " + std::to_string(jobs.size());
         if (!job.decoded) {
+            common::logger().info("Left " + position + " as it was: " + source_name + " can't be decoded");
             skip(job.source, "image-decode-failed", "images that can't be decoded are left as they are (" + job.error + ")");
             return;
         }
         if (!job.file) {
+            common::logger().info("Left " + position + " as it was: " + codec.library() + " can't encode " + source_name);
             skip(job.source, "image-encode-failed",
                  std::string("images ") + codec.library() + " can't encode are left as they are (" + job.error + ")");
             return;
         }
         if (codec.keepsSmallerSource() && job.file->size() >= data.bytes.size) {
+            common::logger().info("Kept " + position + " as it was: " + source_name + " is " +
+                                  common::formatBytes(data.bytes.size) + ", the new file would be " +
+                                  common::formatBytes(job.file->size()));
             result.not_smaller.push_back(source_name);
             job.file.reset();
             return;
@@ -375,6 +386,10 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
         entry.bytes_before = data.bytes.size;
         entry.bytes_after = size;
         entry.seconds = job.seconds;
+        common::logger().info("Encoded " + position + ": " + source_name + " " + std::to_string(job.width) + "x" +
+                              std::to_string(job.height) + " -> " + name + " " + std::to_string(job.size.width) + "x" +
+                              std::to_string(job.size.height) + ", " + common::formatBytes(data.bytes.size) + " -> " +
+                              common::formatBytes(size) + " in " + common::formatDuration(job.seconds));
         encoded.push_back(std::move(entry));
     };
 

@@ -1,5 +1,7 @@
 #include "meshtinker/common/diagnostics.hpp"
 
+#include "meshtinker/common/log.hpp"
+
 #include <algorithm>
 
 namespace meshtinker::common {
@@ -33,17 +35,17 @@ nlohmann::ordered_json Diagnostics::toJson() const {
     return list;
 }
 
-void Diagnostics::print(std::ostream& out, const std::string& program) const {
+void Diagnostics::log() const {
     for (const Diagnostic& d : entries_) {
-        out << program << ": " << severityName(d.severity) << ": " << d.message << " [" << d.code << "]";
+        std::string message = d.message;
         if (d.count > 1 || !d.examples.empty()) {
-            out << " (" << d.count << (d.count == 1 ? " time" : " times");
+            message += " (" + std::to_string(d.count) + (d.count == 1 ? " time" : " times");
             for (std::size_t i = 0; i < d.examples.size(); ++i) {
-                out << (i == 0 ? ", e.g. " : "; ") << d.examples[i];
+                message += (i == 0 ? ", e.g. " : "; ") + d.examples[i];
             }
-            out << ")";
+            message += ")";
         }
-        out << '\n';
+        logger().write(d.severity == Severity::error ? LogLevel::error : LogLevel::warn, message, d.code);
     }
 }
 

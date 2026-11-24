@@ -2,6 +2,7 @@
 
 #include "meshtinker/chain/chain.hpp"
 #include "meshtinker/common/diagnostics.hpp"
+#include "meshtinker/common/log.hpp"
 #include "meshtinker/common/outputs.hpp"
 #include "meshtinker/common/run.hpp"
 #include "meshtinker/common/workspace.hpp"
@@ -45,7 +46,9 @@ enum class OutputFormats : std::uint8_t { gltf, gltf_or_glb };
 
 // A subcommand's command line, declared once: its options and their help text
 // go through CLI11, and `--help` is generated from them. The standard options
-// below keep their names and wording the same in every command.
+// below keep their names and wording the same in every command. Every command
+// takes `--log-level` and `--log-format`, which run() declares last and which
+// configure common::logger().
 class Command {
 public:
     // `name` without the `meshtinker-` prefix. `summary` is the one line the
@@ -84,6 +87,11 @@ public:
     void addWorkspaceOptions();
 
     bool json() const { return json_; }
+    common::LogLevel logLevel() const { return log_level_; }
+    common::LogFormat logFormat() const { return log_format_; }
+    // `--log-level` and `--log-format` as given, when they aren't the
+    // defaults, for a command to pass on to the commands it runs.
+    std::vector<std::string> logArguments() const;
     bool trusted() const { return trusted_; }
     // The model to read: the input as given, or the last stage's model when
     // the input is a chain.
@@ -129,12 +137,13 @@ public:
     //
     // Command-line errors exit with 2, including a chain given an output it
     // doesn't take. An exception from `body` is reported through
-    // common::describeFailure. Diagnostics go to stderr, after the error if
-    // there is one. With --json, a failure prints
+    // common::describeFailure. The error and the diagnostics go to
+    // common::logger(), the error first. With --json, a failure prints
     // `{format, tool, error: {code, exitCode, message}, diagnostics}` on stdout.
     int run(int argc, char** argv, const std::function<int()>& body);
 
 private:
+    void addLogOptions();
     void reportFailure(const common::FailureReport& failure, bool json_requested);
     // Decides between file and chain mode once the command line is parsed.
     void resolve();
@@ -150,6 +159,10 @@ private:
     std::optional<std::filesystem::path> output_;
     CLI::Option* output_option_ = nullptr;
     bool json_ = false;
+    common::LogLevel log_level_ = common::LogLevel::info;
+    common::LogFormat log_format_ = common::LogFormat::text;
+    std::string log_level_name_ = "info";
+    std::string log_format_name_ = "text";
     bool trusted_ = false;
     std::optional<std::filesystem::path> tmp_dir_;
     bool keep_tmp_ = false;

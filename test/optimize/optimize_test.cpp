@@ -10,7 +10,10 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <algorithm>
 #include <fstream>
+#include <iterator>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -30,6 +33,7 @@ std::string quote(const std::string& text) { return "'" + text + "'"; }
 struct Run {
     int code = -1;
     Json json;
+    std::string err;
 };
 
 Run optimize(const std::vector<std::string>& arguments, const fs::path& work) {
@@ -38,12 +42,16 @@ Run optimize(const std::vector<std::string>& arguments, const fs::path& work) {
         line += " " + quote(argument);
     }
     const fs::path out = work / "stdout.json";
-    line += " > " + quote(out.string()) + " 2>/dev/null";
+    // Beside the work directory, which tests expect to hold only outputs.
+    const fs::path err = work.parent_path() / (work.filename().string() + "-stderr.log");
+    line += " > " + quote(out.string()) + " 2> " + quote(err.string());
     const int status = std::system(line.c_str());
     Run result;
     result.code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     std::ifstream stream(out);
     result.json = Json::parse(stream, nullptr, false);
+    std::ifstream err_stream(err);
+    result.err.assign(std::istreambuf_iterator<char>(err_stream), std::istreambuf_iterator<char>());
     return result;
 }
 
@@ -85,6 +93,37 @@ TEST_CASE(scan_through_every_step) {
     CHECK(run.json["output"]["gpuBytes"].get<std::uint64_t>() < run.json["input"]["gpuBytes"].get<std::uint64_t>());
     CHECK(gltf::Document::read(output).data().meshes_count > 0);
     CHECK(onlyHolds(work, {"scan.glb", "stdout.json"}));
+}
+
+// --log-format json reaches every step: stderr is JSON lines only, each step
+// logged as it starts and ends, and the options at debug.
+TEST_CASE(json_logs_reach_every_step) {
+    const fs::path work = test::workDirectory("optimize/logs");
+    const Run run = optimize({"--log-format", "json", "--log-level", "debug", "--quality", "Thumb",
+                              test::fixture("bare").model.string(), (work / "bare.glb").string()},
+                             work);
+    CHECK_EQ(run.code, 0);
+    std::istringstream lines(run.err);
+    std::vector<std::string> messages;
+    for (std::string line; std::getline(lines, line);) {
+        const Json object = Json::parse(line, nullptr, false);
+        CHECK(object.is_object());
+        if (object.is_object()) {
+            CHECK(object.contains("level"));
+            messages.push_back(object.value("message", std::string()));
+        }
+    }
+    CHECK(std::find(messages.begin(), messages.end(), "Running import") != messages.end());
+    CHECK(std::find(messages.begin(), messages.end(), "Running export") != messages.end());
+    CHECK(std::find_if(messages.begin(), messages.end(), [](const std::string& m) {
+              return m.rfind("export took ", 0) == 0;
+          }) != messages.end());
+    CHECK(std::find_if(messages.begin(), messages.end(), [](const std::string& m) {
+              return m.rfind("meshtinker-import --json --log-level debug --log-format json", 0) == 0;
+          }) != messages.end());
+    for (const Json& step : run.json["steps"]) {
+        CHECK_EQ(step["argv"][1].get<std::string>(), std::string("--log-level"));
+    }
 }
 
 namespace {

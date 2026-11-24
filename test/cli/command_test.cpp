@@ -77,7 +77,7 @@ TEST_CASE(failures_keep_their_exit_code_and_diagnostics) {
     const auto report = nlohmann::json::parse(result.out);
     CHECK_EQ(report.at("error").at("code").get<std::string>(), std::string("invalid-gltf"));
     CHECK_EQ(report.at("diagnostics").at(0).at("count").get<int>(), 2);
-    CHECK(result.err.find("warning: Something odd [odd-thing] (2 times, e.g. mesh 0; mesh 1)") != std::string::npos);
+    CHECK(result.err.find("warning: Something odd (2 times, e.g. mesh 0; mesh 1) [odd-thing]") != std::string::npos);
 }
 
 TEST_CASE(unexpected_exceptions_are_internal_errors) {
@@ -100,6 +100,60 @@ TEST_CASE(success_prints_diagnostics_on_stderr_only) {
     CHECK_EQ(result.code, 0);
     CHECK(result.out.empty());
     CHECK_EQ(result.err, std::string("meshtinker-test: warning: Something odd [odd-thing]\n"));
+}
+
+// --log-format json writes stderr as one object per line, with the
+// diagnostic's or the failure's code.
+TEST_CASE(json_logs_are_one_object_per_line) {
+    cli::Command command("test", "Do a test thing");
+    configure(command);
+    const Result result = runCommand(command, {"--log-format", "json"}, [&]() -> int {
+        command.diagnostics().warn("odd-thing", "Something odd", "mesh 0");
+        throw common::rejected("invalid-gltf", "bad model");
+    });
+    CHECK_EQ(result.code, 1);
+    std::istringstream lines(result.err);
+    std::vector<nlohmann::json> objects;
+    for (std::string line; std::getline(lines, line);) {
+        objects.push_back(nlohmann::json::parse(line));
+    }
+    CHECK_EQ(objects.size(), std::size_t{2});
+    CHECK_EQ(objects.at(0), nlohmann::json::parse(R"({"level":"error","message":"bad model","code":"invalid-gltf"})"));
+    CHECK_EQ(objects.at(1),
+             nlohmann::json::parse(R"j({"level":"warn","message":"Something odd (1 time, e.g. mesh 0)","code":"odd-thing"})j"));
+}
+
+// A wrong command line is reported in the format asked for, though CLI11
+// didn't get to parse it.
+TEST_CASE(usage_errors_follow_the_log_format) {
+    cli::Command command("test", "Do a test thing");
+    configure(command);
+    const Result result = runCommand(command, {"--log-format=json", "--nope"}, [] { return 0; });
+    CHECK_EQ(result.code, 2);
+    std::istringstream lines(result.err);
+    std::string line;
+    CHECK(std::getline(lines, line));
+    const auto error = nlohmann::json::parse(line);
+    CHECK_EQ(error.at("level").get<std::string>(), std::string("error"));
+    CHECK_EQ(error.at("code").get<std::string>(), std::string("usage"));
+    CHECK(std::getline(lines, line));
+    CHECK_EQ(nlohmann::json::parse(line).at("level").get<std::string>(), std::string("info"));
+}
+
+TEST_CASE(log_level_drops_what_is_below) {
+    cli::Command command("test", "Do a test thing");
+    configure(command);
+    const Result result = runCommand(command, {"--log-level", "error"}, [&] {
+        command.diagnostics().warn("odd-thing", "Something odd");
+        common::logger().info("quiet");
+        return 0;
+    });
+    CHECK_EQ(result.code, 0);
+    CHECK(result.err.empty());
+    CHECK(command.logArguments() == (std::vector<std::string>{"--log-level", "error"}));
+    cli::Command other("test", "Do a test thing");
+    CHECK_EQ(runCommand(other, {"--log-level", "warning"}, [] { return 0; }).code, 2);
+    CHECK(other.logArguments().empty());
 }
 
 TEST_CASE(diagnostics_keep_three_examples) {

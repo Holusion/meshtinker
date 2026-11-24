@@ -1,11 +1,11 @@
 #include "meshtinker/common/workspace.hpp"
 
 #include "meshtinker/common/failure.hpp"
+#include "meshtinker/common/log.hpp"
 
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
-#include <iostream>
 #include <memory>
 #include <limits>
 #include <random>
@@ -61,7 +61,7 @@ Workspace::~Workspace() {
         return;
     }
     if (keep_) {
-        std::cerr << "Kept workspace: " << path_->string() << '\n';
+        logger().info("Kept workspace: " + path_->string());
         return;
     }
     std::error_code ignored;

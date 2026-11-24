@@ -2,10 +2,12 @@
 
 #include "meshtinker/common/cleanup.hpp"
 #include "meshtinker/common/failure.hpp"
+#include "meshtinker/common/log.hpp"
 
 #include <cerrno>
 #include <cstring>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -29,6 +31,23 @@ bool hasExtension(const std::string& value, const char* extension) {
 
 common::Failure usageFailure(const std::string& message) {
     return common::Failure(common::ExitCode::usage, "usage", message);
+}
+
+// The value of `option` in `argv`, as `option value` or `option=value`, read
+// before CLI11 parses the command line: a command line it rejects is reported
+// in the format asked for. The last one given wins, as in CLI11.
+std::optional<std::string> scanOption(int argc, char** argv, const std::string& option) {
+    std::optional<std::string> value;
+    const std::string prefix = option + "=";
+    for (int i = 1; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == option && i + 1 < argc) {
+            value = argv[i + 1];
+        } else if (argument.rfind(prefix, 0) == 0) {
+            value = argument.substr(prefix.size());
+        }
+    }
+    return value;
 }
 
 } // namespace
@@ -223,13 +242,35 @@ void Command::publish(const nlohmann::ordered_json& report) {
     }
 }
 
+std::vector<std::string> Command::logArguments() const {
+    std::vector<std::string> arguments;
+    if (log_level_ != common::LogLevel::info) {
+        arguments.insert(arguments.end(), {"--log-level", common::logLevelName(log_level_)});
+    }
+    if (log_format_ != common::LogFormat::text) {
+        arguments.insert(arguments.end(), {"--log-format", "json"});
+    }
+    return arguments;
+}
+
 nlohmann::ordered_json Command::jsonHeader(int format) const {
     return {{"format", format}, {"tool", {{"name", program()}, {"version", version()}}}};
 }
 
+void Command::addLogOptions() {
+    // Names, checked here and converted once parsed: CLI11's message for a
+    // wrong value is clearer than with a transformer.
+    app_.add_option("--log-level", log_level_name_, "Print stderr messages of this level and above (default info)")
+        ->check(CLI::IsMember({"trace", "debug", "info", "warn", "error"}))
+        ->option_text("<trace|debug|info|warn|error>");
+    app_.add_option("--log-format", log_format_name_, "Write stderr messages as text, or as JSON lines (default text)")
+        ->check(CLI::IsMember({"text", "json"}))
+        ->option_text("<text|json>");
+}
+
 void Command::reportFailure(const common::FailureReport& failure, bool json_requested) {
-    std::cerr << program() << ": error: " << failure.message << '\n';
-    diagnostics_.print(std::cerr, program());
+    common::logger().error(failure.message, failure.code);
+    diagnostics_.log();
     if (json_requested) {
         nlohmann::ordered_json report = jsonHeader();
         report["error"] = {{"code", failure.code},
@@ -242,15 +283,22 @@ void Command::reportFailure(const common::FailureReport& failure, bool json_requ
 
 int Command::run(int argc, char** argv, const std::function<int()>& body) {
     common::installInterruptCleanup();
+    // Declared here, after the command's own options, so that they end --help.
+    addLogOptions();
     if (argc == 2 && std::strcmp(argv[1], "--summary") == 0) {
         std::cout << summary_ << '\n';
         return 0;
     }
-    // --json must hold even when the command line itself is wrong.
+    // --json and the log options must hold even when the command line itself
+    // is wrong. An invalid value keeps the default, and the parse error says so.
     bool json_requested = false;
     for (int i = 1; i < argc; ++i) {
         json_requested = json_requested || std::strcmp(argv[i], "--json") == 0;
     }
+    const std::optional<std::string> level = scanOption(argc, argv, "--log-level");
+    const std::optional<std::string> format = scanOption(argc, argv, "--log-format");
+    common::logger().configure(program(), common::parseLogLevel(level.value_or("")).value_or(log_level_),
+                               common::parseLogFormat(format.value_or("")).value_or(log_format_));
     try {
         app_.parse(argc, argv);
     } catch (const CLI::CallForHelp&) {
@@ -267,14 +315,17 @@ int Command::run(int argc, char** argv, const std::function<int()>& body) {
             message.erase(0, prefix.size());
         }
         reportFailure({common::ExitCode::usage, "usage", message}, json_requested);
-        std::cerr << "Run '" << app_.get_name() << " --help' for usage.\n";
+        common::logger().info("Run '" + app_.get_name() + " --help' for usage.");
         return common::toInt(common::ExitCode::usage);
     }
+    log_level_ = common::parseLogLevel(log_level_name_).value_or(common::LogLevel::info);
+    log_format_ = common::parseLogFormat(log_format_name_).value_or(common::LogFormat::text);
+    common::logger().configure(program(), log_level_, log_format_);
     argv_.assign(argv, argv + argc);
     try {
         resolve();
         const int code = body();
-        diagnostics_.print(std::cerr, program());
+        diagnostics_.log();
         return code;
     } catch (...) {
         // A command that deferred interruptions unwinds first, so that its
@@ -285,7 +336,7 @@ int Command::run(int argc, char** argv, const std::function<int()>& body) {
         const common::FailureReport failure = common::describeFailure(std::current_exception());
         reportFailure(failure, json_);
         if (failure.exit_code == common::ExitCode::usage) {
-            std::cerr << "Run '" << app_.get_name() << " --help' for usage.\n";
+            common::logger().info("Run '" + app_.get_name() + " --help' for usage.");
         }
         return common::toInt(failure.exit_code);
     }
