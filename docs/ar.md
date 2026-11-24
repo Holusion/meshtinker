@@ -68,15 +68,16 @@ What USD's preview material can't say is dropped, with one counted warning per k
 
 ## Making the two match
 
-`export` writes a chain's stage, and `--stage` picks one other than the last ([chaining.md](chaining.md)), so one linear chain gives both files:
+`export` writes a chain's stage, and `--stage` picks one other than the last ([chaining.md](chaining.md)), so one linear chain gives both files. Both branch from the stage before the texture step, and each encodes the images once, at the same side:
 
 ```
-import → normals → weld → dedup → simplify → resize
-                                               ├── export --stage N  → model.usdz
-                                               └── ktx → compress → export → model.glb
+import → normals → weld → dedup → simplify → (uv)
+                                               ├── export --stage N --max-size S  → model.usdz
+                                               └── ktx --max-size S → compress → export → model.glb
 ```
 
-- **`resize`** is a new transform: it brings images over a side down to it, and writes them as PNG, so that each branch adds only one lossy round of its own (`ktx` to KTX2, `export` to JPEG). Images at the side or under it are left as they are, so a JPEG source goes into the USDZ untouched. `ktx` then has nothing left to resize.
+- **The USDZ export sizes its images itself.** It has to decode and encode every image that isn't PNG or JPEG anyway, so it is a third user of the `texture` namespace, beside `ktx` and `avif`: the same slot rules, resampler and threads, with a JPEG and PNG codec, and the same `--max-size`. A PNG or JPEG image already within the side is copied as it is. Given the same side, `ktx` and the export resize alike, so the two outputs' images have the same sizes.
+- **No resizing stage of its own.** A transform that resized before `ktx` would add nothing that `ktx`, `avif` and `uv` don't do with `--max-size` already, and its stage would have to hold PNG, since a JPEG there would give the GLB a second lossy round (JPEG, then KTX2), with `repeated-lossy-image-encoding`.
 - **The two outputs share** the geometry, the images' sides, the materials and the node tree. They differ in the geometry's quantization (meshopt's, on the GLB only), the image codecs, and what USD can't say.
 - **`optimize --quality AR in.glb out.glb --usdz out.usdz`** runs this chain and writes both files. It has Medium's error and image side, and its GPU budget is computed with 4 bytes per texel, the USDZ's, whatever the GLB's KTX2 needs.
 
