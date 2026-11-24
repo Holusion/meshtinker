@@ -48,7 +48,7 @@ How eCorpus's current figures map to the report, and where they differ, is in [i
 `tools/viewer/` renders models as eCorpus's viewer, Voyager, loads them, without a GPU or eCorpus's server:
 
 - `serve.py` serves folders of models on 127.0.0.1, beside three.js from the Voyager checkout in `../eCorpus/source/voyager` (three.js 0.184) and Voyager's own built pages.
-- `view.html` loads a model with three.js's `GLTFLoader` set up as Voyager's `ModelReader` sets it up (Draco, meshopt, KTX2 through the Basis transcoder; WebP and AVIF through the browser), computes normals where a primitive has none, as Voyager does, and frames the scene from a given azimuth, elevation and zoom, under a neutral room environment.
+- `view.html` loads a model with three.js's `GLTFLoader` set up as Voyager's `ModelReader` sets it up (Draco, meshopt, KTX2 through the Basis transcoder; WebP and AVIF through the browser), computes normals where a primitive has none, as Voyager does, and frames the scene from a given azimuth, elevation and zoom, under a neutral room environment. For views from inside a model (a cave, a room), `eye=x,y,z` places the camera at a point instead, in fractions of the scene's bounds as `target` is, with the directional light at the eye; `compare.py` takes it as `--view eye=EX,EY,EZ,TX,TY,TZ`.
 - `screenshot.mjs` drives headless Chromium (`/usr/bin/chromium`, SwiftShader for WebGL) over its DevTools protocol, with no npm dependency, and prints the page's errors and warnings.
 - `compare.py` puts several models side by side, one row per view, with ImageMagick's `montage`.
 

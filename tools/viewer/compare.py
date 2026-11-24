@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Side-by-side renders of models, one column per model and one row per view:
 
-    python3 tools/viewer/compare.py OUT.png [--view AZ,EL,ZOOM[,TX,TY,TZ]]... [--size 800x600] LABEL=URLPATH...
+    python3 tools/viewer/compare.py OUT.png [--view AZ,EL,ZOOM[,TX,TY,TZ] | --view eye=EX,EY,EZ,TX,TY,TZ]...
+        [--size 800x600] LABEL=URLPATH...
 
 URLPATH is a model's path on tools/viewer/serve.py's server (which must be running, on --port), such as
 /khronos/DamagedHelmet/glTF-Binary/DamagedHelmet.glb. Each view is the camera's azimuth and elevation in degrees,
 a zoom factor (1 frames the whole scene) and, optionally, the point looked at as fractions of the scene's bounds.
+A view starting with eye= places the camera at a point instead, in the same fractions, for views from inside.
 Renders go through view.html and screenshot.mjs; ImageMagick's montage assembles them.
 """
 import argparse
@@ -35,9 +37,13 @@ def main():
             parts = view.split(",")
             for m, model in enumerate(args.models):
                 label, _, path = model.partition("=")
-                query = {"model": path, "az": parts[0], "el": parts[1], "zoom": parts[2]}
-                if len(parts) == 6:
-                    query["target"] = ",".join(parts[3:])
+                if view.startswith("eye="):
+                    parts = view[len("eye="):].split(",")
+                    query = {"model": path, "eye": ",".join(parts[:3]), "target": ",".join(parts[3:6])}
+                else:
+                    query = {"model": path, "az": parts[0], "el": parts[1], "zoom": parts[2]}
+                    if len(parts) == 6:
+                        query["target"] = ",".join(parts[3:])
                 url = f"http://127.0.0.1:{args.port}/view.html?" + urllib.parse.urlencode(query)
                 tile = os.path.join(tmp, f"{v}-{m}.png")
                 result = subprocess.run(["node", os.path.join(HERE, "screenshot.mjs"), tile, url, "--size", args.size,
