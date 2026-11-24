@@ -3,6 +3,8 @@
 #include "support/fixtures.hpp"
 
 #include <fstream>
+#include <optional>
+#include <string>
 
 namespace fs = std::filesystem;
 using meshtinker::common::References;
@@ -61,4 +63,29 @@ TEST_CASE(trusted_references_go_anywhere_but_must_be_files) {
     CHECK(references.resolve(job, (root / "outside" / "s.txt").string()).has_value());
     CHECK(!references.resolve(job, "https://example.com/m.bin").has_value());
     CHECK(!references.resolve(job, "tex").has_value());
+}
+
+// locate() reads the text alone: files that aren't there are located, and
+// only what the text refuses is refused.
+TEST_CASE(locate_reads_the_text_only) {
+    const fs::path root = makeTree();
+    const References confined = References::forInput(root / "job", false);
+    using Located = std::optional<std::string>;
+    CHECK(confined.locate("m.bin") == Located("m.bin"));
+    CHECK(confined.locate("not-yet/uploaded.png") == Located("not-yet/uploaded.png"));
+    CHECK(confined.locate("./tex/../tex//a.png") == Located("tex/a.png"));
+    CHECK(confined.locate("tex\\a.png") == Located("tex/a.png"));
+    CHECK(!confined.locate("../beside.txt"));
+    CHECK(!confined.locate("tex/../../beside.txt"));
+    CHECK(!confined.locate("/etc/hosts"));
+    CHECK(!confined.locate("http://example.com/a.png"));
+    CHECK(!confined.locate("C:/a.png"));
+    CHECK(!confined.locate("tex/.."));
+    CHECK(!confined.locate(""));
+
+    const References trusted = References::forInput(root / "job", true);
+    CHECK(trusted.locate("../beside.txt") == Located("../beside.txt"));
+    CHECK(trusted.locate("tex/../../outside/s.txt") == Located("../outside/s.txt"));
+    CHECK(trusted.locate("/data/./x/../a.png") == Located("/data/a.png"));
+    CHECK(!trusted.locate("http://example.com/a.png"));
 }

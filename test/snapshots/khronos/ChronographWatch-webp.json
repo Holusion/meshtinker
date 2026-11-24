@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 5396317,
     "files": [
@@ -55,6 +56,35 @@
       }
     ]
   },
+  "requires": [
+    [
+      "ChronographWatch.data.bin"
+    ],
+    [
+      "watchface_basecolor.webp"
+    ],
+    [
+      "watchface_orm.webp"
+    ],
+    [
+      "dgg_basecolor.webp"
+    ],
+    [
+      "dgg_rm.webp"
+    ],
+    [
+      "band_occlusion.webp"
+    ],
+    [
+      "khronos_rm.webp"
+    ],
+    [
+      "carbonfiber_normal.webp"
+    ],
+    [
+      "khronos_basecolor.webp"
+    ]
+  ],
   "extensions": {
     "used": [
       "EXT_texture_webp",

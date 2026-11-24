@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 3242,
     "files": [
@@ -30,6 +31,20 @@
       }
     ]
   },
+  "requires": [
+    [
+      "SimpleSkin_geometry.bin"
+    ],
+    [
+      "SimpleSkin_skinningData.bin"
+    ],
+    [
+      "SimpleSkin_inverseBindMatrices.bin"
+    ],
+    [
+      "SimpleSkin_animation.bin"
+    ]
+  ],
   "extensions": {
     "used": [],
     "required": []

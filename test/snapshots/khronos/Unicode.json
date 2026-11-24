@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 7066,
     "files": [
@@ -20,6 +21,14 @@
       }
     ]
   },
+  "requires": [
+    [
+      "Unicode❤♻Binary.bin"
+    ],
+    [
+      "Unicode❤♻Texture.png"
+    ]
+  ],
   "extensions": {
     "used": [],
     "required": []

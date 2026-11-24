@@ -58,13 +58,21 @@ struct Report {
         std::optional<std::uint32_t> width;
         std::optional<std::uint32_t> height;
         std::uint64_t byte_size = 0;
+        // Where `file` points, relative to the model's folder; not reported.
+        std::string path;
         std::vector<Use> uses;
         std::optional<double> occupancy;
         // Texels used, behind occupancy; not reported.
         std::uint64_t used_texels = 0;
     };
 
+    // Whether buffers and images were read: false for `inspect --no-data`,
+    // whose report leaves out the fields that need them.
+    bool data = true;
     std::vector<File> files;
+    // The files the model refers to, as paths relative to its folder, which
+    // it is rejected without: buffers, then images.
+    std::vector<std::string> required_files;
     std::vector<std::string> extensions_used;
     std::vector<std::string> extensions_required;
     std::optional<Scene> scene;

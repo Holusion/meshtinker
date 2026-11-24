@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 3525,
     "files": [
@@ -15,6 +16,11 @@
       }
     ]
   },
+  "requires": [
+    [
+      "BoxInterleaved.bin"
+    ]
+  ],
   "extensions": {
     "used": [],
     "required": []

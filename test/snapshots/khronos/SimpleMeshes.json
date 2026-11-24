@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 1439,
     "files": [
@@ -15,6 +16,11 @@
       }
     ]
   },
+  "requires": [
+    [
+      "SimpleMeshes.bin"
+    ]
+  ],
   "extensions": {
     "used": [],
     "required": []

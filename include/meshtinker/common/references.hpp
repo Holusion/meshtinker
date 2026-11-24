@@ -28,6 +28,14 @@ public:
     std::optional<std::filesystem::path> resolve(const std::filesystem::path& base,
                                                  const std::string& reference) const;
 
+    // Where `reference`, written in a file in the input's folder, points, from
+    // its text alone: the path relative to that folder, with forward slashes
+    // and without `.` or `..` steps (absolute when trusted and written so).
+    // Empty when refused. Nothing is looked up, so a symlink leading out, or a
+    // file that isn't there, is caught by resolve() only. For listing the files
+    // a model needs before they exist (`inspect`'s `requires`).
+    std::optional<std::string> locate(const std::string& reference) const;
+
     bool trusted() const { return root_.empty(); }
 
 private:

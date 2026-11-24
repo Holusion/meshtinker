@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 388264,
     "files": [
@@ -10,6 +11,7 @@
       }
     ]
   },
+  "requires": [],
   "extensions": {
     "used": [
       "KHR_materials_clearcoat",

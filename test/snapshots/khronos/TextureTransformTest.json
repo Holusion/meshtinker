@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 30548,
     "files": [
@@ -40,6 +41,26 @@
       }
     ]
   },
+  "requires": [
+    [
+      "TextureTransformTest.bin"
+    ],
+    [
+      "UV.png"
+    ],
+    [
+      "Arrow.png"
+    ],
+    [
+      "Correct.png"
+    ],
+    [
+      "NotSupported.png"
+    ],
+    [
+      "Error.png"
+    ]
+  ],
   "extensions": {
     "used": [
       "KHR_texture_transform"

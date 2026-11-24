@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 99812,
     "files": [
@@ -65,6 +66,41 @@
       }
     ]
   },
+  "requires": [
+    [
+      "MeshoptCubeTest.bin"
+    ],
+    [
+      "row0.png"
+    ],
+    [
+      "row1.png"
+    ],
+    [
+      "row2.png"
+    ],
+    [
+      "row3.png"
+    ],
+    [
+      "row4.png"
+    ],
+    [
+      "col0.png"
+    ],
+    [
+      "col1.png"
+    ],
+    [
+      "col2.png"
+    ],
+    [
+      "col3.png"
+    ],
+    [
+      "col4.png"
+    ]
+  ],
   "extensions": {
     "used": [
       "KHR_mesh_quantization",

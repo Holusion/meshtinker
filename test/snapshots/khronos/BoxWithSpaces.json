@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 88557,
     "files": [
@@ -30,6 +31,20 @@
       }
     ]
   },
+  "requires": [
+    [
+      "Box With Spaces.bin"
+    ],
+    [
+      "Normal Map.png"
+    ],
+    [
+      "glTF Logo With Spaces.png"
+    ],
+    [
+      "Roughness Metallic.png"
+    ]
+  ],
   "extensions": {
     "used": [],
     "required": []

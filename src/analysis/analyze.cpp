@@ -37,12 +37,6 @@ bool isUnderstoodExtension(const std::string& name) {
     return gltf::isIndexAwareExtension(name);
 }
 
-// Slots holding the base color: core, and the archived specular-glossiness
-// extension's diffuse texture.
-bool isDiffuseSlot(const std::string& slot) {
-    return slot == "baseColorTexture" || slot == "KHR_materials_pbrSpecularGlossiness.diffuseTexture";
-}
-
 std::optional<std::string> nonEmptyName(const Json& object) {
     const auto name = object.find("name");
     if (name != object.end() && name->is_string() && !name->get<std::string>().empty()) {
@@ -238,13 +232,38 @@ std::set<std::size_t> sceneMaterials(const cgltf_data& data, const gltf::Selecti
     return materials;
 }
 
+// Fills `requires`: the buffer files (`buffers`, one path per buffer, empty
+// when not a file), then the image files, each path once, in index order.
+// The model is rejected without any of them.
+void listReferencedFiles(Report& report, const std::vector<std::string>& buffers) {
+    std::vector<const Report::Image*> images;
+    for (const Report::Image& image : report.images) {
+        images.push_back(&image);
+    }
+    std::sort(images.begin(), images.end(),
+              [](const Report::Image* a, const Report::Image* b) { return a->index < b->index; });
+    std::vector<std::string> paths = buffers;
+    for (const Report::Image* image : images) {
+        paths.push_back(image->path);
+    }
+    std::set<std::string> listed;
+    report.required_files.clear();
+    for (const std::string& path : paths) {
+        if (!path.empty() && listed.insert(path).second) {
+            report.required_files.push_back(path);
+        }
+    }
+}
+
 } // namespace
+
 
 Report analyzeDocument(const gltf::Document& document, const gltf::Selection& selection,
                        common::Diagnostics& diagnostics) {
     const cgltf_data& data = document.data();
     const Json& json = document.json();
     Report report;
+    report.data = document.hasData();
 
     for (const gltf::InputFile& file : document.files()) {
         report.files.push_back({file.role, file.name, file.size});
@@ -334,23 +353,17 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
             image.file = document.files()[*source.file].name;
         }
         image.byte_size = source.bytes.size;
+        image.path = source.path;
         const auto found_uses = uses.find(i);
         if (source.missing) {
-            image.file = source.reference;
-            // The base color carries what the model looks like: without it the
-            // model can't be shown as intended. Other maps only refine it.
-            const bool diffuse = found_uses != uses.end() &&
-                                 std::any_of(found_uses->second.begin(), found_uses->second.end(),
-                                             [](const Report::Use& use) { return isDiffuseSlot(use.slot); });
-            if (diffuse) {
-                throw common::rejected("missing-base-color-image", "image '" + source.reference +
-                                                                       "', used as a base color: " +
-                                                                       common::refused_reference_message);
+            // Every image the scene reaches changes what it looks like: a
+            // normal or occlusion map as much as a base color.
+            throw common::rejected("missing-image",
+                                   "image '" + source.reference + "': " + common::refused_reference_message);
+        } else if (!document.hasData()) {
+            if (source.origin == gltf::ImageOrigin::file) {
+                image.file = source.reference;
             }
-            diagnostics.warn("missing-image",
-                             "An image file is missing, or outside the model's folder: its size and occupancy are "
-                             "unknown",
-                             source.reference);
         } else if (source.header) {
             image.mime_type = gltf::mimeType(source.header->format);
             image.width = source.header->width;
@@ -368,6 +381,11 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
         }
         report.images.push_back(std::move(image));
     }
+    std::vector<std::string> buffers;
+    for (std::size_t i = 0; i < data.buffers_count; ++i) {
+        buffers.push_back(document.bufferPath(i));
+    }
+    listReferencedFiles(report, buffers);
     return report;
 }
 
@@ -635,8 +653,12 @@ Report outputReport(const Report& input, const gltf::Layout& layout, const std::
                     const std::vector<std::string>& image_names) {
     Report output = input;
     output.files.clear();
+    std::vector<std::string> buffers;
     for (const gltf::WrittenFile& file : files) {
         output.files.push_back({file.role, file.name, file.size});
+        if (file.role == gltf::FileRole::buffer) {
+            buffers.push_back(file.name);
+        }
     }
     const auto remap = [&](Kind kind, std::size_t index) {
         return layout.remap[static_cast<std::size_t>(kind)][index];
@@ -648,11 +670,13 @@ Report outputReport(const Report& input, const gltf::Layout& layout, const std::
         const std::size_t source = image.index;
         image.index = remap(Kind::image, source);
         image.file = image_names[source];
+        image.path = image_names[source];
         for (Report::Use& use : image.uses) {
             use.material = remap(Kind::material, use.material);
             use.texture = remap(Kind::texture, use.texture);
         }
     }
+    listReferencedFiles(output, buffers);
     return output;
 }
 

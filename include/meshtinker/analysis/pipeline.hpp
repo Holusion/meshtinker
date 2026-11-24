@@ -19,7 +19,8 @@ struct Inspection {
     Report report;
 };
 
-// Reads `path`, selects its scene, then runs both analysis stages.
+// Reads `path`, selects its scene, then runs both analysis stages, or the
+// first only without data (ReadOptions::data).
 Inspection inspect(const std::filesystem::path& path, const gltf::ReadOptions& options, common::Workspace& workspace,
                    common::Diagnostics& diagnostics);
 

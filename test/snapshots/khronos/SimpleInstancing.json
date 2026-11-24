@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "data": true,
   "input": {
     "byteSize": 7356,
     "files": [
@@ -10,6 +11,7 @@
       }
     ]
   },
+  "requires": [],
   "extensions": {
     "used": [
       "EXT_mesh_gpu_instancing"
