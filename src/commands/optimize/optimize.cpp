@@ -73,6 +73,17 @@ std::uint32_t sideOf(const Json& object, const char* key) {
                                                             : static_cast<std::uint32_t>(side);
 }
 
+// GPU bytes a texel of an input image, as three.js uploads it (docs/optimize.md#gpu-budget).
+// A KTX2 source's codec comes from its header; ETC1S with alpha, which
+// transcodes to 1 byte, isn't told apart from ETC1S without. A KTX2 that holds
+// a GPU format directly counts 1 byte, as most block formats are.
+double gpuBytesPerTexel(bool ktx2, const std::string& codec) {
+    if (!ktx2) {
+        return 4;
+    }
+    return codec == "ETC1S" ? 0.5 : 1;
+}
+
 // Slots that hold color, which ktx encodes as ETC1S (docs/ktx.md).
 bool colorSlot(const std::string& slot) {
     return slot == "baseColorTexture" || slot == "emissiveTexture" || slot == "diffuseTexture";
@@ -209,7 +220,7 @@ private:
                 image.width = sideOf(entry, "width");
                 image.height = sideOf(entry, "height");
                 image.ktx2 = stringOf(entry, "mimeType") == "image/ktx2";
-                image.gpu_bytes_per_texel = image.ktx2 ? 1 : 4;
+                image.gpu_bytes_per_texel = gpuBytesPerTexel(image.ktx2, stringOf(entry, "codec"));
                 const Json uses = entry.value("uses", Json::array());
                 image.color = !uses.empty() && std::all_of(uses.begin(), uses.end(), [](const Json& use) {
                     return colorSlot(stringOf(use, "slot"));

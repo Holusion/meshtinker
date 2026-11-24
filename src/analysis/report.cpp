@@ -107,6 +107,7 @@ nlohmann::ordered_json toJson(const Report& report, Json header, const common::D
                           {"name", optional(image.name)},
                           {"file", optional(image.file)},
                           {"mimeType", optional(image.mime_type)},
+                          {"codec", optional(image.codec)},
                           {"width", optional(image.width)},
                           {"height", optional(image.height)},
                           {"byteSize", image.byte_size},
@@ -155,6 +156,9 @@ void printText(std::ostream& out, const Report& report) {
     for (const Report::Image& image : report.images) {
         out << "  " << image.index << " " << (image.file ? *image.file : image.name.value_or("(embedded)")) << "  "
             << image.mime_type.value_or("unknown format");
+        if (image.codec) {
+            out << " " << *image.codec;
+        }
         if (image.width && image.height) {
             out << " " << *image.width << "x" << *image.height;
         }

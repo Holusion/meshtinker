@@ -49,6 +49,7 @@
       "name": null,
       "file": null,
       "mimeType": "image/png",
+      "codec": null,
       "width": 256,
       "height": 256,
       "byteSize": 4203,

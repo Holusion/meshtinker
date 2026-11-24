@@ -55,6 +55,8 @@ struct Report {
         // The file name, empty when the image is embedded.
         std::optional<std::string> file;
         std::optional<std::string> mime_type;
+        // KTX2 only: "ETC1S", "UASTC" or "other".
+        std::optional<std::string> codec;
         std::optional<std::uint32_t> width;
         std::optional<std::uint32_t> height;
         std::uint64_t byte_size = 0;

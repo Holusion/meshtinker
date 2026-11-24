@@ -353,6 +353,9 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
                              source.reference);
         } else if (source.header) {
             image.mime_type = gltf::mimeType(source.header->format);
+            if (source.header->ktx2_codec) {
+                image.codec = gltf::codecName(*source.header->ktx2_codec);
+            }
             image.width = source.header->width;
             image.height = source.header->height;
         } else {

@@ -52,6 +52,7 @@ Rejected inputs (exit code 1, with `error.code`): files that aren't glTF 2.0 (`n
       "name": "diffuse",                      // null when unnamed
       "file": "diffuse.jpg",                  // null when embedded (GLB chunk or data URI)
       "mimeType": "image/jpeg",
+      "codec": null,                          // KTX2 only: "ETC1S", "UASTC" or "other"
       "width": 4096,
       "height": 4096,
       "byteSize": 12408320,
@@ -105,6 +106,7 @@ The cost column says what a field needs. **Document** fields come from the JSON,
 | `images` | Every image `import` keeps: those the scene reaches. Images of other scenes and images nothing uses are left out. | Document |
 | `images[].file` | The file the image is read from, as its `uri` names it (decoded). `null` for an image in a GLB chunk or a data URI. In `import`'s report, every image is a file. | Document |
 | `images[].mimeType`, `.width`, `.height` | From file headers, without decoding pixels. PNG, JPEG, WebP and KTX2. `null` for anything else, with an `image-unrecognized` diagnostic. | Document |
+| `images[].codec` | A KTX2 image's codec, from its header: `ETC1S` when it is BasisLZ-supercompressed, `UASTC` when its data format descriptor's color model says so (KTX 2.0 specification), `other` for a KTX2 that stores a GPU format directly or whose descriptor can't be read. The names are those `ktx` reports. `null` for other formats. `optimize`'s GPU estimate reads it ([optimize.md](optimize.md#gpu-budget)). | Document |
 | `images[].uses` | Every slot of a material the scene's primitives use that reaches the image. Materials only `KHR_materials_variants` use don't count: nothing renders them by default. A slot is the property path from the material, such as `baseColorTexture` or `KHR_materials_clearcoat.clearcoatTexture`. A texture's core `source` is used even when an extension gives an alternative (WebP, KTX2), with a `texture-alternative-source` diagnostic. An extension's source is used only when there is no core `source`. | Document |
 | `images[].occupancy`, `texels.occupancy` | Fraction of texels sampled when rendering, as defined by objtools' [texture occupancy](../../objtools/docs/wiki/Texture-occupancy.md): union over every use of the image, following sampler filtering, wrapping and `KHR_texture_transform`. Each mesh counts once, and only triangles sample. `null` for an image without uses, and for one used by a primitive whose data can't be read. `texels.occupancy` is `null` if any used image's is. | Data |
 | `texels.total` | Width × height of every image with at least one use, each image counted once. | Document |

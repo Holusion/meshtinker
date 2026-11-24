@@ -1,0 +1,52 @@
+{
+  "description": "KTX2-only textures, as KTX-Software 4.4 encodes them: ETC1S color, ETC1S with an alpha gradient, and a UASTC normal map (zstd), 64×64 each.",
+  "geometry": {
+    "primitives": 3,
+    "vertices": 12,
+    "faces": 6
+  },
+  "bounds": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      5,
+      1,
+      0
+    ]
+  },
+  "images": [
+    {
+      "name": "color",
+      "mimeType": "image/ktx2",
+      "codec": "ETC1S",
+      "width": 64,
+      "height": 64,
+      "used": true
+    },
+    {
+      "name": "alpha",
+      "mimeType": "image/ktx2",
+      "codec": "ETC1S",
+      "width": 64,
+      "height": 64,
+      "used": true
+    },
+    {
+      "name": "normal",
+      "mimeType": "image/ktx2",
+      "codec": "UASTC",
+      "width": 64,
+      "height": 64,
+      "used": true
+    }
+  ],
+  "ktx2": {
+    "alpha": [
+      "alpha.ktx2"
+    ],
+    "why": "ETC1S is BasisLZ-supercompressed; UASTC has vkFormat 0 and colorModel 166. Only alpha.ktx2 has an alpha slice, a gradient from 0 at the left to 255 at the right. Decoded, each image is close to the PNG it was encoded from: the four quadrants of the test pattern, or a smooth normal map pointing outwards from the center."
+  }
+}

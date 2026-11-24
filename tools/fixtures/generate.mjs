@@ -52,16 +52,24 @@ const png = (w, h, hue) => raw(w, h, hue).png({ compressionLevel: 9 }).toBuffer(
 const jpeg = (w, h, hue) => raw(w, h, hue).jpeg({ quality: 90 }).toBuffer();
 const webp = (w, h, hue) => raw(w, h, hue).webp({ lossless: true }).toBuffer();
 
-async function ktx2(w, h, hue) {
+/** A KTX2 file encoded by KTX-Software from a PNG: ETC1S (sRGB) by default, UASTC with zstd (linear) for data. */
+async function ktx2FromPng(pngBytes, { uastc = false } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'meshtinker-ktx-'));
   try {
-    fs.writeFileSync(path.join(tmp, 'in.png'), await png(w, h, hue));
-    execFileSync('ktx', ['create', '--format', 'R8G8B8A8_SRGB', '--encode', 'basis-lz', '--assign-tf', 'srgb',
-      path.join(tmp, 'in.png'), path.join(tmp, 'out.ktx2')], { stdio: ['ignore', 'ignore', 'pipe'] });
+    fs.writeFileSync(path.join(tmp, 'in.png'), pngBytes);
+    const encoding = uastc
+      ? ['--format', 'R8G8B8A8_UNORM', '--encode', 'uastc', '--zstd', '18']
+      : ['--format', 'R8G8B8A8_SRGB', '--encode', 'basis-lz', '--assign-tf', 'srgb'];
+    execFileSync('ktx', ['create', ...encoding, path.join(tmp, 'in.png'), path.join(tmp, 'out.ktx2')],
+      { stdio: ['ignore', 'ignore', 'pipe'] });
     return fs.readFileSync(path.join(tmp, 'out.ktx2'));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+async function ktx2(w, h, hue) {
+  return ktx2FromPng(await png(w, h, hue));
 }
 
 // --------------------------------------------------------------------------------------------- builder
@@ -1320,6 +1328,55 @@ fixtures['missing-image'] = async (dir) => {
       { name: 'normal', occupancy: null, why: 'missing: a warning, since only a base color is required' },
     ],
     diagnostics: ['missing-image'],
+  });
+};
+
+// KTX2 sources of each codec KHR_texture_basisu allows, for the codec in the
+// report and for decoding them (image::decode, ktx and uv re-encoding them).
+fixtures['ktx2-sources'] = async (dir) => {
+  const b = new Builder();
+  const side = 64;
+  const withAlpha = (alpha) => {
+    const px = pattern(side, side, 2);
+    for (let y = 0; y < side; y++) for (let x = 0; x < side; x++) px[(y * side + x) * 4 + 3] = alpha(x, y);
+    return sharp(px, { raw: { width: side, height: side, channels: 4 } }).png().toBuffer();
+  };
+  const normals = () => {
+    const px = Buffer.alloc(side * side * 3);
+    for (let i = 0; i < side * side; i++) {
+      const nx = ((i % side) - (side - 1) / 2) / (side * 1.5), ny = (Math.floor(i / side) - (side - 1) / 2) / (side * 1.5);
+      const nz = Math.sqrt(1 - nx * nx - ny * ny);
+      [nx, ny, nz].forEach((v, c) => { px[i * 3 + c] = Math.round((v + 1) * 127.5); });
+    }
+    return sharp(px, { raw: { width: side, height: side, channels: 3 } }).png().toBuffer();
+  };
+  const color = b.image('color.ktx2', await ktx2FromPng(await png(side, side, 1)), 'image/ktx2');
+  const alpha = b.image('alpha.ktx2', await ktx2FromPng(await withAlpha((x) => Math.round((x / (side - 1)) * 255))), 'image/ktx2');
+  const normal = b.image('normal.ktx2', await ktx2FromPng(await normals(), { uastc: true }), 'image/ktx2');
+  const t = (image) => b.texture(null, undefined, { extensions: { KHR_texture_basisu: { source: image } } });
+  const materials = [
+    { name: 'Etc1s', pbrMetallicRoughness: { baseColorTexture: { index: t(color) } } },
+    { name: 'Etc1sAlpha', alphaMode: 'BLEND', pbrMetallicRoughness: { baseColorTexture: { index: t(alpha) } } },
+    { name: 'Uastc', normalTexture: { index: t(normal) }, pbrMetallicRoughness: { baseColorTexture: { index: t(color) } } },
+  ];
+  const nodes = materials.map((m, i) =>
+    b.meshNode([{ ...quad(b, { x0: 2 * i, x1: 2 * i + 1 }), material: b.add('materials', m) }], {}, m.name).node);
+  b.json.extensionsUsed = ['KHR_texture_basisu'];
+  b.json.extensionsRequired = ['KHR_texture_basisu'];
+  b.json.scene = b.scene(nodes);
+  b.write(path.join(dir, 'ktx2-sources.gltf'));
+  writeExpected(dir, {
+    description: 'KTX2-only textures, as KTX-Software 4.4 encodes them: ETC1S color, ETC1S with an alpha gradient, and a UASTC normal map (zstd), 64×64 each.',
+    geometry: { primitives: 3, vertices: 12, faces: 6 }, bounds: { min: [0, 0, 0], max: [5, 1, 0] },
+    images: [
+      { name: 'color', mimeType: 'image/ktx2', codec: 'ETC1S', width: side, height: side, used: true },
+      { name: 'alpha', mimeType: 'image/ktx2', codec: 'ETC1S', width: side, height: side, used: true },
+      { name: 'normal', mimeType: 'image/ktx2', codec: 'UASTC', width: side, height: side, used: true },
+    ],
+    ktx2: {
+      alpha: ['alpha.ktx2'],
+      why: 'ETC1S is BasisLZ-supercompressed; UASTC has vkFormat 0 and colorModel 166. Only alpha.ktx2 has an alpha slice, a gradient from 0 at the left to 255 at the right. Decoded, each image is close to the PNG it was encoded from: the four quadrants of the test pattern, or a smooth normal map pointing outwards from the center.',
+    },
   });
 };
 

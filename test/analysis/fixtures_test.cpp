@@ -83,7 +83,7 @@ void checkFixture(const test::Fixture& f) {
             if (found == report["images"].end()) {
                 continue;
             }
-            for (const char* key : {"mimeType", "width", "height"}) {
+            for (const char* key : {"mimeType", "codec", "width", "height"}) {
                 if (images[i].contains(key)) {
                     CHECK_EQ((*found)[key], images[i][key]);
                 }

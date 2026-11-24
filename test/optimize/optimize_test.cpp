@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <cmath>
 #include <csignal>
 #include <cstdlib>
 #include <fstream>
@@ -85,6 +86,20 @@ TEST_CASE(scan_through_every_step) {
     CHECK(run.json["output"]["gpuBytes"].get<std::uint64_t>() < run.json["input"]["gpuBytes"].get<std::uint64_t>());
     CHECK(gltf::Document::read(output).data().meshes_count > 0);
     CHECK(onlyHolds(work, {"scan.glb", "stdout.json"}));
+}
+
+// The GPU estimate of KTX2 sources reads their codec: ETC1S at half a byte a
+// texel, UASTC at one, with mipmaps (docs/optimize.md#gpu-budget). Two quads
+// sample the ETC1S color image, one each the ETC1S alpha and UASTC normal images.
+TEST_CASE(ktx2_sources_count_by_codec) {
+    const fs::path work = test::workDirectory("optimize/ktx2-sources");
+    const Run run = optimize({test::fixture("ktx2-sources").model.string(), (work / "out.glb").string()}, work);
+    CHECK_EQ(run.code, 0);
+    const double texels = 64.0 * 64.0 * 4.0 / 3.0;
+    const double textures = 2 * texels * 0.5 + texels * 1.0;
+    const auto input = static_cast<double>(run.json["input"]["gpuBytes"].get<std::uint64_t>());
+    // Geometry: 12 vertices and 6 faces, 16 and 12 bytes each.
+    CHECK(std::abs(input - (textures + 12 * 16 + 6 * 12)) < 2);
 }
 
 namespace {

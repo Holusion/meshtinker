@@ -37,6 +37,33 @@ TEST_CASE(reads_fixture_images) {
     checkHeader("avif/existing.avif", ImageFormat::avif, 32, 32);
 }
 
+// The codec comes from the KTX2 header: BasisLZ supercompression for ETC1S,
+// the data format descriptor's color model for UASTC.
+TEST_CASE(reads_ktx2_codec) {
+    const auto codec = [](const std::string& path) {
+        const auto header = fromFile(path);
+        return header && header->ktx2_codec ? std::string(gltf::codecName(*header->ktx2_codec)) : std::string("none");
+    };
+    CHECK_EQ(codec("ktx2-sources/color.ktx2"), std::string("ETC1S"));
+    CHECK_EQ(codec("ktx2-sources/alpha.ktx2"), std::string("ETC1S"));
+    CHECK_EQ(codec("ktx2-sources/normal.ktx2"), std::string("UASTC"));
+    CHECK_EQ(codec("alt-sources/fallback.png"), std::string("none"));
+    // A KTX2 that stores a GPU format (vkFormat 37, R8G8B8A8_UNORM), and one
+    // cut before its descriptor.
+    std::vector<std::uint8_t> raw(160, 0);
+    const char identifier[] = "\xABKTX 20\xBB\r\n\x1A\n";
+    std::copy(identifier, identifier + 12, raw.begin());
+    raw[12] = 37;
+    raw[20] = 8;
+    raw[24] = 8;
+    auto header = readImageHeader(ByteView{raw.data(), raw.size()});
+    CHECK(header && header->ktx2_codec == gltf::Ktx2Codec::other);
+    raw[12] = 0;
+    raw[48] = 200;
+    header = readImageHeader(ByteView{raw.data(), raw.size()});
+    CHECK(header && header->width == 8 && header->ktx2_codec == gltf::Ktx2Codec::other);
+}
+
 TEST_CASE(reads_jpeg_after_other_segments) {
     // SOI, an APP0 segment of 16 bytes, a fill byte, then SOF2 (progressive): 3 x 2.
     const std::vector<std::uint8_t> jpeg = {0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1,

@@ -100,13 +100,47 @@ std::optional<ImageHeader> readWebp(ByteView bytes) {
     return std::nullopt;
 }
 
+// The codec of a KTX2 file (KTX 2.0 specification, sections 3 and 4): BasisLZ
+// supercompression (scheme 1) is only defined for ETC1S. Otherwise a vkFormat
+// of 0 says the data format descriptor names the codec: the colorModel byte of
+// its basic block, 163 for ETC1S, 166 for UASTC. dfdByteOffset is at byte 48;
+// the block's colorModel is 12 bytes into the descriptor, after its total size
+// and the block's first two words.
+Ktx2Codec ktx2Codec(ByteView bytes) {
+    constexpr std::uint32_t basis_lz = 1;
+    constexpr std::uint8_t model_etc1s = 163;
+    constexpr std::uint8_t model_uastc = 166;
+    if (!bytes.contains(12, 4) || !bytes.contains(44, 8)) {
+        return Ktx2Codec::other;
+    }
+    if (littleEndian32(bytes.data + 44) == basis_lz) {
+        return Ktx2Codec::etc1s;
+    }
+    if (littleEndian32(bytes.data + 12) != 0) {
+        return Ktx2Codec::other;
+    }
+    const std::size_t dfd = littleEndian32(bytes.data + 48);
+    if (!bytes.contains(dfd + 12, 1)) {
+        return Ktx2Codec::other;
+    }
+    switch (bytes.data[dfd + 12]) {
+    case model_etc1s:
+        return Ktx2Codec::etc1s;
+    case model_uastc:
+        return Ktx2Codec::uastc;
+    default:
+        return Ktx2Codec::other;
+    }
+}
+
 // KTX2: the identifier, then vkFormat, typeSize, pixelWidth and pixelHeight as
 // little-endian 32-bit values. A 1D texture has a pixelHeight of 0.
 std::optional<ImageHeader> readKtx2(ByteView bytes) {
     if (!startsWith(bytes, 0, "\xABKTX 20\xBB\r\n\x1A\n", 12) || !bytes.contains(20, 8)) {
         return std::nullopt;
     }
-    return ImageHeader{ImageFormat::ktx2, littleEndian32(bytes.data + 20), littleEndian32(bytes.data + 24)};
+    return ImageHeader{ImageFormat::ktx2, littleEndian32(bytes.data + 20), littleEndian32(bytes.data + 24),
+                       ktx2Codec(bytes)};
 }
 
 // An ISOBMFF box: its type, and where its payload and the box end.
@@ -274,6 +308,18 @@ const char* mimeType(ImageFormat format) {
         return "image/avif";
     }
     return "application/octet-stream";
+}
+
+const char* codecName(Ktx2Codec codec) {
+    switch (codec) {
+    case Ktx2Codec::etc1s:
+        return "ETC1S";
+    case Ktx2Codec::uastc:
+        return "UASTC";
+    case Ktx2Codec::other:
+        break;
+    }
+    return "other";
 }
 
 } // namespace meshtinker::gltf

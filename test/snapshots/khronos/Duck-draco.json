@@ -63,6 +63,7 @@
       "name": "DuckCM",
       "file": "DuckCM.png",
       "mimeType": "image/png",
+      "codec": null,
       "width": 512,
       "height": 512,
       "byteSize": 16302,
