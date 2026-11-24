@@ -1,6 +1,7 @@
 #include "output.hpp"
 
 #include "meshtinker/cli/command.hpp"
+#include "meshtinker/common/format.hpp"
 #include "meshtinker/gltf/uri.hpp"
 
 #include <cstring>
@@ -137,7 +138,7 @@ void printText(std::ostream& out, const Report& report) {
     }
     out << '\n';
     for (const gltf::WrittenFile& file : report.files) {
-        out << "  " << file.name << "  " << file.size << " bytes\n";
+        out << "  " << file.name << "  " << common::formatBytes(file.size) << '\n';
     }
 }
 

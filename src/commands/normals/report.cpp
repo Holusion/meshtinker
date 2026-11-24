@@ -1,5 +1,7 @@
 #include "normals.hpp"
 
+#include "meshtinker/common/format.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -60,7 +62,7 @@ void printText(std::ostream& out, const Report& report) {
             << "°\n";
     }
     for (const gltf::WrittenFile& file : report.files) {
-        out << "  " << file.name << "  " << file.size << " bytes\n";
+        out << "  " << file.name << "  " << common::formatBytes(file.size) << '\n';
     }
 }
 

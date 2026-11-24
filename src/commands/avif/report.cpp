@@ -1,5 +1,7 @@
 #include "avif.hpp"
 
+#include "meshtinker/common/format.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -83,14 +85,15 @@ void printText(std::ostream& out, const Report& report) {
     if (!report.not_smaller.empty()) {
         out << ", kept " << report.not_smaller.size() << " smaller as they were";
     }
-    out << ", " << std::fixed << std::setprecision(1) << report.seconds << " s\n";
-    out << "Image bytes: " << before << " -> " << after << " (" << percent(after, before) << ")\n";
+    out << ", " << common::formatDuration(report.seconds) << '\n';
+    out << "Images: " << common::formatBytes(before) << " -> " << common::formatBytes(after) << " ("
+        << percent(after, before) << ")\n";
     for (const EncodedImage& entry : report.encoded) {
         const texture::Encoded& image = entry.image;
         out << "  " << image.name << " " << image.width << "x" << image.height << " -> " << image.output << " "
             << image.output_width << "x" << image.output_height << ", " << subsamplingName(entry.subsampling)
-            << (image.request.alpha ? " with alpha" : "") << ", " << image.bytes_before << " -> " << image.bytes_after
-            << " bytes, " << std::setprecision(1) << image.seconds << " s\n";
+            << (image.request.alpha ? " with alpha" : "") << ", " << common::formatBytes(image.bytes_before) << " -> "
+            << common::formatBytes(image.bytes_after) << ", " << common::formatDuration(image.seconds) << '\n';
     }
 }
 

@@ -1,5 +1,7 @@
 #include "weld.hpp"
 
+#include "meshtinker/common/format.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -53,7 +55,7 @@ void printText(std::ostream& out, const Report& report) {
     out << "Vertices: " << report.input.vertices << " -> " << report.output.vertices << " ("
         << percent(report.output.vertices, report.input.vertices) << ")\n";
     for (const gltf::WrittenFile& file : report.files) {
-        out << "  " << file.name << "  " << file.size << " bytes\n";
+        out << "  " << file.name << "  " << common::formatBytes(file.size) << '\n';
     }
 }
 

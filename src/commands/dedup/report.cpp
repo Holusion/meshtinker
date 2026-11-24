@@ -1,5 +1,7 @@
 #include "dedup.hpp"
 
+#include "meshtinker/common/format.hpp"
+
 #include <ostream>
 
 namespace meshtinker::dedup {
@@ -41,10 +43,11 @@ void printText(std::ostream& out, const Report& report) {
         separator = ", ";
     }
     out << '\n';
-    out << "Buffer views: " << report.view_bytes.before << " -> " << report.view_bytes.after << " bytes; images: "
-        << report.image_bytes.before << " -> " << report.image_bytes.after << " bytes\n";
+    out << "Buffer views: " << common::formatBytes(report.view_bytes.before) << " -> "
+        << common::formatBytes(report.view_bytes.after) << "; images: " << common::formatBytes(report.image_bytes.before)
+        << " -> " << common::formatBytes(report.image_bytes.after) << '\n';
     for (const gltf::WrittenFile& file : report.files) {
-        out << "  " << file.name << "  " << file.size << " bytes\n";
+        out << "  " << file.name << "  " << common::formatBytes(file.size) << '\n';
     }
 }
 

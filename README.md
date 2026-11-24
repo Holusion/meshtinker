@@ -60,6 +60,7 @@ Commands are the meshtinker-<command> executables next to meshtinker, then on PA
 Every command follows the same conventions:
 
 - Data goes to stdout, everything else (warnings, errors, progress) to stderr. Warnings are counted: one line per kind of problem, with up to three examples.
+- Text shows sizes in decimal units (`12.3 MB`) and times as `1 min 23 s`; JSON keeps bytes and seconds.
 - Commands that report statistics print text, or one JSON object with `--json`. With `--json`, stdout holds a JSON object even when the command fails: it then has an `error` with a `code`, the `exitCode` and a `message`.
 - Outputs are never overwritten, and appear only once the command succeeds. A failed or interrupted command leaves nothing behind.
 - A model may only reference files inside its own folder, unless `--trusted` is given.
