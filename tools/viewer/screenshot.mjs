@@ -62,15 +62,22 @@ socket.addEventListener('message', (event) => {
     pending.delete(message.id);
   } else if (message.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(message.params.type)) {
     messages.push(`${message.params.type}: ${message.params.args.map((a) => a.value ?? a.description ?? '').join(' ')}`);
+  } else if (message.method === 'Inspector.targetCrashed') {
+    crashed = true;
+    messages.push('crash: the page crashed');
   } else if (message.method === 'Runtime.exceptionThrown') {
     messages.push(`exception: ${message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text}`);
   }
 });
-const send = (method, params = {}) => new Promise((resolve) => {
+// A request that gets no answer in `seconds` (a crashed or stuck page) resolves with an error instead of hanging.
+let crashed = false;
+const send = (method, params = {}, seconds = 120) => new Promise((resolve) => {
   const id = next++;
-  pending.set(id, resolve);
+  const timer = setTimeout(() => { pending.delete(id); resolve({ error: `${method} timed out` }); }, seconds * 1000);
+  pending.set(id, (message) => { clearTimeout(timer); resolve(message); });
   socket.send(JSON.stringify({ id, method, params }));
 });
+await send('Inspector.enable');
 await send('Runtime.enable');
 await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
@@ -79,29 +86,30 @@ await send('Page.navigate', { url });
 // view.html sets window.renderDone once it has drawn the model (-1 if it failed to load).
 const start = Date.now();
 let done;
-while ((Date.now() - start) / 1000 < wait) {
+while ((Date.now() - start) / 1000 < wait && !crashed) {
   await new Promise((r) => setTimeout(r, 500));
   const result = await send('Runtime.evaluate', { expression: 'window.renderDone', returnByValue: true });
   done = result.result?.result?.value;
   if (done !== undefined) break;
 }
-const shot = await send('Page.captureScreenshot', { format: 'png' });
-fs.writeFileSync(out, Buffer.from(shot.result.data, 'base64'));
-const rendered = done !== undefined && done >= 0;
+const shot = crashed ? {} : await send('Page.captureScreenshot', { format: 'png' }, wait);
+if (shot.result) fs.writeFileSync(out, Buffer.from(shot.result.data, 'base64'));
+const rendered = shot.result !== undefined && done !== undefined && done >= 0;
 console.log(JSON.stringify({ out, rendered, seconds: (Date.now() - start) / 1000, messages: messages.slice(0, 20) }));
 for (const [file, query] of rendered ? views : []) {
   const begin = Date.now();
   await send('Runtime.evaluate', { expression: `window.view(${JSON.stringify(query)})`, returnByValue: true });
   let drawn;
-  while ((Date.now() - begin) / 1000 < wait) {
+  while ((Date.now() - begin) / 1000 < wait && !crashed) {
     await new Promise((r) => setTimeout(r, 200));
     const result = await send('Runtime.evaluate', { expression: 'window.renderDone', returnByValue: true });
     drawn = result.result?.result?.value;
     if (drawn !== undefined) break;
   }
-  const view = await send('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(file, Buffer.from(view.result.data, 'base64'));
-  console.log(JSON.stringify({ out: file, rendered: drawn !== undefined, seconds: (Date.now() - begin) / 1000, messages: [] }));
+  const view = crashed ? {} : await send('Page.captureScreenshot', { format: 'png' }, wait);
+  if (view.result) fs.writeFileSync(file, Buffer.from(view.result.data, 'base64'));
+  console.log(JSON.stringify({ out: file, rendered: view.result !== undefined && drawn !== undefined,
+    seconds: (Date.now() - begin) / 1000, messages: messages.splice(0, 20) }));
 }
 socket.close();
 browser.kill();

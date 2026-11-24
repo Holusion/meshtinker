@@ -18,8 +18,11 @@ must serve as /exp/ (and the local models' folders as /raw/ and /normalized/) fo
   first compression, then `ktx` at 2048 on it, against T2-2048 straight from the sources.
 - t4: `ktx` on atlas_rects.py's pages (build/exp-texels/MODEL-t4/input-page and uv-page) at their side, ÷2, ÷4.
 - measure: `inspect --json` of each output: bytes, texels, texels in use, GPU estimate, headroom.
-- render: every view of views.json for each output and for the input (T0), at 1600×1200 without the label.
-- score: SSIMULACRA2 of each render against T0's of the same view. Writes MODEL/results.csv.
+- render: every view of views.json for each output and for the input (T0), at 1200×900 without the label:
+  SwiftShader drew nothing at 1600×1200 once zoomed in on MAN80287's 103 4k textures.
+- score: SSIMULACRA2 of each render against T0's of the same view, and against B's (ssimulacra2_base): B, the
+  base, has the input's images on the shared geometry, so it isolates what the texture steps lose from what
+  `normals` (smooth normals where the input had none or flat ones) and `simplify` change. Writes MODEL/results.csv.
 - clean: removes the outputs' models, keeping JSON reports, renders and the CSV.
 """
 import csv
@@ -156,7 +159,8 @@ def outputs(m, work):
     """Treatment name, the model file to measure and render, and its server path."""
     found = [("T0", m["input"], m["url"])]
     name = os.path.basename(work)
-    candidates = [("T1-opt", "opt/model.glb")] + [(f"T2-{s}", f"t2-{s}/model.gltf") for s in m["sweep"]]
+    # B, the base: the geometry steps with the input's images, the reference for what the texture steps lose.
+    candidates = [("B", "base/model.gltf"), ("T1-opt", "opt/model.glb")] + [(f"T2-{s}", f"t2-{s}/model.gltf") for s in m["sweep"]]
     candidates += [("T1-nouv", "t1/model.gltf"), ("T3", "t3/model.gltf"), ("Q1-4096", "q1-4096/model.gltf"),
                    ("Q1-2048", "q1-2048/model.gltf")]
     for prefix in ("t4i", "t4u"):
@@ -224,7 +228,8 @@ def render(m, work):
             extra += ["--view", f"{f}={q}"]
         start = time.time()
         result = subprocess.run(["node", os.path.join(REPO, "tools", "viewer", "screenshot.mjs"), first, page, *extra,
-                                 "--size", "1600x1200", "--wait", "1800"], capture_output=True, text=True)
+                                 "--size", "1200x900", "--wait", "900"], capture_output=True, text=True,
+                                timeout=3600)
         log("rendered", label, f"{time.time() - start:.0f} s", result.stdout.count('"rendered":true'), "of", len(files))
         if result.stdout.count('"rendered":true') != len(files):
             log(result.stdout[-600:], result.stderr[-300:])
@@ -244,17 +249,20 @@ def score(m, work):
     with open(f"{work}/results.csv", "w", newline="") as f:
         out = csv.writer(f)
         out.writerow(["model", "treatment", *next(iter(measures.values())).keys(), "seconds", "view", "ssimulacra2",
-                      "render", "reference"])
+                      "ssimulacra2_base", "render", "reference"])
         for label, row in measures.items():
             for v in views()[name]:
                 render_path = f"{work}/renders/{label}-{v}.png"
                 reference = f"{work}/renders/T0-{v}.png"
-                value = ""
-                if label != "T0" and os.path.exists(render_path) and os.path.exists(reference):
-                    result = subprocess.run([SSIMULACRA2, "image", reference, render_path], capture_output=True,
-                                            text=True)
-                    value = result.stdout.strip().split()[-1] if result.returncode == 0 else ""
-                out.writerow([name, label, *row.values(), seconds.get(label, ""), v, value,
+                values = []
+                for ref, skip in ((reference, "T0"), (f"{work}/renders/B-{v}.png", "B")):
+                    value = ""
+                    if label not in ("T0", skip) and os.path.exists(render_path) and os.path.exists(ref):
+                        result = subprocess.run([SSIMULACRA2, "image", ref, render_path], capture_output=True,
+                                                text=True)
+                        value = result.stdout.strip().split()[-1] if result.returncode == 0 else ""
+                    values.append(value)
+                out.writerow([name, label, *row.values(), seconds.get(label, ""), v, *values,
                               os.path.relpath(render_path, EXP), os.path.relpath(reference, EXP)])
     log("wrote", f"{work}/results.csv")
 
