@@ -7,7 +7,8 @@
   az and el are the camera's azimuth and elevation in degrees around the scene's bounds, zoom > 1 moves closer;
   target (a fraction of the bounds, 0.5,0.5,0.5 at the center) is the point looked at. eye, in the same fractions,
   places the camera there instead, for views from inside a model (a cave, a room): az, el and zoom are then unused.
-  fov is the vertical field of view in degrees.
+  fov is the vertical field of view in degrees; info=0 hides the label. Once drawn, window.view('az=..&el=..') draws another view of the
+  same model, with the same parameters, for screenshot.mjs's --view.
   Voyager's own page can't render headless (no camera is ever set up there), hence this page.
 -->
 <html>
@@ -64,30 +65,46 @@ loader.load(params.get('model'), (gltf) => {
   scene.add(root);
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
-  const [tx, ty, tz] = (params.get('target') ?? '0.5,0.5,0.5').split(',').map(Number);
-  const target = new THREE.Vector3(box.min.x + tx * size.x, box.min.y + ty * size.y, box.min.z + tz * size.z);
   const radius = size.length() / 2;
-  const fov = number('fov', 35);
-  const camera = new THREE.PerspectiveCamera(fov, innerWidth / innerHeight, radius / 1000, radius * 100);
-  if (params.has('eye')) {
-    const [ex, ey, ez] = params.get('eye').split(',').map(Number);
-    camera.position.set(box.min.x + ex * size.x, box.min.y + ey * size.y, box.min.z + ez * size.z);
-    camera.lookAt(target);
-    // From inside, a light far outside the bounds is behind the walls: it sits at the eye, as a visitor's lamp.
-    light.position.copy(camera.position);
-    light.target.position.copy(target);
-    scene.add(light.target);
-  } else {
-    const az = THREE.MathUtils.degToRad(number('az', 30)), el = THREE.MathUtils.degToRad(number('el', 15));
-    const distance = radius / Math.sin(THREE.MathUtils.degToRad(fov / 2)) / number('zoom', 1);
-    camera.position.set(target.x + distance * Math.cos(el) * Math.sin(az), target.y + distance * Math.sin(el),
-      target.z + distance * Math.cos(el) * Math.cos(az));
-    camera.lookAt(target);
-    light.position.copy(camera.position).add(new THREE.Vector3(radius, radius * 2, 0));
-  }
+  const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, radius / 1000, radius * 100);
+  scene.add(light.target);
+  // Places the camera and the light for a view's parameters.
+  const place = (view) => {
+    const value = (name, fallback) => Number(view.get(name) ?? fallback);
+    const [tx, ty, tz] = (view.get('target') ?? '0.5,0.5,0.5').split(',').map(Number);
+    const target = new THREE.Vector3(box.min.x + tx * size.x, box.min.y + ty * size.y, box.min.z + tz * size.z);
+    const fov = value('fov', 35);
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+    if (view.has('eye')) {
+      const [ex, ey, ez] = view.get('eye').split(',').map(Number);
+      camera.position.set(box.min.x + ex * size.x, box.min.y + ey * size.y, box.min.z + ez * size.z);
+      camera.lookAt(target);
+      // From inside, a light far outside the bounds is behind the walls: it sits at the eye, as a visitor's lamp.
+      light.position.copy(camera.position);
+      light.target.position.copy(target);
+    } else {
+      const az = THREE.MathUtils.degToRad(value('az', 30)), el = THREE.MathUtils.degToRad(value('el', 15));
+      const distance = radius / Math.sin(THREE.MathUtils.degToRad(fov / 2)) / value('zoom', 1);
+      camera.position.set(target.x + distance * Math.cos(el) * Math.sin(az), target.y + distance * Math.sin(el),
+        target.z + distance * Math.cos(el) * Math.cos(az));
+      camera.lookAt(target);
+      light.position.copy(camera.position).add(new THREE.Vector3(radius, radius * 2, 0));
+      light.target.position.set(0, 0, 0);
+    }
+  };
+  place(params);
+  window.view = (query) => {
+    window.renderDone = undefined;
+    place(new URLSearchParams(query));
+    renderer.render(scene, camera);
+    requestAnimationFrame(() => { renderer.render(scene, camera); window.renderDone = 0; });
+    return true;
+  };
   renderer.compile(scene, camera);
   renderer.render(scene, camera);
-  document.getElementById('info').textContent =
+  // info=0 leaves the label out, so that renders of two files compare on the model alone.
+  if (params.get('info') !== '0') document.getElementById('info').textContent =
     `${params.get('model').split('/').slice(-2).join('/')}  ${Math.round(triangles).toLocaleString('en')} triangles`;
   requestAnimationFrame(() => { renderer.render(scene, camera); window.renderDone = (performance.now() - started) / 1000; });
 }, undefined, (error) => { console.error('load failed', error?.message ?? error); window.renderDone = -1; });

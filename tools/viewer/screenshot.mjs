@@ -1,8 +1,10 @@
 // A screenshot of tools/viewer/view.html, through headless Chromium's DevTools protocol, without other
 // dependencies:
-//   node tools/viewer/screenshot.mjs OUT.png URL [--wait SECONDS] [--size 1200x900] [--chromium /usr/bin/chromium]
+//   node tools/viewer/screenshot.mjs OUT.png URL [--view OUT2.png=QUERY]... [--wait SECONDS] [--size 1200x900]
+//                                    [--chromium /usr/bin/chromium]
 // URL is a view.html page tools/viewer/serve.py serves. Waits until the model is drawn (or --wait runs out),
-// then writes the screenshot and prints the page's errors and warnings. WebGL runs on SwiftShader, so renders are slow
+// then writes the screenshot and prints the page's errors and warnings. Each --view then draws the same model from
+// QUERY's view parameters (az=30&el=15&zoom=2, or eye=...&target=...), without loading it again, into its own file. WebGL runs on SwiftShader, so renders are slow
 // but don't need a GPU.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,6 +19,11 @@ const option = (name, fallback) => {
   args.splice(i, 2);
   return value;
 };
+const views = [];
+for (let view = option('--view'); view !== undefined; view = option('--view')) {
+  const at = view.indexOf('=');
+  views.push([view.slice(0, at), view.slice(at + 1)]);
+}
 const wait = Number(option('--wait', '60'));
 const [width, height] = option('--size', '1200x900').split('x').map(Number);
 const chromium = option('--chromium', '/usr/bin/chromium');
@@ -80,7 +87,22 @@ while ((Date.now() - start) / 1000 < wait) {
 }
 const shot = await send('Page.captureScreenshot', { format: 'png' });
 fs.writeFileSync(out, Buffer.from(shot.result.data, 'base64'));
-console.log(JSON.stringify({ out, rendered: done !== undefined && done >= 0, seconds: (Date.now() - start) / 1000, messages: messages.slice(0, 20) }));
+const rendered = done !== undefined && done >= 0;
+console.log(JSON.stringify({ out, rendered, seconds: (Date.now() - start) / 1000, messages: messages.slice(0, 20) }));
+for (const [file, query] of rendered ? views : []) {
+  const begin = Date.now();
+  await send('Runtime.evaluate', { expression: `window.view(${JSON.stringify(query)})`, returnByValue: true });
+  let drawn;
+  while ((Date.now() - begin) / 1000 < wait) {
+    await new Promise((r) => setTimeout(r, 200));
+    const result = await send('Runtime.evaluate', { expression: 'window.renderDone', returnByValue: true });
+    drawn = result.result?.result?.value;
+    if (drawn !== undefined) break;
+  }
+  const view = await send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync(file, Buffer.from(view.result.data, 'base64'));
+  console.log(JSON.stringify({ out: file, rendered: drawn !== undefined, seconds: (Date.now() - begin) / 1000, messages: [] }));
+}
 socket.close();
 browser.kill();
 await new Promise((r) => browser.on('exit', r));
