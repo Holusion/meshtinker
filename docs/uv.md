@@ -78,7 +78,7 @@ xatlas keeps the whole UV mesh of a group on the heap, plus its own per-vertex a
 
 ## Report
 
-Per group: its materials, status (`repacked`, `no-gain`, or `skipped` with the warning's code as `reason`), primitives, charts, each image's size before and after with its output's name, texels before and after (for `no-gain`, the atlas it would have had), occupancy before and after (the texels the charts cover, over all texels), and the time. Totals over the scene, then the files written.
+Per group: its materials, status (`repacked`, `no-gain`, or `skipped` with the warning's code as `reason`), primitives, charts, each image's size before and after with its output's name, texels before and after (for `no-gain`, the atlas it would have had), occupancy before and after (the texels the charts cover, over all texels, after at the baked size: `--max-size` scales both alike), and the time. Totals over the scene, then the files written.
 
 ## Validation
 

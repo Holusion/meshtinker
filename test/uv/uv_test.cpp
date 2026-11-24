@@ -278,4 +278,8 @@ TEST_CASE(max_size_scales_the_atlas_down) {
     const uv::Group& group = run.report.groups.front();
     CHECK(group.status == uv::Status::repacked);
     CHECK(group.images[0].output_width <= 16 && group.images[0].output_height <= 16);
+    // Occupancy after is the baked layout's, which resizing doesn't change.
+    const Run full = repack("atlas", "atlas-full");
+    CHECK(std::abs(group.occupancy_after - full.report.groups.front().occupancy_after) < 1e-9);
+    CHECK(group.occupancy_after <= 1);
 }

@@ -652,12 +652,15 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         }
         std::uint64_t covered = 0;
         std::uint64_t texels_written = 0;
+        // Texels at the baked size, before --max-size: what `covered` counts in.
+        std::uint64_t texels_baked = 0;
         std::map<std::size_t, std::size_t> new_image;
         std::size_t k = 0;
         for (const std::size_t i : images) {
             const std::size_t source = layout.image_sources[i];
             if (uniform[k]) {
                 texels_written += static_cast<std::uint64_t>(group.images[k].width) * group.images[k].height;
+                texels_baked += static_cast<std::uint64_t>(group.images[k].width) * group.images[k].height;
                 ++k;
                 continue;
             }
@@ -671,6 +674,7 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
                 bake(*decoded, divisor, {atlas_size.width / divisor, atlas_size.height / divisor}, triangles);
             decoded.reset();
             covered += baked.covered;
+            texels_baked += baked.image.texels();
             const image::Size fitted = image::fittedSize({baked.image.width, baked.image.height}, options.max_size, 1);
             if (fitted != image::Size{baked.image.width, baked.image.height}) {
                 const bool alpha = image::analyze(baked.image).alpha;
@@ -701,7 +705,8 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         }
         group.texels_after = texels_written;
         group.occupancy_before = static_cast<double>(covered) / static_cast<double>(group.texels_before);
-        group.occupancy_after = static_cast<double>(covered) / static_cast<double>(group.texels_after);
+        // Resizing scales the covered texels as it scales the image.
+        group.occupancy_after = static_cast<double>(covered) / static_cast<double>(texels_baked);
         for (const std::size_t m : materials) {
             for (const TextureUse& use : uses[m]) {
                 // Uniform images keep their file.
