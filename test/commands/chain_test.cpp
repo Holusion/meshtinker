@@ -373,3 +373,16 @@ TEST_CASE(dedup_in_a_chain) {
     CHECK_EQ(again.json["meshes"]["before"], again.json["meshes"]["after"]);
     CHECK_EQ(run("export", {chain_directory, (root / "out.glb").string()}).code, 0);
 }
+
+// inspect --occupancy-maps publishes one map per sampled image, and refuses
+// to overwrite them.
+TEST_CASE(inspect_writes_occupancy_maps) {
+    const fs::path maps = test::workDirectory("chain-commands/maps");
+    const std::string model = test::fixture("ktx2-sources").model.string();
+    CHECK_EQ(run("inspect", {model, "--occupancy-maps", maps.string()}).code, 0);
+    for (const char* name : {"occupancy-0.png", "occupancy-1.png", "occupancy-2.png"}) {
+        CHECK(fs::is_regular_file(maps / name));
+    }
+    CHECK_EQ(run("inspect", {model, "--occupancy-maps", maps.string()}).code, 4);
+    CHECK_EQ(run("inspect", {model, "--occupancy-maps", (maps / "missing").string()}).code, 4);
+}

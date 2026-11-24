@@ -52,8 +52,11 @@ public:
     // Texels used. Padding bits past each row's width are never set.
     std::uint64_t count() const;
 
-    // The bit of texel (column, row), for tests.
+    // The bit of texel (column, row).
     bool test(std::uint32_t column, std::uint32_t row) const;
+
+    std::uint32_t width() const { return static_cast<std::uint32_t>(width_); }
+    std::uint32_t height() const { return static_cast<std::uint32_t>(height_); }
 
 private:
     void row(std::int64_t row_index, std::optional<std::pair<std::int64_t, std::int64_t>> columns, Wrap wrap);

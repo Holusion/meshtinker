@@ -5,11 +5,11 @@
 namespace meshtinker::analysis {
 
 Inspection inspect(const std::filesystem::path& path, const gltf::ReadOptions& options, common::Workspace& workspace,
-                   common::Diagnostics& diagnostics) {
+                   common::Diagnostics& diagnostics, const CoverageSink& maps) {
     gltf::Document document = gltf::Document::read(path, options);
     gltf::Selection selection = gltf::selectScene(document);
     Report report = analyzeDocument(document, selection, diagnostics);
-    analyzeData(document, selection, report, workspace, diagnostics);
+    analyzeData(document, selection, report, workspace, diagnostics, maps);
     return {std::move(document), std::move(selection), std::move(report)};
 }
 

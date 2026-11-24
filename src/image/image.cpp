@@ -309,7 +309,15 @@ std::vector<std::uint8_t> encodePng(const Image& image, int channels) {
     }
     const Image* source = &image;
     Image rgb;
-    if (channels == 3) {
+    if (channels == 1) {
+        rgb.width = image.width;
+        rgb.height = image.height;
+        rgb.pixels.resize(image.texels());
+        for (std::size_t i = 0; i < image.texels(); ++i) {
+            rgb.pixels[i] = image.pixels[i * 4];
+        }
+        source = &rgb;
+    } else if (channels == 3) {
         rgb.width = image.width;
         rgb.height = image.height;
         rgb.pixels.resize(image.texels() * 3);

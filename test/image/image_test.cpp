@@ -226,6 +226,15 @@ TEST_CASE(ktx2_decodes) {
     CHECK(!decode(view(cut), error) && !error.empty());
 }
 
+// One channel writes red alone, as gray.
+TEST_CASE(gray_png_keeps_red) {
+    const Image image = filled(3, 2, 200, 10, 20, 255);
+    std::string error;
+    const std::vector<std::uint8_t> png = encodePng(image, 1);
+    const std::optional<Image> decoded = decode(view(png), error);
+    CHECK(decoded && decoded->source_channels == 1 && decoded->pixels[0] == 200 && decoded->pixels[1] == 200);
+}
+
 TEST_CASE(channel_analysis) {
     Image gray = filled(4, 4, 90, 90, 90, 255);
     Channels channels = analyze(gray);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "meshtinker/analysis/analyze.hpp"
 #include "meshtinker/analysis/report.hpp"
 #include "meshtinker/common/diagnostics.hpp"
 #include "meshtinker/common/workspace.hpp"
@@ -21,6 +22,6 @@ struct Inspection {
 
 // Reads `path`, selects its scene, then runs both analysis stages.
 Inspection inspect(const std::filesystem::path& path, const gltf::ReadOptions& options, common::Workspace& workspace,
-                   common::Diagnostics& diagnostics);
+                   common::Diagnostics& diagnostics, const CoverageSink& maps = {});
 
 } // namespace meshtinker::analysis

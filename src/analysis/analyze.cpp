@@ -375,7 +375,7 @@ Report analyzeDocument(const gltf::Document& document, const gltf::Selection& se
 }
 
 void analyzeData(gltf::Document& document, const gltf::Selection& selection, Report& report,
-                 common::Workspace& workspace, common::Diagnostics& diagnostics) {
+                 common::Workspace& workspace, common::Diagnostics& diagnostics, const CoverageSink& maps) {
     const cgltf_data& data = document.data();
     const Json& json = document.json();
     gltf::GeometryReader reader(document, workspace);
@@ -596,6 +596,9 @@ void analyzeData(gltf::Document& document, const gltf::Selection& selection, Rep
                     break;
                 }
             }
+        }
+        if (maps) {
+            maps(members, map);
         }
         const std::uint64_t count = map.count();
         for (const std::size_t image : members) {

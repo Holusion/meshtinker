@@ -144,3 +144,7 @@ The cost column says what a field needs. **Document** fields come from the JSON,
 | optimizer's vertex count | `geometry.vertices` |
 
 eCorpus can't read `KHR_meshopt_compression` files, and inspects files with unknown required extensions anyway.
+
+## Occupancy maps
+
+`inspect --occupancy-maps DIR`, a hidden option for experiments, writes the coverage map behind each image's occupancy into DIR, which must exist: `occupancy-<index>.png`, one gray PNG per image the scene samples, at the image's size, white where a texel is sampled and black elsewhere. Images that share a map (the same size and the same draws) get one file each. They mask comparisons to the texels a viewer can show, as in [experiments/many-textures.md](experiments/many-textures.md), whose pilot compared padding with the rest. Existing files aren't overwritten.

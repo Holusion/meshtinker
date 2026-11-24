@@ -74,7 +74,8 @@ Size fittedSize(Size size, std::uint32_t max_size, std::uint32_t multiple);
 // premultiplied by it while filtering.
 Image resize(const Image& image, Size size, Content content, bool alpha);
 
-// Encodes `image` as PNG, with `channels` channels (3 drops alpha), at
+// Encodes `image` as PNG, with `channels` channels (3 drops alpha, 1 keeps
+// red alone, as gray), at
 // compression level 1: writing time matters more than size here
 // (docs/images.md#writing).
 std::vector<std::uint8_t> encodePng(const Image& image, int channels);

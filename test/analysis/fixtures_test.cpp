@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 
 namespace fs = std::filesystem;
 using namespace meshtinker;
@@ -188,4 +189,29 @@ TEST_CASE(import_reports_what_it_wrote) {
             std::fprintf(stderr, "  in fixture %s\n", f.name.c_str());
         }
     }
+}
+
+// The coverage maps behind occupancy reach a sink, with the images each one
+// is the map of: the quarter-sampled ETC1S and UASTC images of ktx2-sources
+// share one map of 34 × 34 texels (0 to 32, and 63 across the wrap).
+TEST_CASE(coverage_maps_reach_the_sink) {
+    const test::Fixture& f = test::fixture("ktx2-sources");
+    common::Workspace workspace(test::workDirectory("fixtures/coverage-sink"), false);
+    common::Diagnostics diagnostics;
+    std::map<std::size_t, std::uint64_t> counts;
+    bool corners = false;
+    const analysis::CoverageSink sink = [&](const std::vector<std::size_t>& images, const analysis::Coverage& map) {
+        for (const std::size_t image : images) {
+            counts[image] = map.count();
+        }
+        if (std::find(images.begin(), images.end(), std::size_t{0}) != images.end()) {
+            corners = map.width() == 64 && map.test(0, 0) && map.test(32, 32) && map.test(63, 63) && !map.test(40, 40);
+        }
+    };
+    analysis::inspect(f.model, {true}, workspace, diagnostics, sink);
+    CHECK_EQ(counts.size(), std::size_t{3});
+    CHECK_EQ(counts[0], std::uint64_t{34 * 34});
+    CHECK_EQ(counts[1], std::uint64_t{64 * 64});
+    CHECK_EQ(counts[2], std::uint64_t{34 * 34});
+    CHECK(corners);
 }
