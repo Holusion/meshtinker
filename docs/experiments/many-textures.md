@@ -52,7 +52,16 @@ Three images per model, shrunk by 2 and 4 (Lanczos 3), enlarged back, and compar
 
 - MAN80287's textures look soft at 1:1: grain over a few texels, no sharp edges. The cave's are sharp, with fine cracks and gravel. In both, the images looked at are four 2k pages each, separated by black lines.
 - **Biases, to remove before trusting the figures:** the whole image is compared, padding included. MAN80287's padding is a blurred dilation, which raises its figures. MAN80287's source is ETC1S, whose 4×4 block artefacts count as detail and lower them. Mask the comparison to the texels that the scene samples (the occupancy map), and compare MAN80287 at a block-aligned factor.
-- If the masked figures hold, **the detail a texture actually holds** could separate an oversampled object from a dense cave without knowing how either is viewed. That would be a fact a report can give: per image, the largest shrink factor whose loss stays under a threshold.
+- **Octave energies** say the same thing more directly, without a threshold (`tools/experiments/many-textures/octaves.sh`). The mean square of each band of the luma's Laplacian pyramid is the contrast in that octave. Natural images are close to scale-invariant (power spectrum in 1/f²), which puts the same energy in every octave. So the ratio of the finest octave to the next, E0/E1, is near 1 for an image with detail down to its texels, well under 1 for a soft or upsampled one, and over 1 for noise or sharpening. A band's kurtosis tells structure (sparse, heavy-tailed) from Gaussian noise (3). Padding scales both bands alike, so it leaves the ratio, but it raises the kurtosis, by 1/occupancy for a noise-only band.
+
+  | Image | E0/E1 | E1/E2 | Kurtosis of E0 |
+  | --- | --- | --- | --- |
+  | MAN80287 0, 18, 50 | 0.75, 0.79, 0.64 | 1.02, 1.00, 0.70 | 17, 14, 47 |
+  | Sorcier 3, 20, 40 | 1.65, 1.56, 1.67 | 1.18, 1.26, 1.41 | 9, 9, 11 |
+  | Campus 319, 436, 317 | 0.58, 0.63, 0.67 | 0.70, 0.72, 0.83 | 11, 11, 8 |
+
+  MAN80287 holds detail down to 2k (E1/E2 near 1), and its 4k octave is weak: about one octave of oversampling, despite the ETC1S block artefacts adding to E0. The campus's images are soft at every scale: upsampled or blurred at the source. The cave has more energy at its finest octave than scale invariance gives, with a kurtosis of about 10, too high for Gaussian noise even after padding (3 / 0.66 = 4.5): fine structure, sharpening, or JPEG's 8×8 block edges, which the masked run should tell apart by measuring the band at block boundaries separately. The vips script takes about 2 s per 4k image through temporary files. In C++, after decoding, a pyramid of a 4k luma is a few tens of milliseconds, so the cost is the decode, which the texture step pays anyway.
+- If the masked figures hold, **the detail a texture actually holds** could separate an oversampled object from a dense cave without knowing how either is viewed. That would be a fact a report can give: per image, the finest octave whose energy ratio stays near 1, which is the side the image needs.
 
 ## Questions
 
@@ -105,6 +114,6 @@ Write the views and the scores to one CSV per model, with paths to the images, a
 
 ## Setup
 
-- `tools/experiments/many-textures/`: `glb_images.py` (images out of a GLB by index), `area.py` (surface area, Blender), `downup.sh` (the pilot).
+- `tools/experiments/many-textures/`: `glb_images.py` (images out of a GLB by index), `area.py` (surface area, Blender), `downup.sh` and `octaves.sh` (the pilot).
 - Work in `build/exp-texels/` (gitignored, on the local disk): the scratch directory is on tmpfs, and a sweep writes several hundred MB a model.
 - The cave's `optimize` at High encodes 56 4k images: expect several minutes a run.
