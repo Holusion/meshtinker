@@ -16,7 +16,7 @@ must serve as /exp/ (and the local models' folders as /raw/ and /normalized/) fo
   t1: `ktx`, then `compress`, at the side the budget gives, without uv, where optimize runs uv.
 - q1: where the sources aren't KTX2 (the cave), the second lossy round alone: `ktx` at 4096, as a careless
   first compression, then `ktx` at 2048 on it, against T2-2048 straight from the sources.
-- t4: `ktx` on atlas.py's page (Blender, build/exp-texels/MODEL-t4/page/model.gltf) at its side, ÷2 and ÷4.
+- t4: `ktx` on atlas_rects.py's pages (build/exp-texels/MODEL-t4/input-page and uv-page) at their side, ÷2, ÷4.
 - measure: `inspect --json` of each output: bytes, texels, texels in use, GPU estimate, headroom.
 - render: every view of views.json for each output and for the input (T0), at 1600×1200 without the label.
 - score: SSIMULACRA2 of each render against T0's of the same view. Writes MODEL/results.csv.
@@ -137,16 +137,19 @@ def q1(m, work):
 
 
 def t4(m, work):
-    page = f"{work}-t4/page/model.gltf"
-    if not os.path.exists(page):
-        log("no atlas page: run atlas.py first")
-        return
-    report, _ = tool("inspect", page)
-    side = max(max(i["width"], i["height"]) for i in report.get("images", []))
-    for s in (side, side // 2, side // 4):
-        if not os.path.exists(f"{work}/t4-{s}/model.gltf"):
-            log("t4", s)
-            ktx(dict(m, min_size=0), page, f"{work}/t4-{s}/model.gltf", s)
+    """Atlases from atlas_rects.py in build/exp-texels/MODEL-t4/: input-page (the input's images) and uv-page
+    (uv's), each swept at its side, ÷2 and ÷4."""
+    for kind, prefix in (("input-page", "t4i"), ("uv-page", "t4u")):
+        page = f"{work}-t4/{kind}/model.gltf"
+        if not os.path.exists(page):
+            log(f"no {kind}: run atlas_rects.py first")
+            continue
+        report, _ = tool("inspect", page)
+        side = max(max(i["width"], i["height"]) for i in report.get("images", []))
+        for s in (side, side // 2, side // 4):
+            if not os.path.exists(f"{work}/{prefix}-{s}/model.gltf"):
+                log(prefix, s)
+                ktx(dict(m, min_size=0), page, f"{work}/{prefix}-{s}/model.gltf", s)
 
 
 def outputs(m, work):
@@ -156,8 +159,9 @@ def outputs(m, work):
     candidates = [("T1-opt", "opt/model.glb")] + [(f"T2-{s}", f"t2-{s}/model.gltf") for s in m["sweep"]]
     candidates += [("T1-nouv", "t1/model.gltf"), ("T3", "t3/model.gltf"), ("Q1-4096", "q1-4096/model.gltf"),
                    ("Q1-2048", "q1-2048/model.gltf")]
-    candidates += sorted(((f"T4-{d[3:]}", f"{d}/model.gltf") for d in os.listdir(work) if d.startswith("t4-")),
-                         key=lambda c: -int(c[0][3:]))
+    for prefix in ("t4i", "t4u"):
+        candidates += sorted(((f"T4{prefix[2]}-{d[4:]}", f"{d}/model.gltf") for d in os.listdir(work)
+                              if d.startswith(prefix + "-")), key=lambda c: -int(c[0].split("-")[1]))
     for label, path in candidates:
         if os.path.exists(f"{work}/{path}"):
             found.append((label, f"{work}/{path}", f"/exp/{name}/{path}"))
