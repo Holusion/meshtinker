@@ -21,7 +21,7 @@ meshtinker uv in.gltf out/ --max-size 4096
 
 xatlas stretches each chart until its extents are whole texels ("Scale the charts to use the entire texel area available", in `PackCharts`), which no option turns off. Without block alignment the stretch is under a texel, so `uv` takes xatlas's placement and moves each chart unstretched, by the move of its minimum corner. The chart then stays within 1.5 texels of the room xatlas gave it, which the padding absorbs. Block alignment is off: it would stretch charts by up to 4 texels.
 
-Charting again from 3D (xatlas `Generate`, as objatlas does) changes every texel, through a resample. Meshes without UVs are out of scope: they have no texture to keep. For very fragmented charts it may become a later optimization, if measurements show it gains enough over repacking (TODO.md).
+Charting again from 3D (xatlas `Generate`, as objatlas does) changes every texel, through a resample. Meshes without UVs are out of scope: they have no texture to keep. For very fragmented charts it may become a later optimization, if measurements show it gains enough over repacking.
 
 Repacking changes only `TEXCOORD_n` values: no vertex is added and positions don't move. The rewritten primitives are written uncompressed, every attribute as float (`gltf::addPlainGeometry`), as for any geometry rewrite ([normalized-profile.md](normalized-profile.md#commands-that-rewrite-geometry)). Triangles that have no area in UV space, which xatlas leaves out of every chart, move with a chart that has one of their UVs, else with a chart of another of their vertices. The rest, isolated, each sample one point or line of the source: they move with the chart of the placed vertex nearest their centroid, which keeps those texels when the point is in or near that chart. On the local scans they are 3 to 146 triangles in a model, of 145,000 to a million vertices; above 1,000 in a group, whose brute-force search would be slow, the group is left as it is (`uv-unplaced-vertices`). Vertices no triangle uses keep their UVs.
 
@@ -45,7 +45,7 @@ The baked images are PNG, at a fast compression level ([images.md](images.md#wri
 
 ## Normal maps and rotation
 
-Rotating or mirroring a chart turns its tangent space, which makes a tangent-space normal map and any `TANGENT` attribute wrong. Charts are never rotated (xatlas `rotateCharts` and `rotateChartsToAxis` off), nor mirrored, which xatlas doesn't do anyway. Rotation by 90° steps would keep baking a copy of texels for materials without a normal map, and rotating each chart's normals with it, and recomputing `TANGENT`, would allow it with one. Both can come later if measurements show they are worth the code (TODO.md).
+Rotating or mirroring a chart turns its tangent space, which makes a tangent-space normal map and any `TANGENT` attribute wrong. Charts are never rotated (xatlas `rotateCharts` and `rotateChartsToAxis` off), nor mirrored, which xatlas doesn't do anyway. Rotation by 90° steps would keep baking a copy of texels for materials without a normal map, and rotating each chart's normals with it, and recomputing `TANGENT`, would allow it with one. Both can come later if measurements show they are worth the code.
 
 ## Left as they are
 

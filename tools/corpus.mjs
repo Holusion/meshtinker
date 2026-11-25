@@ -5,6 +5,7 @@
 //   node tools/corpus.mjs list [SELECTION]           "id<TAB>path" per model (globs expanded)
 //   node tools/corpus.mjs paths [SELECTION]          absolute paths only, one per line
 //   node tools/corpus.mjs tags                       every tag with its model count
+//   node tools/corpus.mjs root SOURCE                the source's root folder, absolute (exit 1 if it has none)
 //   node tools/corpus.mjs check                      which models are present; exit 1 if a fixture or Khronos model is missing
 //
 // SELECTION: --id ID (prefix match, repeatable), --covers TAG (all required, repeatable), --source S,
@@ -71,6 +72,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const m of select(args)) console.log(`${m.id}\t${m.path}`);
   } else if (command === 'paths') {
     for (const m of select(args)) console.log(m.path);
+  } else if (command === 'root') {
+    if (!corpus.sources[args[0]]) {
+      console.error(`no source '${args[0]}'${args[0] === 'local' ? ': test/corpus.local.json lists the local models' : ''}`);
+      process.exit(1);
+    }
+    console.log(sourceRoot(args[0]));
   } else if (command === 'tags') {
     const tags = {};
     for (const m of models()) for (const t of m.covers) tags[t] = (tags[t] ?? 0) + 1;

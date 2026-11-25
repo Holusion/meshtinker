@@ -1,6 +1,23 @@
 # Results: the working-array heap budget, and punching holes in scratch files
 
-The answers to [heap-budget.md](heap-budget.md), from an unattended run on 21 November 2026, 02:03 to 05:30, on an otherwise idle machine (4 cores, 31 GB; SSD `/dev/sdd` and HDD `/dev/sda`, both btrfs with zstd). Release builds, inputs in the page cache, outputs and workspaces on the disk named. Raw figures: one JSON line per run, from `tools/experiments/heap-budget.sh`; they were in `build/heap-budget/` of the worktree and aren't committed, the tables below hold them.
+Two questions, answered by an unattended run on 21 November 2026, 02:03 to 05:30, on an otherwise idle machine (4 cores, 31 GB; SSD `/dev/sdd` and HDD `/dev/sda`, both btrfs with zstd). Release builds, inputs in the page cache, outputs and workspaces on the disk named. Raw figures: one JSON line per run, from `tools/experiments/heap-budget.sh`; they aren't committed, and the tables below hold them.
+
+1. **What heap budget should working arrays have?** It was 4 MiB, a constant. It must stay a constant: on servers with more memory, commands are expected to run in parallel, which is where spilling to scratch files helps most. A budget sized from the memory available was rejected for that reason.
+2. **Would punching holes in scratch files help, by how much, and in which cases?** That means dropping the pages of a freed block instead of letting the kernel write them back.
+
+The models, read in place:
+
+- **The 56 models of the local collection**, after `import`: all plain geometry, median 200,000 faces, largest 2.3M, 4 with several primitives. This is the bulk of what eCorpus processes, and what the threshold question is about: which share of models fits entirely under each budget, and what spilling costs on them.
+- **Larger local models, for the tail:**
+
+  | Model | Layout |
+  | --- | --- |
+  | `MAN63675_HP_44M` | 44M faces, 4 meshes in one space |
+  | `Zodiac/Tiles` | 44M faces, 1 mesh in 51 primitives |
+  | `Notre_Dame_en_Vaux_10M` | 9.9M faces, 30 primitives |
+  | `Lascaux_seamed_8k` | 4.7M faces, 166 primitives |
+  | `WoodenDragonSculpture` (ISTI dataset) | 3.1M faces, 1 primitive: meshoptimizer's largest single allocations |
+  | `Lion_Belfort` (`test_draco.glb`) | Draco: the decoder allocates on its own |
 
 ## Recommendation
 
@@ -14,7 +31,7 @@ The answers to [heap-budget.md](heap-budget.md), from an unattended run on 21 No
 - **What spilling costs on them is time, not disk.** On the collection no budget writes anything during the run: the scratch files are unlinked and unmapped before writeback starts, so their pages are dropped. What a small budget costs is the page faults and file setup of mapped scratch: +16 % on `simplify` at 4 MiB and +13 % at 64 MiB against unlimited, +3 % at 256 MiB.
 - **Large models gain from it too, a little.** 256 MiB takes the 44M scans from 59.0 to 54.7 s (4 meshes) and 44.2 to 38.4 s (51 primitives) on the SSD, and Notre Dame from 12.5 to 9.8 s. Their writes barely change between 64 MiB and 1 GiB: 2 GB of a 2.8 GB or 1.8 GB working set gets written either way, and only no budget at all avoids it.
 - **It stays small next to parallel runs.** The budget is per process. Four processes on a 4-core server, one per core, keep at most 1 GiB of working arrays on the heap together, eight keep 2 GiB, whatever the models. Past that, large models spill, which is what lets several of them run at once on a server that couldn't hold all their working sets: the kernel can reclaim mapped scratch pages under pressure, and can't reclaim the heap. 1 GiB would fit every collection model but pin 4 to 8 GiB of heap on a server running 4 to 8 commands, for 3 % on the collection. 64 MiB fits 80 % and leaves 13 % on the table.
-- Peak RSS of the large runs is 2 to 5 GB at any budget (12 GB for Lascaux, whose mapped textures count): the budget changes what is on the heap, not what is resident while memory is free (the handoff's finding, confirmed).
+- Peak RSS of the large runs is 2 to 5 GB at any budget (12 GB for Lascaux, whose mapped textures count): the budget changes what is on the heap, not what is resident while memory is free (as earlier measurements in docs/validation.md's field notes found).
 
 ### Why not punch holes
 
@@ -118,13 +135,13 @@ On ext4 or XFS, punching a hole drops cached pages without writing them, so it m
 | Notre Dame 10M, 30 primitives | 10.0 s / 124, 15.0 s / 418 | 10.0 s / 0, 10.0 s / 0 |
 
 Notes:
-- The HDD figures for the 4-mesh 44M scan's `simplify` at 4 MiB are faster than the handoff's (55.5 s against 76.4 s): the earlier runs crossed the dirty threshold, these mostly didn't. Writeback depends on what else is dirty on the machine.
+- The HDD figures for the 4-mesh 44M scan's `simplify` at 4 MiB are faster than earlier measurements in docs/validation.md's field notes (55.5 s against 76.4 s): the earlier runs crossed the dirty threshold, these mostly didn't. Writeback depends on what else is dirty on the machine.
 - One Lascaux `simplify` run at 4 MiB on the SSD took 79 s and the other 28 s; the mean (54 s) hides that. Lascaux's writes are mostly its 8k textures, copied from the HDD to the output's disk, where no reflink is possible.
 - The 1 GiB budget lets the 4-mesh 44M scan write 0.5 GB instead of 2 GB: its largest arrays then fit. The 51-primitive scan still writes 2 GB.
 
-## What was changed on the branch
+## Code changes made for the experiment
 
-- `heap_array_limit` can be set at compile time (`-DMESHTINKER_HEAP_ARRAY_LIMIT=<bytes>ULL`), as the handoff suggested. Nothing changes by default.
+- `heap_array_limit` can be set at compile time (`-DMESHTINKER_HEAP_ARRAY_LIMIT=<bytes>ULL`). Nothing changes by default.
 - `MESHTINKER_ARRAY_STATS` records the most the heap budget ever held, and writes it at exit to the file `MESHTINKER_ARRAY_STATS_FILE` names. Built with an unlimited budget, it gives a model's whole working set, which is how the "fit" columns above were measured. Nothing changes by default.
 - The default is now 256 MiB, as recommended.
 
@@ -217,9 +234,3 @@ index dc66c74..5a7d1cf 100644
  
  ScratchMapping Workspace::scratch(const std::string& name, std::uint64_t size) {
 ```
-
-## Suggested text for TODO.md, "flexible memory management"
-
-TODO.md is gitignored here, so this is the text to put in place of that section:
-
-> Commands keep per-vertex and per-face working arrays on the heap up to a constant budget, and in mapped scratch files beyond (docs/files-and-memory.md). Measured on the corpus (docs/experiments/heap-budget-results.md): raise `heap_array_limit` from 4 MiB to 256 MiB. 93 % of the collection then simplifies without scratch, and spilling costs 3 % instead of 16 %. Four to eight parallel commands keep at most 1 to 2 GiB on the heap. Large models still spill, and that's what lets several run at once. Punching holes in freed scratch blocks makes btrfs write them: don't. On ext4 or XFS it might help; measure it there before adopting it. Meta-commands still pick commands by their memory use: `simplify` and `compress` spill beyond the budget, and other commands may not.

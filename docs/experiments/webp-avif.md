@@ -1,6 +1,6 @@
 # Experiment: WebP against AVIF
 
-Which of WebP and AVIF a texture command should write, if meshtinker writes web image formats besides KTX2 (TODO.md, "Gaps against glTF-Transform"). First support and decoding in viewers, then, since they come out equivalent, file size and encoding speed.
+Which of WebP and AVIF a texture command should write besides KTX2. The answer, AVIF, became the `avif` command ([avif.md](../avif.md)). First support and decoding in viewers, then, since they come out equivalent, file size and encoding speed.
 
 ## Support
 

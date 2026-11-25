@@ -63,7 +63,7 @@ Every other model ends under 1 M faces and 64 MB of GPU textures. Nine keep more
 | 1 | Already compressed inputs grow | Keep compressed geometry under the face budget as it is; a final guard keeps the input when the output is larger and saves no GPU memory |
 | 2 | No face budget: the 44M scan keeps 2.24 M faces at High | `simplify --max-faces` (new): 1 M at High, as eCorpus's simplify ratio targets 1 M vertices |
 | 2 | No texture budget: 166 to 299 MB of GPU textures | One 64 MB GPU budget for geometry and textures: lower one maximum side for the whole model until it fits, or cut faces first when the texture density is low ([Budgets](#budgets)) |
-| 2 | WebP and AVIF sources stay RGBA8 on the GPU | Decode them for `ktx` (already a TODO for AVIF) |
+| 2 | WebP and AVIF sources stay RGBA8 on the GPU | Decode them for `ktx` |
 | 3 | fast's time grows with texels and faces, unbounded | Estimate each step from the cost table; in fast, shrink images until AVIF fits about 6 s, skip `simplify` past about 3 s (unsimplified geometry, with a warning) |
 | 3 | A failing step fails optimize | Keep the stage before it, warn, carry on; at worst the import stage is the output |
 

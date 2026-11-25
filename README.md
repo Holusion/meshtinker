@@ -723,16 +723,6 @@ OPTIONS:
 
 ## Architecture
 
-The tool will be used to test a (possibly large) number of algorithms to perform a lot of optimizations. In some case we'll want to have more than one algorithm for one task.
+Each command is its own executable, `meshtinker-<command>`, run through the `meshtinker` wrapper in the style of git: `meshtinker simplify ...` runs `meshtinker-simplify` from the wrapper's directory, or from `PATH`. Several algorithms for one task can then live side by side as commands of their own, such as an experimental variant built from another checkout and put on `PATH`. The commands share their code through one static library, and the binaries link nothing dynamically but the system C library. Linux comes first, then WSL and macOS; Windows isn't built for.
 
-However we want to have all those subcommands under the same "umbrella".
-
-For this we favor an approach where each subcommand gets built into its own binary, with a small wrapper that serves as a master entrypoint.
-
-The idea is that it should be easy for someone to try out any number of subcommands for multiple experimental branches at the same time (as long as their names don't overlap). It looks a lot like git is structured, so that may be a good inspiration.
-
-code-wise, we should make it easy for subcommands to share common code, but builds should be mostly static: We don't want to ship a bunch of shared libraries along with the binaries. Any non-static dependency need to be carefully considered before inclusion. 
-
-Cross-platform compatibility is not to be taken too seriously. We anticipate 90% linux, 10% WSL and MacOS use. We shouldn't willingly make it harder than required to build and run the tools on windows if it's ever needed, but we shouldn't over-provision for it until then.
-
-See [AGENTS.md](AGENTS.md#architecture) for how subcommands are found and built.
+[AGENTS.md](AGENTS.md#architecture) has the details: how the wrapper finds commands, the code layout and the build.

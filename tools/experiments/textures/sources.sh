@@ -1,7 +1,8 @@
 #!/bin/bash
 # Writes the benchmark sources as PNG (compression level 1), so that every encoder decodes the same input.
-# usage: sources.sh <outdir>. Reads the local models in place (read-only) and DamagedHelmet from test/assets.
-set -e; O=$1; M=/home/sebastien/Documents/3DModels; R="$(cd "$(dirname "$0")/../../.." && pwd)"; mkdir -p "$O"
+# usage: sources.sh <outdir>. Reads the local models in place (read-only), from the `local` source's root in
+# test/corpus.local.json, and DamagedHelmet from test/assets.
+set -e; O=$1; R="$(cd "$(dirname "$0")/../../.." && pwd)"; M=$(node "$R/tools/corpus.mjs" root local); mkdir -p "$O"
 cv() { magick "$1" -define png:compression-level=1 "$O/$2.png"; }
 cv "$M/collection/output/40-chauvet-sdf403/baseColor_1.jpg" color2k          # 2048², scan color
 cv "$M/collection/output/01-akhenaton-nefertiti/Akhenaton_Nefertiti.jpg" color4k   # 4000², scan color

@@ -1,6 +1,6 @@
 # Experiment: textures for a fast preset
 
-This experiment decides how a fast pipeline should write textures: KTX2 at reduced size, a downscaled WebP, AVIF or JPEG, or two of them, kept side by side because each wins on different models. Its result decides whether `ktx` gets a fast mode ([ktx.md](../ktx.md#no-fast-mode)) and what `optimize`'s fast preset does with textures (TODO.md, meta-operations).
+This experiment decides how a fast pipeline should write textures: KTX2 at reduced size, a downscaled WebP, AVIF or JPEG, or two of them, kept side by side because each wins on different models. Its result decides whether `ktx` gets a fast mode ([ktx.md](../ktx.md#no-fast-mode)) and what `optimize`'s fast preset does with textures.
 
 ## What "fast" means
 

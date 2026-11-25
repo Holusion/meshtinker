@@ -35,7 +35,7 @@ Images break the "map, don't load" rule: the decoders and encoders need whole im
 - Decoded pixels are on the heap. Peak memory is about the largest image times a factor that depends on the command (measured in [ktx.md](ktx.md), [avif.md](avif.md#results) and [uv.md](uv.md)).
 - The thread count is the number of CPUs the process may use: its affinity mask (`sched_getaffinity`), capped by the cgroup's `cpu.max` quota when one is set.
 
-This sits under the "flexible memory management" item in TODO.md: commands decide their own memory use, and meta-commands pick commands according to it.
+Each command decides its own memory use this way, and meta-commands such as `optimize` pick commands according to it.
 
 ## Writing
 

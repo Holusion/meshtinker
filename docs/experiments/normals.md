@@ -2,7 +2,7 @@
 
 This is the groundwork for `weld` and `normals` ([weld.md](../weld.md), [normals.md](../normals.md)). The rule it applies comes from AGENTS.md: **normals default to smooth**. Flat normals, and missing ones, are presumed to be a mistake made upstream, unless the data shows the hard edges are meant.
 
-The script is `tools/experiments/normals/survey.mjs`. It ran on every model of `test/corpus.json` (fixtures, Khronos samples, local models), plus the large local models from [heap-budget.md](heap-budget.md). The figures per model are in [normals-survey.csv](normals-survey.csv): 136 files, 70 of them local. Its last three columns split the edges above 60°, for the local models with more than 1,000 triangles.
+The script is `tools/experiments/normals/survey.mjs`. It ran on every model of `test/corpus.json` (fixtures, Khronos samples, local models), plus the large local models of [heap-budget-results.md](heap-budget-results.md). The figures per model are in [normals-survey.csv](normals-survey.csv): 136 files, 70 of them local. Its last three columns split the edges above 60°, for the local models with more than 1,000 triangles.
 
 ## What the survey measures
 
