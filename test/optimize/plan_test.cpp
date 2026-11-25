@@ -205,7 +205,7 @@ TEST_CASE(small_and_ktx2_images_have_no_texture_step) {
 
 // KTX2 images over the texture step's side are encoded again at it, and uv
 // gets the same side to repack them first (docs/images.md#formats): 103 ETC1S
-// images of 4096, as MAN80287 has, go to the budget's side.
+// images of 4096, as object-a has, go to the budget's side.
 TEST_CASE(ktx2_images_over_the_side_are_encoded_again) {
     Model model = texturedScan();
     model.faces = 450000;

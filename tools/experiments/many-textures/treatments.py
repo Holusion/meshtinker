@@ -9,6 +9,9 @@ must serve as /exp/ (and the local models' folders as /raw/ and /normalized/) fo
 
     python3 tools/viewer/serve.py raw=.../collection/raw normalized=.../collection/normalized exp=build/exp-texels
 
+MODEL is a corpus label (object-a, cave-a, collection-32): a key of MODELS, whose input is found through
+tools/corpus.mjs.
+
 - opt: `optimize` at High, slow, as the plan runs it today (--keep-tmp, so that its chain gives the base).
 - base: the optimize chain's stage before uv and the texture step, exported as .gltf: the geometry every
   treatment shares.
@@ -19,7 +22,7 @@ must serve as /exp/ (and the local models' folders as /raw/ and /normalized/) fo
 - t4: `ktx` on atlas_rects.py's pages (build/exp-texels/MODEL-t4/input-page and uv-page) at their side, ÷2, ÷4.
 - measure: `inspect --json` of each output: bytes, texels, texels in use, GPU estimate, headroom.
 - render: every view of views.json for each output and for the input (T0), at 1200×900 without the label:
-  SwiftShader drew nothing at 1600×1200 once zoomed in on MAN80287's 103 4k textures.
+  SwiftShader drew nothing at 1600×1200 once zoomed in on object-a's 103 4k textures.
 - score: SSIMULACRA2 of each render against T0's of the same view, and against B's (ssimulacra2_base): B, the
   base, has the input's images on the shared geometry, so it isolates what the texture steps lose from what
   `normals` (smooth normals where the input had none or flat ones) and `simplify` change. Writes MODEL/results.csv.
@@ -41,19 +44,42 @@ SSIMULACRA2 = os.path.join(BUILD, "tools", "bin", "ssimulacra2_rs")
 # The commands, copied from the build so that a rebuild doesn't change them during a run (BIN=build to use it).
 BIN = os.environ.get("BIN", os.path.join(EXP, "bin"))
 HERE = os.path.dirname(os.path.abspath(__file__))
-LOCAL = "/home/sebastien/Documents/3DModels/collection"
 SWEEP = [3072, 2048, 1536, 1024, 768, 512]
 
+
+def corpus_path(model_id):
+    """A local model's file, from its id in test/corpus.local.json (tools/corpus.mjs): the ids are the
+    models' public labels, so that their names stay on the machine (docs/validation.md, "The corpus")."""
+    listing = subprocess.run(["node", os.path.join(REPO, "tools", "corpus.mjs"), "list", "--id", model_id],
+                             capture_output=True, text=True, check=True).stdout
+    paths = [line.split("\t", 1)[1] for line in listing.splitlines() if line.split("\t", 1)[0] == model_id]
+    if not paths:
+        sys.exit(f"{model_id} is not in test/corpus.local.json")
+    return paths[0]
+
+
+# The local models' collection folder, which serve.py serves as /raw/ and /normalized/.
+LOCAL = os.path.join(subprocess.run(["node", os.path.join(REPO, "tools", "corpus.mjs"), "root", "local"],
+                                    capture_output=True, text=True, check=True).stdout.strip(), "collection")
+
 # Surface area (Blender, area.py) and bounding diagonal, for headroom: docs/experiments/many-textures.md.
+# Keys are the models' corpus labels; "input" is their corpus id.
 MODELS = {
-    "man80287": {"input": f"{LOCAL}/raw/MAN80287.glb", "url": "/raw/MAN80287.glb", "area": 20.9, "diagonal": 4.81,
+    "object-a": {"input": "local/object-a", "area": 20.9, "diagonal": 4.81,
                  "sweep": SWEEP, "min_size": 512, "t1": 1792, "t3": 1792},
-    "sorcier": {"input": f"{LOCAL}/raw/Grotte_du_sorcier.glb", "url": "/raw/Grotte_du_sorcier.glb", "area": 600,
-                "diagonal": 25.9, "sweep": SWEEP, "min_size": 512, "t1": None, "t3": 2560, "q1": True},
-    "campus": {"input": f"{LOCAL}/normalized/32-campus-romainville/model.gltf",
-               "url": "/normalized/32-campus-romainville/model.gltf", "area": 678, "diagonal": 26.2,
-               "sweep": [512, 256, 128], "min_size": 0, "t1": None, "t3": None},
+    "cave-a": {"input": "local/cave-a-raw", "area": 600,
+               "diagonal": 25.9, "sweep": SWEEP, "min_size": 512, "t1": None, "t3": 2560, "q1": True},
+    "collection-32": {"input": "local/collection-32", "area": 678, "diagonal": 26.2,
+                      "sweep": [512, 256, 128], "min_size": 0, "t1": None, "t3": None},
 }
+
+
+def resolve(m):
+    """Replaces a model's corpus id by its file, and adds the path serve.py gives it."""
+    if "url" not in m:
+        m["input"] = corpus_path(m["input"])
+        m["url"] = "/" + os.path.relpath(m["input"], LOCAL).replace(os.sep, "/")
+    return m
 
 
 def log(*args):
@@ -280,7 +306,7 @@ STEPS = {"opt": opt, "base": base, "t2": t2, "t3": t3, "q1": q1, "t4": t4, "meas
 
 def main():
     name, steps = sys.argv[1], sys.argv[2:] or list(STEPS)
-    m = MODELS[name]
+    m = resolve(MODELS[name])
     work = os.path.join(EXP, name)
     os.makedirs(work, exist_ok=True)
     for step in steps:

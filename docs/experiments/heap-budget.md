@@ -22,14 +22,14 @@ These figures are from the field notes in `docs/validation.md`. Release builds, 
 
 | Run | Output disk | 4 MiB | 256 MiB | Unlimited | Heap, unlimited |
 | --- | --- | --- | --- | --- | --- |
-| 44M simplify (`Zodiac/MAN63675_HP_44M`) | SSD | 61.6 s | 58.9 s | 53.1 s | 2.8 GB |
+| 44M simplify (`scan-44m/scan-44m`) | SSD | 61.6 s | 58.9 s | 53.1 s | 2.8 GB |
 | same | HDD | 76.4 s | 72.4 s | 53.2 s | |
 | 44M compress | either | 18.1 s | 17.3 s | 16.0 s | 1.3 GB |
-| Notre Dame simplify (10M faces, 30 primitives) | either | 10.7 s | 10.5 s | 9.8 s | 445 MB |
+| scan-10m simplify (10M faces, 30 primitives) | either | 10.7 s | 10.5 s | 9.8 s | 445 MB |
 
 - **Disk writes.** At 4 MiB the 44M simplify wrote about 5 GB to the output's disk during the run. That's more than its working set, because pages get rewritten. With no budget it wrote only the output (about 230 MB).
 - **Memory.** Peak RSS is about 4 GB in every case. Mapped scratch doesn't use less memory while RAM is free; it only lets the kernel reclaim it under pressure.
-- **Writeback even on short runs.** A sample during a 10 s Notre Dame simplify at 4 MiB (`tools/experiments/dirty-probe.py`) showed dirty memory climbing to 1.4 GB, and writes starting at 6 s, at about 880 MB dirty. That's below the machine-wide background threshold (`nr_dirty_background_threshold`, 1.4 GB here), so the trigger is probably the disk's share of that threshold. Past `nr_dirty_threshold` (2.9 GB here), the kernel pauses the process at the disk's write speed. That's why the spinning disk is slower.
+- **Writeback even on short runs.** A sample during a 10 s scan-10m simplify at 4 MiB (`tools/experiments/dirty-probe.py`) showed dirty memory climbing to 1.4 GB, and writes starting at 6 s, at about 880 MB dirty. That's below the machine-wide background threshold (`nr_dirty_background_threshold`, 1.4 GB here), so the trigger is probably the disk's share of that threshold. Past `nr_dirty_threshold` (2.9 GB here), the kernel pauses the process at the disk's write speed. That's why the spinning disk is slower.
 - **Why punching holes might help.** A shared 64 MiB file keeps the dirty pages of blocks already freed until its last block goes. Those pages count toward the thresholds and can get written for nothing. `simplify` frees each space's input arrays when it moves on, but its outputs stay live until the write, so freed and live blocks get interleaved in the same files.
 
 - **The shared-position search in `simplify`** (`sharedPositions` in `src/commands/simplify/simplify.cpp`) writes one 16-byte entry per vertex of the scene: 400 MB for the 44M scan, in a scratch file of its own past the budget. It sorts the entries in place, which dirties every page, and frees the file after about 3 s. Pages not written by then are dropped, but on large models writeback is usually already running. Measure how much of the writes it accounts for: `dirty-probe.py` around that phase, or a variant that skips the search. And say whether a smaller entry (a 64-bit hash plus the primitive, checked against the positions on a match) is worth it.
@@ -50,12 +50,12 @@ The models are read in place, **never modified**. Write nothing inside `/home/se
 
   | Path | Layout |
   | --- | --- |
-  | `Zodiac/MAN63675_HP_44M/MAN63675_HP_44M.gltf` | 44M faces, 4 meshes in one space |
-  | `Zodiac/Tiles/model.gltf` | 44M faces, 1 mesh in 51 primitives |
-  | `Notre Dame en Vaux/Notre_Dame_en_Vaux_10M.gltf` | 9.9M faces, 30 primitives |
-  | `Lascaux/output/source_model_8k/Lascaux_seamed_8k.gltf` | 4.7M faces, 166 primitives |
-  | `ISTI_dataset/RWT180/WoodenDragonSculpture.gltf` | 3.1M faces, 1 primitive: meshoptimizer's largest single allocations |
-  | `Lion_Belfort.Sc.130.3/test_draco.glb` | Draco: the decoder allocates on its own |
+  | `scan-44m/model.gltf` | 44M faces, 4 meshes in one space |
+  | `scan-44m-tiles/model.gltf` | 44M faces, 1 mesh in 51 primitives |
+  | `scan-10m/model.gltf` | 9.9M faces, 30 primitives |
+  | `cave-b/model.gltf` | 4.7M faces, 166 primitives |
+  | `sculpture-3m/model.gltf` | 3.1M faces, 1 primitive: meshoptimizer's largest single allocations |
+  | `statue-a/draco.glb` | Draco: the decoder allocates on its own |
 
   Add others only if they add a data point the list lacks. Check their layout first with `build/meshtinker-inspect --json`.
 

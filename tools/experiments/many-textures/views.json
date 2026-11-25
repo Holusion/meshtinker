@@ -1,15 +1,15 @@
 {
-  "man80287": {
+  "object-a": {
     "full-30": "az=30&el=40", "full-150": "az=150&el=40", "full-270": "az=270&el=40",
     "relief-z2": "az=30&el=60&zoom=2&target=0.5,0.9,0.5", "relief-z4": "az=30&el=60&zoom=4&target=0.5,0.9,0.5",
     "side-z2": "az=150&el=10&zoom=2&target=0.3,0.5,0.7", "side-z4": "az=150&el=10&zoom=4&target=0.3,0.5,0.7"
   },
-  "sorcier": {
+  "cave-a": {
     "full-30": "az=30&el=40", "full-150": "az=150&el=40", "full-270": "az=270&el=40",
     "inside-east": "eye=0.35,0.4,0.5&target=0.9,0.35,0.5&fov=60", "inside-east-z4": "eye=0.35,0.4,0.5&target=0.9,0.35,0.5&fov=15",
     "inside-west": "eye=0.6,0.4,0.5&target=0.1,0.35,0.5&fov=60", "inside-west-z4": "eye=0.6,0.4,0.5&target=0.1,0.35,0.5&fov=15"
   },
-  "campus": {
+  "collection-32": {
     "full-30": "az=30&el=30", "full-150": "az=150&el=30", "full-270": "az=270&el=30",
     "tower-z2": "az=30&el=20&zoom=2&target=0.5,0.6,0.5", "tower-z4": "az=30&el=20&zoom=4&target=0.5,0.6,0.5",
     "roofs-z2": "az=270&el=30&zoom=2&target=0.5,0.1,0.5", "roofs-z4": "az=270&el=30&zoom=4&target=0.5,0.1,0.5"
