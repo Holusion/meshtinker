@@ -35,7 +35,7 @@ Step costs, fitted on the runs (least squares, no intercept), predict a step fro
 | `simplify` | 1.4 s per million faces |
 | `uv` | 2.4 s per million faces, plus 0.1 s per megatexel |
 
-The fast preset meets goal 3 for normal models: 60 of 66 in under 10 s, a 6× median speedup. The six slower ones are the careless inputs: many large textures (`02-73`: 16 images of 4096², 21 s of AVIF; `Lion`: 14 images; the campus: 634), and the 44-million-face scan (15 s of import, 62 s of `simplify`, 55 s of AVIF).
+The fast preset meets goal 3 for normal models: 60 of 66 in under 10 s, a 6× median speedup. The six slower ones are the careless inputs: many large textures (`collection-02`: 16 images of 4096², 21 s of AVIF; `statue-b`: 14 images; the campus: 634), and the 44-million-face scan (15 s of import, 62 s of `simplify`, 55 s of AVIF).
 
 **`uv` runs where it can't gain.** It repacked 13 of the 27 models below 0.6 occupancy, saving 3 to 57 % of their texels, and none of the 36 above, except three cards of 4 to 12 faces. Above 0.6 it cost up to 18 s a model for nothing: 119 s, 6 % of slow's total time. Where it repacks an 8k atlas, `ktx --max-size 4096` scales the result down anyway: the gain is texel density at 4096, a sharper texture, not a smaller one.
 
@@ -43,16 +43,16 @@ The fast preset meets goal 3 for normal models: 60 of 66 in under 10 s, a 6× me
 
 | Model | Faces out | GPU textures out | Download | Slow time |
 | --- | --- | --- | --- | --- |
-| `MAN63675_HP_44M` (44 M faces, 16 × 4096²) | 2.24 M | 299 MB | 108 MB | 296 s |
-| `Lion` (14 images up to 4096²) | 181,000 | 213 MB | 55 MB | 107 s |
-| `Lion` (WebP textures) | 247,000 | 171 MB: WebP isn't decoded, so stays RGBA8 | 8 MB | 1 s |
-| `02-73` (16 × 4096²) | 423,000 | 166 MB | 32 MB | 137 s |
+| `scan-44m` (44 M faces, 16 × 4096²) | 2.24 M | 299 MB | 108 MB | 296 s |
+| `statue-b` (14 images up to 4096²) | 181,000 | 213 MB | 55 MB | 107 s |
+| `statue-b` (WebP textures) | 247,000 | 171 MB: WebP isn't decoded, so stays RGBA8 | 8 MB | 1 s |
+| `collection-02` (16 × 4096²) | 423,000 | 166 MB | 32 MB | 137 s |
 
 Every other model ends under 1 M faces and 64 MB of GPU textures. Nine keep more than 500,000 faces.
 
 **Some outputs grow without a gain.**
-- Already compressed inputs: `Ebauche_statue_grecque` (Draco and KTX2) grows from 1.8 to 3.4 MB, and the two compressed `Lion` files by 10 to 33 %. `simplify` rewrites their geometry, and meshopt at 14 bits is larger than their Draco. Their textures were KTX2 already, or WebP, which `ktx` leaves alone.
-- KTX2 itself: UASTC normal and occlusion maps are 2 to 3 times their JPEG (`tasse` 5.5 → 14 MB, `athlete` 21 → 30 MB). That is the price goal 1 accepts for GPU memory.
+- Already compressed inputs: `statue-c` (Draco and KTX2) grows from 1.8 to 3.4 MB, and the two compressed `statue-b` files by 10 to 33 %. `simplify` rewrites their geometry, and meshopt at 14 bits is larger than their Draco. Their textures were KTX2 already, or WebP, which `ktx` leaves alone.
+- KTX2 itself: UASTC normal and occlusion maps are 2 to 3 times their JPEG (`collection-28` 5.5 → 14 MB, `collection-27` 21 → 30 MB). That is the price goal 1 accepts for GPU memory.
 
 ## What the first plan got wrong
 
@@ -63,7 +63,7 @@ Every other model ends under 1 M faces and 64 MB of GPU textures. Nine keep more
 | 1 | Already compressed inputs grow | Keep compressed geometry under the face budget as it is; a final guard keeps the input when the output is larger and saves no GPU memory |
 | 2 | No face budget: the 44M scan keeps 2.24 M faces at High | `simplify --max-faces` (new): 1 M at High, as eCorpus's simplify ratio targets 1 M vertices |
 | 2 | No texture budget: 166 to 299 MB of GPU textures | One 64 MB GPU budget for geometry and textures: lower one maximum side for the whole model until it fits, or cut faces first when the texture density is low ([Budgets](#budgets)) |
-| 2 | WebP and AVIF sources stay RGBA8 on the GPU | Decode them for `ktx` (already a TODO for AVIF) |
+| 2 | WebP and AVIF sources stay RGBA8 on the GPU | Decode them for `ktx` |
 | 3 | fast's time grows with texels and faces, unbounded | Estimate each step from the cost table; in fast, shrink images until AVIF fits about 6 s, skip `simplify` past about 3 s (unsimplified geometry, with a warning) |
 | 3 | A failing step fails optimize | Keep the stage before it, warn, carry on; at worst the import stage is the output |
 
@@ -80,11 +80,11 @@ Geometry is cheap next to textures. After `compress`, 1 M faces cost about 8 MB 
 | 1 M faces, and at most 1 face per 16 used color texels | 12 | 0 |
 | 1 M faces; over budget, cut faces to 16 used texels a face before halving images | 5 | 0 |
 
-The five over budget are the careless models plus two large ones: `02-73` (textures 166 → 54 MB, at 2304), `Lion` (213 → 55 MB, at 2048), `MAN63675_HP_44M` (1 M faces, 21 MB; textures 299 → 42 MB, at 1536), `johannisfriedhof` (64 → 49 MB, at 3584) and `trema-retablebelvaux` (18 MB of geometry; textures 53 → 41 MB, at 3584).
+The five over budget are the careless models plus two large ones: `collection-02` (textures 166 → 54 MB, at 2304), `statue-b` (213 → 55 MB, at 2048), `scan-44m` (1 M faces, 21 MB; textures 299 → 42 MB, at 1536), `collection-34` (64 → 49 MB, at 3584) and `collection-10` (18 MB of geometry; textures 53 → 41 MB, at 3584).
 
-Textures shrink through one maximum side for the whole model, as `ktx --max-size` applies it, not image by image: halving a material's normal map while its color map stays at full size makes no sense. Halving every image at the largest side together overshoots, since each step divides their memory by 4 (`trema` would end at 13 MB of textures for 46 available); steps of 256 fill the budget.
+Textures shrink through one maximum side for the whole model, as `ktx --max-size` applies it, not image by image: halving a material's normal map while its color map stays at full size makes no sense. Halving every image at the largest side together overshoots, since each step divides their memory by 4 (`collection-10` would end at 13 MB of textures for 46 available); steps of 256 fill the budget.
 
-**Texel density** (used color texels a face: texture texels × occupancy / faces) tells geometry that is denser than its texture can show. The careful 200,000-face exports have about 50 at 4096; the 44M scan has 1 at input. As a ceiling of its own, it only cuts ordinary 600,000 to 1 M face scans (Pietà, Mascaron, Chapiteau) that are well under budget: about 5 MB of GPU memory saved each, for damage. Its use is as the tie-breaker once over budget: below the target density, cut faces first; above it, lower the textures' side first. On this corpus that changes one model, `trema` (854,000 → 550,000 faces, its textures at 3840 rather than 3584). The target, 16, is a guess that renders have to settle. Density is undefined without a color texture (a megatexel at least): `Lion`'s normal-map-only files, models with a vertex-color-like 300² texture.
+**Texel density** (used color texels a face: texture texels × occupancy / faces) tells geometry that is denser than its texture can show. The careful 200,000-face exports have about 50 at 4096; the 44M scan has 1 at input. As a ceiling of its own, it only cuts ordinary 600,000 to 1 M face scans (Pietà, collection-05, collection-06) that are well under budget: about 5 MB of GPU memory saved each, for damage. Its use is as the tie-breaker once over budget: below the target density, cut faces first; above it, lower the textures' side first. On this corpus that changes one model, `collection-10` (854,000 → 550,000 faces, its textures at 3840 rather than 3584). The target, 16, is a guess that renders have to settle. Density is undefined without a color texture (a megatexel at least): `statue-b`'s normal-map-only files, models with a vertex-color-like 300² texture.
 
 ## With the corrections
 
@@ -100,12 +100,12 @@ The same 66 models, slow and fast, on the corrected plan:
 
 - **The common case doesn't change:** the 18 200,000-face scans with one 8k texture take 18 s (median), 17 → 4.5 MB, 16 MB of GPU memory.
 - **`uv`** runs on the 27 models below 0.6 occupancy only: 14 % of slow's time, from 19 %.
-- **The careless models fit 256 MB in slow:** `02-73` 174 MB and `Lion` 217 MB, both at 4096, `MAN63675_HP_44M` 245 MB at 3328, from 299 MB of textures alone. The 256 MB budget lowers the side of that scan only.
+- **The careless models fit 256 MB in slow:** `collection-02` 174 MB and `statue-b` 217 MB, both at 4096, `scan-44m` 245 MB at 3328, from 299 MB of textures alone. The 256 MB budget lowers the side of that scan only.
 - **The campus scan's 634 images** are mostly 512 or less. Left as RGBA8, as correction 2 had it, they came to 311 MB; the plan now encodes small images too when they keep a model over budget, and it ends at 59 MB (77 s, 60 s of it `ktx`).
-- **Compressed inputs** come out as they went in (`input-kept`): `Ebauche` with KTX2, `Lion` with KTX2, and the box of 8 faces. With WebP textures they grow but save GPU memory, so they're kept as optimized: `Ebauche` 2.2 → 3.4 MB for 28 → 9 MB, `Lion` 6 → 24 MB for 178 → 39 MB.
-- **fast:** 63 of 66 under 10 s. `trema` (11 s) and `Lion` (10 s) have many large images, and their sides go down to 3840 and 1792 for time. The 44M scan takes 94 s, 59 of them `simplify`, and gives a 16 MB model of 2.24 M faces and 240 MB. The campus, at 373 MB in AVIF, is the one model over budget, with a warning: its images are at 1024 or less already, and AVIF uploads as RGBA8.
+- **Compressed inputs** come out as they went in (`input-kept`): `statue-c` with KTX2, `statue-b` with KTX2, and the box of 8 faces. With WebP textures they grow but save GPU memory, so they're kept as optimized: `statue-c` 2.2 → 3.4 MB for 28 → 9 MB, `statue-b` 6 → 24 MB for 178 → 39 MB.
+- **fast:** 63 of 66 under 10 s. `collection-10` (11 s) and `statue-b` (10 s) have many large images, and their sides go down to 3840 and 1792 for time. The 44M scan takes 94 s, 59 of them `simplify`, and gives a 16 MB model of 2.24 M faces and 240 MB. The campus, at 373 MB in AVIF, is the one model over budget, with a warning: its images are at 1024 or less already, and AVIF uploads as RGBA8.
 
 ## Open questions
 
 - **A careful manual reference.** Nothing here measures goal 1's "as small as a careful manual optimization" directly: the 200k exports are careful on geometry, and `ktx`'s settings match eCorpus's within a few percent ([ktx.md](../ktx.md)). gltfpack (`-cc -tc`) would be an independent reference; it isn't installed.
-- **Damage.** The renders (docs/validation.md, field notes) cover eight models, all sensible. The budget damages careless models on purpose: render `MAN63675_HP_44M` at 3328 and the fast outputs at reduced sides against their inputs.
+- **Damage.** The renders (docs/validation.md, field notes) cover eight models, all sensible. The budget damages careless models on purpose: render `scan-44m` at 3328 and the fast outputs at reduced sides against their inputs.

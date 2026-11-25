@@ -1,5 +1,5 @@
 #!/bin/bash
-# Heap budget benchmark (docs/experiments/heap-budget.md).
+# Heap budget benchmark (docs/experiments/heap-budget-results.md).
 #
 #   tools/experiments/heap-budget.sh RESULTS.jsonl MODELS.txt "VARIANTS" "COMMANDS" "DISKS" REPEATS
 #
@@ -8,11 +8,19 @@
 # Each run: sync, record the output disk's sectors written, run under tools/monitor.py, record the
 # sectors written during the run and after a final sync, then delete the output. Outputs and the
 # workspace go on the chosen disk. Inputs are read once beforehand, so that they come from the page cache.
+# Each disk is an output folder and the block device it is on, whose writes are counted: SSD_OUT (default
+# build/heap-budget/out) on SSD_DEVICE, and HDD_OUT on HDD_DEVICE, which "hdd" needs. Devices are names in
+# /sys/block, such as sda.
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 RESULTS=$1; MODELS=$2; VARIANTS=$3; COMMANDS=$4; DISKS_WANTED=$5; REPEATS=$6
-declare -A DISKS=([ssd]="$REPO/build/heap-budget/out" [hdd]="/home/sebastien/Documents/meshtinker-bench/out")
-declare -A DEVICES=([ssd]=sdd [hdd]=sda)
+declare -A DISKS=([ssd]="${SSD_OUT:-$REPO/build/heap-budget/out}" [hdd]="${HDD_OUT:-}")
+declare -A DEVICES=([ssd]="${SSD_DEVICE:-}" [hdd]="${HDD_DEVICE:-}")
+for disk in $DISKS_WANTED; do
+  if [ -z "${DISKS[$disk]:-}" ] || [ ! -e "/sys/block/${DEVICES[$disk]:-none}/stat" ]; then
+    echo "heap-budget.sh: set ${disk^^}_OUT and ${disk^^}_DEVICE for the $disk runs" >&2; exit 2
+  fi
+done
 RUNS="$REPO/build/heap-budget/runs"
 mkdir -p "$RUNS" "$(dirname "$RESULTS")"
 sectors() { awk '{print $7}' "/sys/block/$1/stat"; }

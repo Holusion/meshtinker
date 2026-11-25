@@ -9,6 +9,7 @@
 Every command accepts any glTF or GLB file and normalizes it in memory as it reads it. It doesn't reject input outside the profile, and it doesn't call `import`.
 
 - **A normalized document, read in place.** The reader selects the scene and builds the layout (`gltf::selectScene`, `gltf::normalizedLayout`), then parses the layout's JSON as a second `Document` over the same mappings. The input's own parse is then dropped. A command sees only this document, so input indices can't leak into its code. Nothing is copied: the one copy is the command's own output, written in the profile, which is the normalization's write step.
+- **A missing image file is rejected** (`missing-image`, exit code 1), as `import` and `inspect` reject it ([inspect-report.md](inspect-report.md)): the normalized model keeps only what its scene reaches, and every image it reaches changes what the model looks like.
 - **Indices mean the normalized model.** Diagnostics and reports number objects as `meshtinker import` would write them. That file always exists or can be made, and when the input was imported first its indices are the input's own.
 - **`import` is a fixed point.** Importing an imported file writes identical files, so that a command's indices name the same objects whether or not `import` ran first.
 - **Running `import` first is recommended.** Normalizing in memory renumbers but doesn't move data: on input outside the profile, buffer views are read in their source order rather than front to back. Presets run `import` first.

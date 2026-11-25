@@ -1,4 +1,5 @@
 #include "meshtinker/common/diagnostics.hpp"
+#include "meshtinker/common/failure.hpp"
 #include "meshtinker/gltf/document.hpp"
 #include "meshtinker/gltf/layout.hpp"
 #include "meshtinker/gltf/writer.hpp"
@@ -18,7 +19,8 @@ using gltf::Json;
 namespace {
 
 // Every fixture that reads; reference fixtures read with --trusted.
-bool readable(const test::Fixture& f) { return f.name != "refs-absolute"; }
+// Rejected fixtures have a missing image, which readNormalized rejects.
+bool readable(const test::Fixture& f) { return f.name != "refs-absolute" && !f.expected.contains("error"); }
 
 const gltf::ReadOptions trusted{true};
 
@@ -105,7 +107,6 @@ TEST_CASE(matches_what_import_writes) {
         CHECK_EQ(a.images_count, b.images_count);
         for (std::size_t i = 0; i < a.images_count && i < b.images_count; ++i) {
             CHECK(sameBytes(normalized.image(i).bytes, imported.image(i).bytes));
-            CHECK_EQ(normalized.image(i).missing, imported.image(i).missing);
         }
         CHECK_EQ(a.accessors_count, b.accessors_count);
         for (std::size_t i = 0; i < a.accessors_count && i < b.accessors_count; ++i) {
@@ -154,4 +155,22 @@ TEST_CASE(reads_the_input_in_place) {
     }
     CHECK(normalized.image(0).origin == gltf::ImageOrigin::buffer_view);
     CHECK(!normalized.json()["images"][0].contains("bufferView"));
+}
+
+// Commands reject a missing image as `import` and `inspect` do: the fixtures
+// that `inspect` rejects, readNormalized rejects with the same code.
+TEST_CASE(rejects_missing_images_as_import_does) {
+    for (const test::Fixture& f : test::fixtures()) {
+        if (!f.expected.contains("error")) {
+            continue;
+        }
+        common::Diagnostics diagnostics;
+        try {
+            gltf::readNormalized(f.model, trusted, diagnostics);
+            test::fail(f.name + " was accepted", __FILE__, __LINE__);
+        } catch (const common::Failure& failure) {
+            CHECK_EQ(failure.code(), f.expected["error"].get<std::string>());
+            CHECK(failure.exitCode() == common::ExitCode::input_rejected);
+        }
+    }
 }

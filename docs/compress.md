@@ -55,7 +55,7 @@ Positions stay float32, still compressed, when the node's transform can't carry 
 | --- | --- | --- | --- | --- | --- |
 | 44-million-face scan, 4 meshes | 1.32 GB | 207 MB (16 %) | | 20 s | 5.5 MB |
 | The same, simplified first (954,000 faces) | 40 MB | 8.2 MB | | 0.6 s | 6 MB |
-| Johannisfriedhof (local scan, 6 primitives) | 4.1 MB | 1.21 MB | 1.27 MB | | |
+| collection-34 (local scan, 6 primitives) | 4.1 MB | 1.21 MB | 1.27 MB | | |
 | DamagedHelmet | | 175 KB | 184 KB | | |
 | Duck | | 27 KB | 29 KB | | |
 | `scan-tiles` fixture | 267 KB | 44 KB | 39 KB | | |

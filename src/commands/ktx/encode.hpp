@@ -24,7 +24,8 @@ struct EncodeParams {
 };
 
 // basisu's compressor, with a job pool of `threads` threads (the calling one
-// included). Several encoders can run at once on different threads.
+// included). Several encoders can run at once on different threads. On x86-64,
+// throws a Failure (exit code 4, `cpu-unsupported`) without SSE 4.1.
 class Encoder {
 public:
     explicit Encoder(unsigned threads);

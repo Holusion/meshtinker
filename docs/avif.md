@@ -57,7 +57,7 @@ An image whose AVIF isn't smaller than its source keeps its source, and its text
 - **Left as they are, each with a counted warning:**
   - a texture whose only source is WebP in a build without libwebp (`image-format-unsupported`), as is an image in a format other than PNG, JPEG and WebP; where WebP is decoded, a WebP-only texture is encoded, and kept when its AVIF isn't smaller;
   - with `--min-size N`, an image whose longest side is N or less, without a warning;
-  - an image whose file is missing (`image-missing`), that can't be decoded (`image-decode-failed`), or that libavif fails on (`image-encode-failed`);
+  - an image that can't be decoded (`image-decode-failed`), or that libavif fails on (`image-encode-failed`);
   - an image only slots unknown to `avif` use (`image-slot-unknown`).
 - **Files:** the new image keeps the source image's `name`, `extras` and extensions, and its file keeps the source's stem: `wall.jpg` becomes `wall.avif`. Each file is written as soon as it is encoded.
 
@@ -78,22 +78,22 @@ Release build, 4 cores, on collection models (`tools/monitor.py`; heap is peak `
 
 | Model | Images | Image bytes | Time | Heap |
 | --- | --- | --- | --- | --- |
-| `01-akhenaton-nefertiti` | one 4k color | 4.5 MB → 1.33 MB | 3.4 s | 297 MiB |
-| `28-tasse-100k` | 4k color, 4k normal | 3.6 MB → 0.70 MB | 3.6 s | 491 MiB |
-| `27-athlete-clean-01` | three 4k (color, normal, ORM) | 12.8 MB → 3.96 MB | 8.2 s | 482 MiB |
-| `16-hermaphrodite-export-02` | one 8k color | 8.3 MB → 1.94 MB | 13.6 s | 1.22 GiB |
-| `23-man-10918-pyxide` | three 8k (color, normal, occlusion) | 34.0 MB → 8.51 MB | 25.1 s | 1.62 GiB |
-| `15-ulysseilescalypso` | 2k and 4k, plus a 16×16 kept as PNG | 6.5 MB → 1.91 MB | 3.6 s | 271 MiB |
+| `collection-01` | one 4k color | 4.5 MB → 1.33 MB | 3.4 s | 297 MiB |
+| `collection-28` | 4k color, 4k normal | 3.6 MB → 0.70 MB | 3.6 s | 491 MiB |
+| `collection-27` | three 4k (color, normal, ORM) | 12.8 MB → 3.96 MB | 8.2 s | 482 MiB |
+| `collection-16` | one 8k color | 8.3 MB → 1.94 MB | 13.6 s | 1.22 GiB |
+| `collection-23` | three 8k (color, normal, occlusion) | 34.0 MB → 8.51 MB | 25.1 s | 1.62 GiB |
+| `collection-15` | 2k and 4k, plus a 16×16 kept as PNG | 6.5 MB → 1.91 MB | 3.6 s | 271 MiB |
 
 - **Memory:** an 8k image peaks at about 1.2 GiB in 4:2:0 and 1.6 GiB in 4:4:4: the decoded RGBA (256 MiB), its YUV planes, and libaom's working set with its tiles. That's under half of an 8k ETC1S encode's 3.5 GiB ([fast-textures.md](experiments/fast-textures.md)). Images are encoded one at a time, as [images.md](images.md#memory-and-threads) says.
 - **Rendered quality:** rendered with the [comparison's](experiments/webp-avif.md#rendered-models) harness, these outputs score 0.5 to 8 points of SSIMULACRA2 above the study's vips AVIF at the same quality (65, effort 4), in about the same bytes. Two models with data maps are 7 and 16 % larger, which is full chroma's cost, and score 1 to 7 points higher.
 
 | Model | `avif` (quality 65, effort 3) | vips AVIF (quality 65, effort 4) |
 | --- | --- | --- |
-| `01-akhenaton-nefertiti` | 1.33 MB; 92.6 whole, 85.2 near, 76.5 close | 1.43 MB; 91.9, 83.8, 75.9 |
-| `23-man-10918-pyxide` | 8.51 MB; 93.4, 84.1, 71.0 | 7.31 MB; 92.3, 81.4, 67.8 |
-| `27-athlete-clean-01` | 3.96 MB; 94.0, 85.3, 72.6 | 3.70 MB; 92.9, 80.8, 65.2 |
-| `15-ulysseilescalypso` | 1.91 MB; 92.9, 82.0, 68.9 | 1.91 MB; 90.2, 75.2, 60.6 |
+| `collection-01` | 1.33 MB; 92.6 whole, 85.2 near, 76.5 close | 1.43 MB; 91.9, 83.8, 75.9 |
+| `collection-23` | 8.51 MB; 93.4, 84.1, 71.0 | 7.31 MB; 92.3, 81.4, 67.8 |
+| `collection-27` | 3.96 MB; 94.0, 85.3, 72.6 | 3.70 MB; 92.9, 80.8, 65.2 |
+| `collection-15` | 1.91 MB; 92.9, 82.0, 68.9 | 1.91 MB; 90.2, 75.2, 60.6 |
 
 ## Validation
 

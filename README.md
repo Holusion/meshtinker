@@ -2,7 +2,25 @@
 
 Perform various analysis and optimizations on glTF files, with an emphasis on low memory usage.
 
-## Building
+## Installing
+
+Each [release](https://github.com/Holusion/meshtinker/releases) has Linux binaries for x86_64 and arm64, `meshtinker-linux-<arch>.tar.gz`, and their `SHA256SUMS`. They are built on Rocky Linux 8, and run on it and on later distributions, such as RHEL 8, Debian 10, Ubuntu 20.04 (natively or under WSL) and the `node:22-slim` image. To install the latest in `~/.local` (use `arm64` for ARM machines):
+
+```sh
+curl -LO https://github.com/Holusion/meshtinker/releases/latest/download/meshtinker-linux-x86_64.tar.gz
+curl -LO https://github.com/Holusion/meshtinker/releases/latest/download/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS
+tar -xzf meshtinker-linux-x86_64.tar.gz
+cp -r meshtinker-linux-x86_64/bin meshtinker-linux-x86_64/share ~/.local/
+meshtinker --help
+```
+
+- `bin/` holds the `meshtinker` wrapper and one `meshtinker-<command>` executable per command. Keep them in one folder: the wrapper looks for the commands in its own directory first. `~/.local/bin` must be on `PATH`, as it is by default on most distributions.
+- `share/doc/meshtinker/` holds meshtinker's license and those of the libraries compiled into it.
+- On x86-64, encoding KTX2 (`ktx`, and `optimize`'s texture step) needs an x86-64-v2 processor (SSE 4.1), as nearly every x86-64 processor made since 2013 is; on an older one, `ktx` exits with 4 (`cpu-unsupported`).
+- To update, install the new release over the old one. To uninstall, remove `~/.local/bin/meshtinker` and `~/.local/bin/meshtinker-*`, and `~/.local/share/doc/meshtinker/`.
+
+## Building from source
 
 Requires CMake 3.20 and a C++17 compiler. Every dependency is vendored. Add `-DMESHTINKER_WARNINGS_AS_ERRORS=ON` to the first `cmake` to make warnings errors, as CI does.
 
@@ -21,11 +39,9 @@ cmake --build build/release
 cmake --install build/release --prefix ~/.local --strip
 ```
 
-The wrapper looks for the commands in its own directory first, so they stay together. `--strip` removes debug symbols, which the default build type (RelWithDebInfo) keeps. To update, run the last two commands again. To uninstall, run `xargs rm < build/release/install_manifest.txt`.
+The wrapper looks for the commands in its own directory first, so they stay together. The licenses go in `share/doc/meshtinker/`. `--strip` removes debug symbols, which the default build type (RelWithDebInfo) keeps. To update, run the last two commands again. To uninstall, run `xargs rm < build/release/install_manifest.txt`.
 
-## Releases
-
-Each [release](https://github.com/Holusion/meshtinker/releases) has Linux binaries for x86_64 and arm64, `meshtinker-linux-<arch>.tar.gz`, with a `bin/` folder to put on `PATH`, and their `SHA256SUMS`. They are built on Rocky Linux 8, and run on it and on later distributions, such as RHEL 8, Debian 10, Ubuntu 20.04 (natively or under WSL) and the `node:22-slim` image.
+## Publishing a release
 
 To publish one, set the version in `project()` in `CMakeLists.txt`, then push a tag `v<version>`, such as `v0.1.0`. CI builds and tests the binaries, and creates the release once every CI job has passed. A tag that doesn't match the version fails the build.
 
@@ -499,7 +515,7 @@ OPTIONS:
 
 ### ktx
 
-Encodes the scene's PNG, JPEG, WebP and AVIF images as KTX2 with Basis Universal and points their textures at them through `KHR_texture_basisu`, as eCorpus does with `ktx create` through glTF-Transform. Color slots (base color, emissive, sheen and specular color, spec-gloss diffuse and specular) get ETC1S in sRGB; normal maps, ORM and every other data slot get UASTC in linear, with Zstandard. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. Every image gets a full mip chain, and sides that aren't multiples of 4 are rounded up, as the extension requires. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` or `EXT_texture_avif` alternative. A texture with both takes its PNG or JPEG, the original; one with a WebP or AVIF source only takes that ([images.md](docs/images.md#formats)). `KHR_texture_basisu` is then required. Images are left as they are, each with a counted warning, when the build doesn't decode their format (`image-format-unsupported`: WebP and AVIF in builds without libwebp or libavif), already KTX2 (`image-already-compressed`), used as color by one slot and as data by another (`image-color-space-conflict`), used only by slots `ktx` doesn't know (`image-slot-unknown`), or can't be decoded. [docs/ktx.md](docs/ktx.md) has the details, and the benchmark that set the presets.
+Encodes the scene's PNG, JPEG, WebP and AVIF images as KTX2 with Basis Universal and points their textures at them through `KHR_texture_basisu`, as eCorpus does with `ktx create` through glTF-Transform. Color slots (base color, emissive, sheen and specular color, spec-gloss diffuse and specular) get ETC1S in sRGB; normal maps, ORM and every other data slot get UASTC in linear, with Zstandard. An image whose alpha is all 255, or that only opaque materials sample, is written without alpha. Every image gets a full mip chain, and sides that aren't multiples of 4 are rounded up, as the extension requires. The textures' other sources go: the PNG or JPEG, and any `EXT_texture_webp` or `EXT_texture_avif` alternative. A texture with both takes its PNG or JPEG, the original; one with a WebP or AVIF source only takes that ([images.md](docs/images.md#formats)). `KHR_texture_basisu` is then required. Images are left as they are, each with a counted warning, when the build doesn't decode their format (`image-format-unsupported`: WebP and AVIF in builds without libwebp or libavif), already KTX2 (`image-already-compressed`), used as color by one slot and as data by another (`image-color-space-conflict`), used only by slots `ktx` doesn't know (`image-slot-unknown`), or can't be decoded. On x86-64, encoding needs an x86-64-v2 processor (SSE 4.1); on an older one `ktx` exits with 4 (`cpu-unsupported`). [docs/ktx.md](docs/ktx.md) has the details, and the benchmark that set the presets.
 
 `--quality` takes eCorpus's names: ETC1S quality levels 250, 240 (`High`, the default), 220, 180 and 128; UASTC is level 1 at every quality. `--max-size N` scales down images whose longest side is over N texels; without it, `ktx` doesn't resize. `--min-size N` leaves images whose longest side is N texels or less as they are, without a warning; the report counts them (`totals.small`). Large images are encoded one at a time on every CPU the process may use (its affinity, capped by the cgroup's `cpu.max`), and images under a megatexel several at a time. DamagedHelmet's five 2k images take 16 s with a 365 MiB peak, a 4k scan texture 15 s and 1.1 GB.
 
@@ -651,7 +667,28 @@ Writes the last stage of a [chain](#chains) as one `.gltf` file with its `.bin` 
 
 `--stage N` writes the stage numbered N instead of the last; 0 is `import`'s. A chain without that stage fails with `stage-missing` (exit code 1).
 
-The report gives the stage written and the files, with their sizes.
+The report gives the stage written and the files, with their sizes. With `--json`:
+
+```json
+{
+  "format": 1,
+  "tool": {"name": "meshtinker-export", "version": "0.1.0"},
+  "stage": "003-simplify-k2x9q",
+  "files": [
+    {"role": "gltf", "name": "model.gltf", "byteSize": 1106},
+    {"role": "buffer", "name": "model.bin", "byteSize": 140},
+    {"role": "image", "name": "color.png", "byteSize": 214}
+  ],
+  "removedChain": false,
+  "diagnostics": []
+}
+```
+
+- `format` and `tool` head every command's JSON. `format` is the version of the object's shape, raised when a field changes meaning or goes.
+- `stage` is the stage written: the name of its folder in the chain.
+- `files` lists the files written, the `.gltf` or `.glb` first, with `role` one of `gltf`, `glb`, `buffer` and `image`, the file `name` in the output's directory, and its `byteSize`. A `.glb` output is one `glb` entry.
+- `removedChain` says whether `--remove-chain` removed the chain.
+- `diagnostics` holds the counted warnings, as in every command. A failure has an `error` instead of `stage`, `files` and `removedChain`, as in every command: its `code`, `exitCode` and `message`.
 
 ```console
 $ meshtinker export --help
@@ -686,16 +723,6 @@ OPTIONS:
 
 ## Architecture
 
-The tool will be used to test a (possibly large) number of algorithms to perform a lot of optimizations. In some case we'll want to have more than one algorithm for one task.
+Each command is its own executable, `meshtinker-<command>`, run through the `meshtinker` wrapper in the style of git: `meshtinker simplify ...` runs `meshtinker-simplify` from the wrapper's directory, or from `PATH`. Several algorithms for one task can then live side by side as commands of their own, such as an experimental variant built from another checkout and put on `PATH`. The commands share their code through one static library, and the binaries link nothing dynamically but the system C library. Linux comes first, then WSL and macOS; Windows isn't built for.
 
-However we want to have all those subcommands under the same "umbrella".
-
-For this we favor an approach where each subcommand gets built into its own binary, with a small wrapper that serves as a master entrypoint.
-
-The idea is that it should be easy for someone to try out any number of subcommands for multiple experimental branches at the same time (as long as their names don't overlap). It looks a lot like git is structured, so that may be a good inspiration.
-
-code-wise, we should make it easy for subcommands to share common code, but builds should be mostly static: We don't want to ship a bunch of shared libraries along with the binaries. Any non-static dependency need to be carefully considered before inclusion. 
-
-Cross-platform compatibility is not to be taken too seriously. We anticipate 90% linux, 10% WSL and MacOS use. We shouldn't willingly make it harder than required to build and run the tools on windows if it's ever needed, but we shouldn't over-provision for it until then.
-
-See [AGENTS.md](AGENTS.md#architecture) for how subcommands are found and built.
+[AGENTS.md](AGENTS.md#architecture) has the details: how the wrapper finds commands, the code layout and the build.

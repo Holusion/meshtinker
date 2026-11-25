@@ -17,6 +17,8 @@ The two alternatives were rejected:
 
 `ktx validate` (KTX-Software) is used in validation, never at runtime.
 
+On x86-64, basisu is compiled with SSE 4.1, as upstream builds it, and calls one of its kernels without checking the CPU, so `ktx` needs an x86-64-v2 processor. Rather than die of an illegal instruction on an older one, it fails with exit code 4 (`cpu-unsupported`) before encoding its first image; a model with nothing to encode still goes through. In `optimize`, the step is then left out with `step-failed`, and the textures stay as they are. arm64 builds don't use SSE.
+
 basisu writes BT.709 primaries into every file's data format descriptor, but `KHR_texture_basisu` asks for unspecified primaries with the linear transfer function, and `ktx validate --gltf-basisu` rejects the files. `ktx` sets that byte after encoding linear images, as eCorpus asks `ktx create` for with `--assign-primaries none` (`src/commands/ktx/encode.cpp`).
 
 `KHR_texture_basisu` covers only ETC1S (BasisLZ) and UASTC LDR 4×4, with Zstd allowed on UASTC only. The newer basisu formats (ASTC/XUASTC LDR, UASTC HDR, XUBC7) are not used.
@@ -44,7 +46,7 @@ The rule is the one eCorpus uses and the spec's implementation note recommends: 
 - The texture's other extension sources (`EXT_texture_webp`, `EXT_texture_avif`) are removed too, so that an encoded texture has its KTX2 source only. A renderer that reads KTX2 picks it anyway, and the others would only cost space. This is a stated exception to "don't strip": `ktx` replaces a texture's sources, it doesn't add one.
 - `gltf::prune` then removes the images nothing uses any more, and `EXT_texture_webp` and `EXT_texture_avif` leave `extensionsUsed` and `extensionsRequired` once no texture uses them.
 - The new image keeps the source image's `name`, `extras` and extensions, and its file the source's stem: `wall.jpg` becomes `wall.ktx2` (`gltf::ImageNames`, [gltf-io.md](gltf-io.md#editing)). Each file is written as soon as it is encoded.
-- A texture whose only source is WebP or AVIF is encoded from it, where the build decodes that format ([images.md](images.md#formats)); in a build without libwebp or libavif it is left as it is, with `image-format-unsupported`. So is an image in another format than PNG, JPEG, WebP or AVIF, with the same warning. `--min-size N` leaves images whose longest side is N or less as they are, without a warning: `optimize` passes 512. Also left as they are, with a warning: an image whose file is missing (`image-missing`), that can't be decoded (`image-decode-failed`), or that basisu fails on (`image-encode-failed`).
+- A texture whose only source is WebP or AVIF is encoded from it, where the build decodes that format ([images.md](images.md#formats)); in a build without libwebp or libavif it is left as it is, with `image-format-unsupported`. So is an image in another format than PNG, JPEG, WebP or AVIF, with the same warning. `--min-size N` leaves images whose longest side is N or less as they are, without a warning: `optimize` passes 512. Also left as they are, with a warning: an image that can't be decoded (`image-decode-failed`), or that basisu fails on (`image-encode-failed`).
 - A texture already in KTX2 is kept and not re-encoded.
 
 ## Presets

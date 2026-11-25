@@ -94,6 +94,16 @@ const char* meshoptExtensionName(const Json& view) {
 
 std::uint64_t alignUp(std::uint64_t n, std::uint64_t alignment) { return (n + alignment - 1) / alignment * alignment; }
 
+// A missing image has no bytes to write. Commands read through readNormalized
+// or analysis::inspect, which reject a model that has one.
+void requireImageData(const Document& document, const Layout& layout) {
+    for (const std::size_t source : layout.image_sources) {
+        if (source != Layout::added_image && document.image(source).missing) {
+            throw std::logic_error("write: an image whose file is missing");
+        }
+    }
+}
+
 } // namespace
 
 std::vector<std::string> imageFileNames(const Document& document, const std::string& stem) {
@@ -112,7 +122,7 @@ std::vector<std::string> imageFileNames(const Document& document, const std::str
         }
         const std::string extension = extensionFor(image, json["images"][i]);
         std::string name;
-        if (image.file || image.missing) {
+        if (image.file) {
             name = fs::u8path(image.reference).filename().u8string();
         }
         std::string generated = stem;
@@ -343,6 +353,7 @@ void writePieces(common::OutputFile& file, const BinPlan& plan) {
 
 std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& layout, const fs::path& directory,
                                        const std::string& stem, common::Outputs& outputs) {
+    requireImageData(document, layout);
     BinPlan plan = planBin(document, layout);
     Json& json = plan.json;
     std::vector<WrittenFile> written;
@@ -378,9 +389,8 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
             continue;
         }
         image["uri"] = encodeUriSegment(names[source]);
-        // A missing image keeps a reference to its name, with no file behind it.
         const ImageData& data = document.image(source);
-        if (!done.insert(names[source]).second || data.missing) {
+        if (!done.insert(names[source]).second) {
             continue;
         }
         const fs::path destination = directory / fs::u8path(names[source]);
@@ -438,11 +448,9 @@ std::vector<WrittenFile> writeGlb(const Document& document, const Layout& layout
         // GLB is written from a stage, whose images are all files of its own.
         throw std::logic_error("writeGlb: a layout with added images");
     }
+    requireImageData(document, layout);
     const std::vector<std::string> names = imageFileNames(document, "model");
-    bool any_image = false;
-    for (const std::size_t source : layout.image_sources) {
-        any_image = any_image || !document.image(source).missing;
-    }
+    const bool any_image = !layout.image_sources.empty();
     BinPlan plan = planBin(document, layout, any_image);
     Json& json = plan.json;
 
@@ -459,11 +467,6 @@ std::vector<WrittenFile> writeGlb(const Document& document, const Layout& layout
         const ImageData& data = document.image(source);
         Json& image = json["images"][i];
         image.erase("bufferView");
-        if (data.missing) {
-            // No bytes to embed: it keeps a reference to its name, as writeSeparate does.
-            image["uri"] = encodeUriSegment(names[source]);
-            continue;
-        }
         image.erase("uri");
         auto found = view_by_name.find(names[source]);
         if (found == view_by_name.end()) {

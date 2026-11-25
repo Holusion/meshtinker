@@ -241,6 +241,36 @@ meshtinker_configure_executable(meshtinker)
 target_link_libraries(meshtinker PRIVATE meshtinker-core)
 install(TARGETS meshtinker RUNTIME DESTINATION bin)
 
+# The licenses of meshtinker and of the code compiled into it, which binary
+# copies must carry: share/doc/meshtinker/LICENSE, and one folder per library
+# under third-party/ (vendor/README.md). The downloaded libraries' come from
+# their extracted archives.
+set(meshtinker_doc share/doc/meshtinker)
+install(FILES LICENSE DESTINATION ${meshtinker_doc})
+set(meshtinker_third_party_doc ${meshtinker_doc}/third-party)
+install(FILES vendor/cgltf-LICENSE DESTINATION ${meshtinker_third_party_doc}/cgltf RENAME LICENSE)
+install(FILES vendor/CLI11-LICENSE DESTINATION ${meshtinker_third_party_doc}/CLI11 RENAME LICENSE)
+install(FILES vendor/draco/LICENSE DESTINATION ${meshtinker_third_party_doc}/draco)
+install(FILES vendor/meshoptimizer/LICENSE.md DESTINATION ${meshtinker_third_party_doc}/meshoptimizer)
+install(FILES vendor/nlohmann/LICENSE.MIT DESTINATION ${meshtinker_third_party_doc}/nlohmann-json)
+install(FILES vendor/stb/LICENSE DESTINATION ${meshtinker_third_party_doc}/stb)
+install(FILES vendor/basisu/LICENSE vendor/basisu/NOTICE DESTINATION ${meshtinker_third_party_doc}/basis_universal)
+install(DIRECTORY vendor/basisu/LICENSES DESTINATION ${meshtinker_third_party_doc}/basis_universal)
+install(FILES vendor/basisu/zstd/LICENSE DESTINATION ${meshtinker_third_party_doc}/zstd)
+install(FILES vendor/xatlas/LICENSE DESTINATION ${meshtinker_third_party_doc}/xatlas)
+if(MESHTINKER_WEBP)
+    install(FILES "${meshtinker_webp_prefix}/src/meshtinker-libwebp/COPYING"
+                  "${meshtinker_webp_prefix}/src/meshtinker-libwebp/PATENTS"
+            DESTINATION ${meshtinker_third_party_doc}/libwebp)
+endif()
+if(MESHTINKER_AVIF)
+    install(FILES "${meshtinker_aom_prefix}/src/meshtinker-aom/LICENSE"
+                  "${meshtinker_aom_prefix}/src/meshtinker-aom/PATENTS"
+            DESTINATION ${meshtinker_third_party_doc}/libaom)
+    install(FILES "${meshtinker_avif_prefix}/src/meshtinker-libavif/LICENSE"
+            DESTINATION ${meshtinker_third_party_doc}/libavif)
+endif()
+
 # `cmake --build build --target tidy` lints project sources with .clang-tidy.
 # Findings are errors. Not part of the default build.
 find_program(MESHTINKER_RUN_CLANG_TIDY NAMES run-clang-tidy run-clang-tidy-19 run-clang-tidy-20)

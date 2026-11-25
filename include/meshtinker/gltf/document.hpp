@@ -49,7 +49,8 @@ struct ImageData {
     std::string path;
     // A file image whose file is missing, or that confinement refuses: it has
     // no bytes. Without data (ReadOptions::data), only a refused one. The
-    // analysis rejects the model if its scene reaches the image.
+    // analysis and readNormalized reject the model if its scene reaches the
+    // image, and the writer refuses it.
     bool missing = false;
     // Empty when the bytes are not a recognized image format.
     std::optional<ImageHeader> header;

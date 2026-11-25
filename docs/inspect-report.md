@@ -134,7 +134,7 @@ The cost column says what a field needs. **JSON** fields come from the model's J
 
 ## Without data (`--no-data`)
 
-`inspect --no-data` reads the `.gltf`, or the GLB's header and JSON chunk, and opens nothing the model refers to. An upload route runs it on each `.gltf` or `.glb` as it arrives, to learn which other files to wait for (`requires`), whether they are there yet or not. A missing file isn't an error here. Its cost is parsing the JSON: 0.06 s and 11 MB on `MAN63675_HP_44M.gltf` (44 M faces, a 1.3 GB `.bin`), against 19 s and 1 GB for the full report.
+`inspect --no-data` reads the `.gltf`, or the GLB's header and JSON chunk, and opens nothing the model refers to. An upload route runs it on each `.gltf` or `.glb` as it arrives, to learn which other files to wait for (`requires`), whether they are there yet or not. A missing file isn't an error here. Its cost is parsing the JSON: 0.06 s and 11 MB on `scan-44m/model.gltf` (44 M faces, a 1.3 GB `.bin`), against 19 s and 1 GB for the full report.
 
 References are checked from their text alone, with the rules of a full read: a URL, an absolute path, or a path whose `..` leads outside the model's folder (without `--trusted`) gets the answer a full read gives. A buffer is rejected with `reference-refused`, an image with `missing-image`. A symlink leading out can't be seen without the file, so the full read catches it later. So can a buffer shorter than its `byteLength`, a file that never arrives, or a corrupt one.
 

@@ -6,7 +6,7 @@ How `meshtinker dedup` stores identical objects once, and why. The code is `src/
 
 Each kind is compared once the kinds it refers to are merged, in this order, so that two materials whose textures were copies of each other compare equal:
 
-1. **Images** with the same bytes, whatever their name, URI or MIME type. A missing image file stays apart.
+1. **Images** with the same bytes, whatever their name, URI or MIME type.
 2. **Samplers**, then **textures**, then **materials**: equal JSON but for `name`. Textures compare their merged images and samplers, materials their merged textures.
 3. **Accessors** with equal JSON but for `name`, `bufferView` and `byteOffset`, in buffer views with the same `target`, holding the same elements bit for bit. Strides don't matter: an accessor in an interleaved view merges with an equal one in a view of its own.
 4. **Meshes**: equal JSON but for `name`, once their accessors and materials are merged. Nodes that drew copies of a mesh then draw one mesh.
@@ -21,7 +21,7 @@ This is glTF-Transform's `dedup()` with its defaults: it compares the same kinds
 
 - **Accessors in meshopt views**, whose bytes are compressed, **sparse accessors**, and **accessors without a view** (Draco's, or all zeros).
 - **Byte and short matrices** (`MAT2`, `MAT3`), whose columns are padded: their padding bytes could differ.
-- **Buffer views.** An accessor merged into another frees its bytes only when no other accessor still uses its buffer view. Exports that pack many accessors in one view, as animations often are, keep the view whole: on `26-tiburon-nadando`, 368 of 566 animation accessors merge and the `.bin` stays the same size.
+- **Buffer views.** An accessor merged into another frees its bytes only when no other accessor still uses its buffer view. Exports that pack many accessors in one view, as animations often are, keep the view whole: on `collection-26`, 368 of 566 animation accessors merge and the `.bin` stays the same size.
 
 ## In a chain
 
@@ -45,7 +45,7 @@ The hidden `--dry-run` reads the model and reports, and writes nothing, for surv
 
 | Model | What merged | Bytes stored |
 | --- | --- | --- |
-| `26-tiburon-nadando` (local) | 368 of 566 accessors, all animation | unchanged: they share views |
+| `collection-26` (local) | 368 of 566 accessors, all animation | unchanged: they share views |
 | `MeshoptCubeTest` | 9 of 10 samplers, 27 of 109 accessors, 5 of 35 meshes | buffer views 15,920 → 11,528 bytes |
 | `ChronographWatch` (WebP and KTX2) | 4 of 29 materials | unchanged |
 | `AnimatedMorphCube` | 2 of 12 accessors | buffer views 4,284 → 3,708 bytes |

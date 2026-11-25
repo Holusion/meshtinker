@@ -278,10 +278,6 @@ Result reencode(const fs::path& input, const fs::path& directory, const std::str
     for (const auto& [image, texture_list] : textures_of) {
         const gltf::ImageData& data = document.image(layout.image_sources[image]);
         const Use& use = image_uses[image];
-        if (data.missing) {
-            skip(image, "image-missing", "images whose file is missing are left as they are");
-            continue;
-        }
         if (data.header && std::max(data.header->width, data.header->height) <= options.min_size) {
             result.small.push_back(source_names[layout.image_sources[image]]);
             continue;

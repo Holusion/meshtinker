@@ -16,7 +16,7 @@ How `meshtinker::gltf` reads models and writes them back, and why. The code is `
   - A refused reference and a missing file get the same message, so a model can't probe what exists outside its folder.
   - Unlike objtools, an absolute path is never replaced by a file of the same name beside the model.
 - **Files.** `files()` lists the model file and then each referenced file once, with its size. The report's `input.files` comes from it.
-- **Images.** Each image's bytes are found, and its format and size are read from the header (`gltf::readImageHeader`: PNG, JPEG, WebP, KTX2). Unrecognized bytes give an empty header; the caller decides what that means. A missing or refused image file is recorded as `ImageData::missing`, without bytes. The analysis rejects the model (`missing-image`) if its scene reaches the image.
+- **Images.** Each image's bytes are found, and its format and size are read from the header (`gltf::readImageHeader`: PNG, JPEG, WebP, KTX2). Unrecognized bytes give an empty header; the caller decides what that means. A missing or refused image file is recorded as `ImageData::missing`, without bytes. The analysis and `readNormalized` reject the model (`missing-image`) if its scene reaches the image, so no command sees one, and the writers refuse it.
 - **Validation.** `cgltf_validate` runs after buffers are loaded. It checks index ranges, accessor bounds and buffer view ranges.
 
 All rejections are `common::Failure`s with exit code 1 and a stable `code`. Opening errors follow `common::classifySystemError`: for example, a missing file rejects the input but a permission error is the machine's (exit 4).

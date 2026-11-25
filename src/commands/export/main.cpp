@@ -7,6 +7,7 @@
 #include "meshtinker/gltf/writer.hpp"
 
 #include "meshtinker/common/failure.hpp"
+#include "meshtinker/common/format.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -104,7 +105,7 @@ int run(int argc, char** argv) {
         } else {
             std::cout << "Stage: " << stage.text() << '\n';
             for (const gltf::WrittenFile& file : files) {
-                std::cout << "  " << file.name << "  " << roleName(file.role) << ", " << file.size << " bytes\n";
+                std::cout << "  " << file.name << "  " << roleName(file.role) << ", " << common::formatBytes(file.size) << '\n';
             }
         }
         return 0;

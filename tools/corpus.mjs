@@ -5,12 +5,15 @@
 //   node tools/corpus.mjs list [SELECTION]           "id<TAB>path" per model (globs expanded)
 //   node tools/corpus.mjs paths [SELECTION]          absolute paths only, one per line
 //   node tools/corpus.mjs tags                       every tag with its model count
+//   node tools/corpus.mjs root SOURCE                the source's root folder, absolute (exit 1 if it has none)
+//   node tools/corpus.mjs leaks [FILE...]            tracked files (or FILEs) that name a local model: exit 1 if any
 //   node tools/corpus.mjs check                      which models are present; exit 1 if a fixture or Khronos model is missing
 //
 // SELECTION: --id ID (prefix match, repeatable), --covers TAG (all required, repeatable), --source S,
 //            --without TAG (repeatable, e.g. --without large).
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,6 +22,7 @@ const localFile = path.join(repo, 'test/corpus.local.json');
 if (fs.existsSync(localFile)) {
   const local = JSON.parse(fs.readFileSync(localFile, 'utf8'));
   Object.assign(corpus.sources, local.sources);
+  corpus.aliases = local.aliases ?? {};
   corpus.assets.push(...(local.assets ?? []));
 }
 
@@ -71,6 +75,41 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const m of select(args)) console.log(`${m.id}\t${m.path}`);
   } else if (command === 'paths') {
     for (const m of select(args)) console.log(m.path);
+  } else if (command === 'root') {
+    if (!corpus.sources[args[0]]) {
+      console.error(`no source '${args[0]}'${args[0] === 'local' ? ': test/corpus.local.json lists the local models' : ''}`);
+      process.exit(1);
+    }
+    console.log(sourceRoot(args[0]));
+  } else if (command === 'leaks') {
+    // test/corpus.local.json's `aliases` give each local model a public label and the names it must not
+    // appear under (docs/validation.md, "The corpus"). A name matches as a whole word, in any case:
+    // letters and digits next to it make another word ("cat" isn't in "catalog").
+    const aliases = corpus.aliases ?? {};
+    const names = Object.entries(aliases).flatMap(([label, list]) => list.map((name) => ({ label, name })));
+    if (!names.length) {
+      console.error('no aliases: test/corpus.local.json lists them');
+      process.exit(1);
+    }
+    const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?<![A-Za-z0-9])(${names.map((n) => escape(n.name)).join('|')})(?![A-Za-z0-9])`, 'gi');
+    const labelOf = new Map(names.map((n) => [n.name.toLowerCase(), n.label]));
+    const files = args.length ? args : execFileSync('git', ['ls-files', '-z'], { cwd: repo, encoding: 'utf8' })
+      .split('\0').filter((f) => f && !f.startsWith('vendor/'));
+    let found = 0;
+    for (const file of files) {
+      const full = path.resolve(repo, file);
+      if (!fs.existsSync(full) || !fs.statSync(full).isFile()) continue;
+      const bytes = fs.readFileSync(full);
+      if (bytes.includes(0)) continue;
+      bytes.toString('utf8').split('\n').forEach((line, i) => {
+        for (const m of line.matchAll(pattern)) {
+          found++;
+          console.log(`${file}:${i + 1}: ${m[1]} (${labelOf.get(m[1].toLowerCase())})`);
+        }
+      });
+    }
+    process.exit(found ? 1 : 0);
   } else if (command === 'tags') {
     const tags = {};
     for (const m of models()) for (const t of m.covers) tags[t] = (tags[t] ?? 0) + 1;
