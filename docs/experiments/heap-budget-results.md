@@ -12,12 +12,12 @@ The models, read in place:
 
   | Model | Layout |
   | --- | --- |
-  | `MAN63675_HP_44M` | 44M faces, 4 meshes in one space |
-  | `Zodiac/Tiles` | 44M faces, 1 mesh in 51 primitives |
-  | `Notre_Dame_en_Vaux_10M` | 9.9M faces, 30 primitives |
-  | `Lascaux_seamed_8k` | 4.7M faces, 166 primitives |
-  | `WoodenDragonSculpture` (ISTI dataset) | 3.1M faces, 1 primitive: meshoptimizer's largest single allocations |
-  | `Lion_Belfort` (`test_draco.glb`) | Draco: the decoder allocates on its own |
+  | `scan-44m` | 44M faces, 4 meshes in one space |
+  | `scan-44m-tiles` | 44M faces, 1 mesh in 51 primitives |
+  | `scan-10m` | 9.9M faces, 30 primitives |
+  | `cave-b` | 4.7M faces, 166 primitives |
+  | `sculpture-3m` | 3.1M faces, 1 primitive: meshoptimizer's largest single allocations |
+  | `statue-a` (`test_draco.glb`) | Draco: the decoder allocates on its own |
 
 ## Recommendation
 
@@ -29,13 +29,13 @@ The models, read in place:
 
 - **The collection fits.** 52 of the 56 collection models (93 %) simplify without a scratch file at 256 MiB, and 54 (96 %) compress without one; at 4 MiB, 8 and 10 do. That is the bulk of what eCorpus processes.
 - **What spilling costs on them is time, not disk.** On the collection no budget writes anything during the run: the scratch files are unlinked and unmapped before writeback starts, so their pages are dropped. What a small budget costs is the page faults and file setup of mapped scratch: +16 % on `simplify` at 4 MiB and +13 % at 64 MiB against unlimited, +3 % at 256 MiB.
-- **Large models gain from it too, a little.** 256 MiB takes the 44M scans from 59.0 to 54.7 s (4 meshes) and 44.2 to 38.4 s (51 primitives) on the SSD, and Notre Dame from 12.5 to 9.8 s. Their writes barely change between 64 MiB and 1 GiB: 2 GB of a 2.8 GB or 1.8 GB working set gets written either way, and only no budget at all avoids it.
+- **Large models gain from it too, a little.** 256 MiB takes the 44M scans from 59.0 to 54.7 s (4 meshes) and 44.2 to 38.4 s (51 primitives) on the SSD, and scan-10m from 12.5 to 9.8 s. Their writes barely change between 64 MiB and 1 GiB: 2 GB of a 2.8 GB or 1.8 GB working set gets written either way, and only no budget at all avoids it.
 - **It stays small next to parallel runs.** The budget is per process. Four processes on a 4-core server, one per core, keep at most 1 GiB of working arrays on the heap together, eight keep 2 GiB, whatever the models. Past that, large models spill, which is what lets several of them run at once on a server that couldn't hold all their working sets: the kernel can reclaim mapped scratch pages under pressure, and can't reclaim the heap. 1 GiB would fit every collection model but pin 4 to 8 GiB of heap on a server running 4 to 8 commands, for 3 % on the collection. 64 MiB fits 80 % and leaves 13 % on the table.
-- Peak RSS of the large runs is 2 to 5 GB at any budget (12 GB for Lascaux, whose mapped textures count): the budget changes what is on the heap, not what is resident while memory is free (as earlier measurements in docs/validation.md's field notes found).
+- Peak RSS of the large runs is 2 to 5 GB at any budget (12 GB for cave-b, whose mapped textures count): the budget changes what is on the heap, not what is resident while memory is free (as earlier measurements in docs/validation.md's field notes found).
 
 ### Why not punch holes
 
-`MADV_REMOVE` on a freed block of a shared scratch file was meant to drop its dirty pages instead of letting the kernel write them back. On btrfs it does the opposite: punching a hole writes the range's dirty pages first, then frees them. `dirty-probe.py` on Notre Dame's `simplify` (HDD, 4 MiB):
+`MADV_REMOVE` on a freed block of a shared scratch file was meant to drop its dirty pages instead of letting the kernel write them back. On btrfs it does the opposite: punching a hole writes the range's dirty pages first, then frees them. `dirty-probe.py` on scan-10m's `simplify` (HDD, 4 MiB):
 
 | Variant | Time | Written during the run | Most dirty memory | Writes start |
 | --- | --- | --- | --- | --- |
@@ -44,11 +44,11 @@ The models, read in place:
 
 Without holes, the 1.4 GB of dirty scratch pages are dropped unwritten when the file goes. With holes, they are written as blocks are freed. Across the matrix:
 
-- **Many small primitives** (Notre Dame, Lascaux, the collection): more writes and slower everywhere. Collection at 4 MiB: 2.1 GB written for `simplify` instead of 0, +57 % time. Notre Dame `simplify`: 1.4 GB instead of 0.2 GB, twice as slow on the HDD.
-- **One big primitive** (the dragon): no change; its blocks are files of their own, which holes don't touch.
+- **Many small primitives** (scan-10m, cave-b, the collection): more writes and slower everywhere. Collection at 4 MiB: 2.1 GB written for `simplify` instead of 0, +57 % time. scan-10m `simplify`: 1.4 GB instead of 0.2 GB, twice as slow on the HDD.
+- **One big primitive** (sculpture-3m): no change; its blocks are files of their own, which holes don't touch.
 - **Several meshes** (the 44M scan, 4 meshes): 2.5 GB written instead of 1.7 to 2.3 GB for `simplify`; `compress` writes 100 MiB instead of 190 MiB but takes the same time.
 - **One mesh in many primitives** (the 44M tiles): 3.8 GB instead of 1.8 to 3.0 GB, and `compress` on the HDD takes 42 s instead of 17 s.
-- **Draco**: the Draco model available (`Lion_Belfort.Sc.130.3/test_draco.glb`) is small: under 20 MiB of working set and 0.2 s, so it adds no data point on large Draco primitives.
+- **Draco**: the Draco model available (`statue-a/draco.glb`) is small: under 20 MiB of working set and 0.2 s, so it adds no data point on large Draco primitives.
 
 On ext4 or XFS, punching a hole drops cached pages without writing them, so it might help there. That wasn't measured; the patch is below, should someone want to. The plain path already writes nothing on runs whose dirty pages stay under the writeback thresholds, which covers the whole collection.
 
@@ -83,14 +83,14 @@ On ext4 or XFS, punching a hole drops cached pages without writing them, so it m
 | 44M, 4 meshes | HDD | 2786 MiB | 55.5 / 2153 | 56.6 / 2088 | 59.0 / 2049 | 52.9 / 532 | 50.0 / 0 | 59.1 / 2354 | 59.1 / 2193 | — |
 | 44M, 51 primitives | SSD | 1793 MiB | 44.2 / 2982 | 38.7 / 2148 | 38.4 / 2164 | 38.1 / 2011 | 34.7 / 1 | 45.3 / 3766 | 45.7 / 3706 | 45.1 / 3512 |
 | 44M, 51 primitives | HDD | 1793 MiB | 38.5 / 1780 | 38.7 / 2170 | 38.5 / 2127 | 38.1 / 1322 | 34.6 / 0 | 65.7 / 3806 | 65.2 / 3749 | — |
-| Notre Dame 10M, 30 primitives | SSD | 442 MiB | 12.5 / 271 | 10.0 / 0 | 9.8 / 0 | 8.8 / 0 | 8.9 / 0 | 13.4 / 1413 | 13.2 / 1403 | 13.0 / 1159 |
-| Notre Dame 10M, 30 primitives | HDD | 442 MiB | 10.0 / 186 | 10.0 / 0 | 9.8 / 0 | 8.8 / 0 | 8.9 / 0 | 20.7 / 1414 | 21.1 / 1404 | — |
-| Lascaux 4.7M, 166 primitives | SSD | 543 MiB | 53.9 / 9212 | 30.7 / 8331 | 31.4 / 8288 | 25.4 / 7046 | 25.5 / 6990 | 33.2 / 8786 | 32.3 / 8733 | — |
-| Lascaux 4.7M, 166 primitives | HDD | 543 MiB | 75.4 / 8422 | 75.6 / 8312 | 76.0 / 8298 | 61.7 / 7017 | 61.7 / 7013 | 81.3 / 8763 | 81.9 / 8725 | — |
-| Dragon 3.1M, 1 primitive | SSD | 1296 MiB | 3.2 / 0 | 1.8 / 0 | 1.7 / 0 | 1.3 / 0 | 1.0 / 0 | 1.8 / 9 | 1.8 / 0 | — |
-| Dragon 3.1M, 1 primitive | HDD | 1296 MiB | 1.8 / 0 | 1.8 / 0 | 1.6 / 0 | 1.4 / 0 | 1.0 / 0 | 2.0 / 9 | 1.8 / 0 | — |
-| Lion, Draco (small) | SSD | 18 MiB | 0.3 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 14 | 0.2 / 0 | — |
-| Lion, Draco (small) | HDD | 18 MiB | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.3 / 14 | 0.2 / 0 | — |
+| scan-10m 10M, 30 primitives | SSD | 442 MiB | 12.5 / 271 | 10.0 / 0 | 9.8 / 0 | 8.8 / 0 | 8.9 / 0 | 13.4 / 1413 | 13.2 / 1403 | 13.0 / 1159 |
+| scan-10m 10M, 30 primitives | HDD | 442 MiB | 10.0 / 186 | 10.0 / 0 | 9.8 / 0 | 8.8 / 0 | 8.9 / 0 | 20.7 / 1414 | 21.1 / 1404 | — |
+| cave-b 4.7M, 166 primitives | SSD | 543 MiB | 53.9 / 9212 | 30.7 / 8331 | 31.4 / 8288 | 25.4 / 7046 | 25.5 / 6990 | 33.2 / 8786 | 32.3 / 8733 | — |
+| cave-b 4.7M, 166 primitives | HDD | 543 MiB | 75.4 / 8422 | 75.6 / 8312 | 76.0 / 8298 | 61.7 / 7017 | 61.7 / 7013 | 81.3 / 8763 | 81.9 / 8725 | — |
+| sculpture-3m 3.1M, 1 primitive | SSD | 1296 MiB | 3.2 / 0 | 1.8 / 0 | 1.7 / 0 | 1.3 / 0 | 1.0 / 0 | 1.8 / 9 | 1.8 / 0 | — |
+| sculpture-3m 3.1M, 1 primitive | HDD | 1296 MiB | 1.8 / 0 | 1.8 / 0 | 1.6 / 0 | 1.4 / 0 | 1.0 / 0 | 2.0 / 9 | 1.8 / 0 | — |
+| statue-a, Draco (small) | SSD | 18 MiB | 0.3 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 14 | 0.2 / 0 | — |
+| statue-a, Draco (small) | HDD | 18 MiB | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.3 / 14 | 0.2 / 0 | — |
 
 ### Large models, compress: seconds / MiB written during the run (mean of 2 runs; 256m-punch 1 run, SSD)
 
@@ -100,14 +100,14 @@ On ext4 or XFS, punching a hole drops cached pages without writing them, so it m
 | 44M, 4 meshes | HDD | 1332 MiB | 17.0 / 184 | 16.7 / 0 | 16.2 / 0 | 14.6 / 0 | 14.5 / 0 | 17.6 / 103 | 17.2 / 84 | — |
 | 44M, 51 primitives | SSD | 1204 MiB | 17.2 / 1338 | 17.2 / 2176 | 16.0 / 120 | 14.1 / 0 | 13.9 / 0 | 25.9 / 3646 | 26.1 / 3422 | 23.4 / 2621 |
 | 44M, 51 primitives | HDD | 1204 MiB | 17.1 / 1022 | 16.8 / 898 | 16.0 / 119 | 14.2 / 0 | 13.8 / 0 | 42.3 / 3648 | 41.3 / 3423 | — |
-| Notre Dame 10M, 30 primitives | SSD | 262 MiB | 3.6 / 0 | 3.5 / 0 | 3.0 / 0 | 3.0 / 0 | 3.0 / 0 | 5.8 / 821 | 5.0 / 600 | 3.2 / 7 |
-| Notre Dame 10M, 30 primitives | HDD | 262 MiB | 3.6 / 0 | 3.4 / 0 | 3.0 / 0 | 3.0 / 0 | 3.0 / 0 | 9.6 / 822 | 6.9 / 600 | — |
-| Lascaux 4.7M, 166 primitives | SSD | 325 MiB | 22.3 / 7130 | 25.4 / 7048 | 24.3 / 6820 | 24.2 / 6830 | 24.4 / 6837 | 28.8 / 7954 | 27.8 / 7686 | — |
-| Lascaux 4.7M, 166 primitives | HDD | 325 MiB | 61.5 / 7046 | 61.8 / 6990 | 57.5 / 6776 | 58.5 / 6797 | 59.5 / 6785 | 70.7 / 7883 | 67.8 / 7627 | — |
-| Dragon 3.1M, 1 primitive | SSD | 639 MiB | 2.6 / 0 | 2.6 / 0 | 2.2 / 0 | 1.8 / 0 | 1.8 / 0 | 2.6 / 12 | 2.6 / 0 | — |
-| Dragon 3.1M, 1 primitive | HDD | 639 MiB | 2.6 / 0 | 2.6 / 0 | 2.2 / 0 | 1.8 / 0 | 1.8 / 0 | 2.6 / 12 | 2.6 / 0 | — |
-| Lion, Draco (small) | SSD | 0 MiB | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | — |
-| Lion, Draco (small) | HDD | 0 MiB | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | — |
+| scan-10m 10M, 30 primitives | SSD | 262 MiB | 3.6 / 0 | 3.5 / 0 | 3.0 / 0 | 3.0 / 0 | 3.0 / 0 | 5.8 / 821 | 5.0 / 600 | 3.2 / 7 |
+| scan-10m 10M, 30 primitives | HDD | 262 MiB | 3.6 / 0 | 3.4 / 0 | 3.0 / 0 | 3.0 / 0 | 3.0 / 0 | 9.6 / 822 | 6.9 / 600 | — |
+| cave-b 4.7M, 166 primitives | SSD | 325 MiB | 22.3 / 7130 | 25.4 / 7048 | 24.3 / 6820 | 24.2 / 6830 | 24.4 / 6837 | 28.8 / 7954 | 27.8 / 7686 | — |
+| cave-b 4.7M, 166 primitives | HDD | 325 MiB | 61.5 / 7046 | 61.8 / 6990 | 57.5 / 6776 | 58.5 / 6797 | 59.5 / 6785 | 70.7 / 7883 | 67.8 / 7627 | — |
+| sculpture-3m 3.1M, 1 primitive | SSD | 639 MiB | 2.6 / 0 | 2.6 / 0 | 2.2 / 0 | 1.8 / 0 | 1.8 / 0 | 2.6 / 12 | 2.6 / 0 | — |
+| sculpture-3m 3.1M, 1 primitive | HDD | 639 MiB | 2.6 / 0 | 2.6 / 0 | 2.2 / 0 | 1.8 / 0 | 1.8 / 0 | 2.6 / 12 | 2.6 / 0 | — |
+| statue-a, Draco (small) | SSD | 0 MiB | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | — |
+| statue-a, Draco (small) | HDD | 0 MiB | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | 0.2 / 0 | — |
 
 ### Large models: memory and total writes (SSD, mean of 2 runs)
 
@@ -117,14 +117,14 @@ On ext4 or XFS, punching a hole drops cached pages without writing them, so it m
 | 44M, 4 meshes | compress | 0 / 293 / 1344 | 2077 / 2153 / 2589 | 674 / 370 / 369 |
 | 44M, 51 primitives | simplify | 5 / 257 / 1795 | 5082 / 5059 / 2987 | 3010 / 2190 / 26 |
 | 44M, 51 primitives | compress | 9 / 269 / 1229 | 4245 / 3671 / 2425 | 1474 / 252 / 132 |
-| Notre Dame 10M, 30 primitives | simplify | 5 / 257 / 444 | 1795 / 1789 / 736 | 654 / 380 / 380 |
-| Notre Dame 10M, 30 primitives | compress | 7 / 267 / 272 | 1037 / 852 / 850 | 370 / 370 / 369 |
-| Lascaux 4.7M, 166 primitives | simplify | 6 / 259 / 543 | 12075 / 12027 / 10905 | 12146 / 12083 / 10739 |
-| Lascaux 4.7M, 166 primitives | compress | 9 / 265 / 334 | 10977 / 10957 / 11020 | 10869 / 10564 / 10550 |
-| Dragon 3.1M, 1 primitive | simplify | 0 / 249 / 1110 | 1434 / 1434 / 1434 | 296 / 295 / 295 |
-| Dragon 3.1M, 1 primitive | compress | 3 / 252 / 570 | 975 / 975 / 963 | 56 / 56 / 56 |
-| Lion, Draco (small) | simplify | 4 / 0 / 0 | 34 / 26 / 25 | 10 / 10 / 9 |
-| Lion, Draco (small) | compress | 0 / 0 / 0 | 12 / 12 / 12 | 10 / 10 / 10 |
+| scan-10m 10M, 30 primitives | simplify | 5 / 257 / 444 | 1795 / 1789 / 736 | 654 / 380 / 380 |
+| scan-10m 10M, 30 primitives | compress | 7 / 267 / 272 | 1037 / 852 / 850 | 370 / 370 / 369 |
+| cave-b 4.7M, 166 primitives | simplify | 6 / 259 / 543 | 12075 / 12027 / 10905 | 12146 / 12083 / 10739 |
+| cave-b 4.7M, 166 primitives | compress | 9 / 265 / 334 | 10977 / 10957 / 11020 | 10869 / 10564 / 10550 |
+| sculpture-3m 3.1M, 1 primitive | simplify | 0 / 249 / 1110 | 1434 / 1434 / 1434 | 296 / 295 / 295 |
+| sculpture-3m 3.1M, 1 primitive | compress | 3 / 252 / 570 | 975 / 975 / 963 | 56 / 56 / 56 |
+| statue-a, Draco (small) | simplify | 4 / 0 / 0 | 34 / 26 / 25 | 10 / 10 / 9 |
+| statue-a, Draco (small) | compress | 0 / 0 / 0 | 12 / 12 / 12 | 10 / 10 / 10 |
 
 ### The shared-position search on the heap (simplify, 4 MiB budget otherwise, SSD, 2 runs)
 
@@ -132,11 +132,11 @@ On ext4 or XFS, punching a hole drops cached pages without writing them, so it m
 | --- | --- | --- |
 | 44M, 4 meshes | 55.1 s / 1862, 62.9 s / 1618 | 55.1 s / 2176, 54.5 s / 2614 |
 | 44M, 51 primitives | 44.9 s / 3372, 43.5 s / 2592 | 38.7 s / 2208, 38.7 s / 2208 |
-| Notre Dame 10M, 30 primitives | 10.0 s / 124, 15.0 s / 418 | 10.0 s / 0, 10.0 s / 0 |
+| scan-10m 10M, 30 primitives | 10.0 s / 124, 15.0 s / 418 | 10.0 s / 0, 10.0 s / 0 |
 
 Notes:
 - The HDD figures for the 4-mesh 44M scan's `simplify` at 4 MiB are faster than earlier measurements in docs/validation.md's field notes (55.5 s against 76.4 s): the earlier runs crossed the dirty threshold, these mostly didn't. Writeback depends on what else is dirty on the machine.
-- One Lascaux `simplify` run at 4 MiB on the SSD took 79 s and the other 28 s; the mean (54 s) hides that. Lascaux's writes are mostly its 8k textures, copied from the HDD to the output's disk, where no reflink is possible.
+- One cave-b `simplify` run at 4 MiB on the SSD took 79 s and the other 28 s; the mean (54 s) hides that. cave-b's writes are mostly its 8k textures, copied from the HDD to the output's disk, where no reflink is possible.
 - The 1 GiB budget lets the 4-mesh 44M scan write 0.5 GB instead of 2 GB: its largest arrays then fit. The 51-primitive scan still writes 2 GB.
 
 ## Code changes made for the experiment

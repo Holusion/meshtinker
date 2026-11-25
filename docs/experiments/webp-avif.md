@@ -14,7 +14,7 @@ The two formats are close to equivalent for eCorpus's viewer.
 
 ## Measurements
 
-`tools/experiments/textures/webp-avif.sh` on the six sources of [fast-textures.md](fast-textures.md#setup) (scan color maps of 2k, 4k and 8k, Notre Dame's 8k normal map, DamagedHelmet's 2k normal and ORM maps), through vips 8.16: libwebp 1.5 (lossy, `effort` 4 unless stated), and libheif 1.23 with aom 3.12 to encode AVIF (`effort` 4) and dav1d to decode. sharp, and so glTF-Transform's `textureCompress`, uses the same libraries. `webp-avif-summary.py` matches qualities. The rows are in [webp-avif.csv](webp-avif.csv).
+`tools/experiments/textures/webp-avif.sh` on the six sources of [fast-textures.md](fast-textures.md#setup) (scan color maps of 2k, 4k and 8k, scan-10m's 8k normal map, DamagedHelmet's 2k normal and ORM maps), through vips 8.16: libwebp 1.5 (lossy, `effort` 4 unless stated), and libheif 1.23 with aom 3.12 to encode AVIF (`effort` 4) and dav1d to decode. sharp, and so glTF-Transform's `textureCompress`, uses the same libraries. `webp-avif-summary.py` matches qualities. The rows are in [webp-avif.csv](webp-avif.csv).
 
 - **Quality** is PSNR and SSIM against the source (ImageMagick `compare`), not a perceptual metric such as SSIMULACRA2, which isn't installed.
 - **Sizes at equal quality:** for each WebP quality from 50 to 95, the size of an AVIF of the same PSNR, interpolated between AVIF qualities on a log scale.
@@ -82,9 +82,9 @@ So for diffuse textures, expect AVIF about 10 to 25 % smaller than WebP at equal
 ## Rendered models
 
 What counts is how a model looks in a viewer, not texture error. So the textures of 16 collection models were encoded with both codecs, the models rendered with each set, and each render scored with SSIMULACRA2 against the render with the model's own textures. The models are diverse:
-- stone, marble and metal scans with color maps only (akhenaton, mascaron, perrusson, the bell, the hermaphrodite, Liège, `34-johannisfriedhof`, the Chauvet cave);
-- objects with normal maps (golem, comb, pyxide, cup);
-- full PBR models (athlete, Ulysse, globe, kintsugi cup).
+- stone, marble and metal scans with color maps only (collection-01, collection-05, collection-08, collection-12, collection-16, collection-33, `collection-34`, collection-40);
+- objects with normal maps (collection-17, comb, collection-23, cup);
+- full PBR models (collection-27, collection-15, globe, collection-55 cup).
 
 That's 37 textures of 2k to 8k.
 
@@ -117,10 +117,10 @@ That's 37 textures of 2k to 8k.
 | 6× close-up | +8.0 (+4.3 to +12.8) | 0.68 |
 
 - **It holds at high quality:** for WebP points scoring 85 or more, the ratio is 0.76, and AVIF scores +1.1 at the same bytes.
-- **Diffuse color only, a median of 0.78** over the 8 models without normal maps, from 0.47 (the hermaphrodite's smooth marble) to 0.94 (`34-johannisfriedhof`'s noisy stone) and 0.84 (Liège). With normal maps, 0.74, down to 0.48 on the cup and the comb.
+- **Diffuse color only, a median of 0.78** over the 8 models without normal maps, from 0.47 (collection-16's smooth marble) to 0.94 (`collection-34`'s noisy stone) and 0.84 (collection-33). With normal maps, 0.74, down to 0.48 on the cup and the comb.
 - **Close-ups gain the most.** On the whole model, mipmapping hides most of either codec's loss, and the gap is a point of SSIMULACRA2.
 
-So rendering and a perceptual metric give AVIF less than PSNR on the textures does (0.6), and more than the published 10 to 15 % on photos. Diffuse textures sit at the top of the 10 to 25 % estimated above; the published caveat about noisy surfaces shows on `34-johannisfriedhof` only.
+So rendering and a perceptual metric give AVIF less than PSNR on the textures does (0.6), and more than the published 10 to 15 % on photos. Diffuse textures sit at the top of the 10 to 25 % estimated above; the published caveat about noisy surfaces shows on `collection-34` only.
 
 ### Fast mode: 2k textures under 1 s
 
@@ -159,7 +159,7 @@ Geometric means over models; time is the wall time of a 2k image on 4 cores.
 
 - **WebP is mostly good at effort 4**, its default: 6 % over effort 6, in 0.5 s instead of 0.85 s. Effort 2 is 11 % over.
 - **AVIF is mostly good at effort 4** (3 % over effort 6), but that is a step: effort 3 is 10 % over in a quarter of the time (0.58 s against 2.2 s; 1.8 s of CPU against 8.4 s). Efforts 5 and 6 save 1 to 3 % more for 1.5 to 2.5 times effort 4's time.
-- **AVIF efforts 0 and 1 are unreliable.** At quality 50, effort 1 made 11 textures of 7 models 2 to 140 times larger than effort 2: near-uniform normal maps worst (the comb's 2k normal map is 1.4 KB at every other effort, 356 KB at effort 1; the globe's 6.8 KB against 474 KB), occlusion and color maps too. Effort 0 made the hermaphrodite's marble 1.9 times larger (520 KB against 270 KB) and an occlusion map 1.6 times. Effort 2 is the fastest without such outliers.
+- **AVIF efforts 0 and 1 are unreliable.** At quality 50, effort 1 made 11 textures of 7 models 2 to 140 times larger than effort 2: near-uniform normal maps worst (the comb's 2k normal map is 1.4 KB at every other effort, 356 KB at effort 1; the globe's 6.8 KB against 474 KB), occlusion and color maps too. Effort 0 made collection-16's marble 1.9 times larger (520 KB against 270 KB) and an occlusion map 1.6 times. Effort 2 is the fastest without such outliers.
 - **At their mostly-good efforts, AVIF is 25 to 30 % smaller than WebP:**
 
   | AVIF effort against WebP effort 4, same rendered score | All qualities | WebP scoring ≥ 70 | ≥ 85 | Wall time | CPU |

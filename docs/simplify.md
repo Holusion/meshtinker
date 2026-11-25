@@ -26,7 +26,7 @@ Each primitive is simplified alone, so a border that two primitives share would 
 
 ## Triangle soups
 
-A primitive whose triangles share no vertices, three per triangle, gives meshoptimizer no edges to collapse: every edge is a border. Some local scans are written this way: the 634-primitive scan (2.0 million vertices for 672,000 faces) loses 3 % of its faces at the default error, and `Lascaux_seamed_8k` (4.7 million faces in 166 non-indexed primitives) 0.03 %. Run `weld` first, as eCorpus runs glTF-Transform's `weld`: on four soups, `simplify` then keeps 2.5 to 12 % of the faces, where it removed almost none ([weld.md](weld.md#results)). The campus scan doesn't merge until its flat normals are made smooth.
+A primitive whose triangles share no vertices, three per triangle, gives meshoptimizer no edges to collapse: every edge is a border. Some local scans are written this way: the 634-primitive scan (2.0 million vertices for 672,000 faces) loses 3 % of its faces at the default error, and `cave-b` (4.7 million faces in 166 non-indexed primitives) 0.03 %. Run `weld` first, as eCorpus runs glTF-Transform's `weld`: on four soups, `simplify` then keeps 2.5 to 12 % of the faces, where it removed almost none ([weld.md](weld.md#results)). The campus scan doesn't merge until its flat normals are made smooth.
 
 ## How far the error is from the distance
 

@@ -45,12 +45,12 @@ Release build, inputs on a spinning disk and in the page cache, outputs on an SS
 
 | Model | Vertices | After weld | Time | Faces | Simplify | Weld, simplify | Compress | Weld, compress | Simplify, compress | Weld, simplify, compress |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `Lascaux_seamed_8k` (no indices) | 14.1 M | 2.65 M | 1.2 s | 4.72 M | 4.71 M | 586,000 | 90.7 MB | 18.0 MB | 90.6 MB | 2.9 MB |
-| `ISTI_dataset/RWT180` (dragon) | 9.31 M | 2.00 M | 1.0 s | 3.10 M | 3.10 M | 264,000 | 71.6 MB | 17.4 MB | 71.6 MB | 3.4 MB |
-| `24-998-193-1-1-high` | 3.00 M | 512,000 | 0.4 s | 1.00 M | 1.00 M | 43,000 | 22.6 MB | 4.2 MB | 22.6 MB | 0.21 MB |
-| `55-tasse-melissa-kintsugi` | 3.00 M | 545,000 | 0.3 s | 1.00 M | 1.00 M | 24,900 | 30.8 MB | 6.0 MB | 30.8 MB | 0.26 MB |
+| `cave-b` (no indices) | 14.1 M | 2.65 M | 1.2 s | 4.72 M | 4.71 M | 586,000 | 90.7 MB | 18.0 MB | 90.6 MB | 2.9 MB |
+| `sculpture-3m` | 9.31 M | 2.00 M | 1.0 s | 3.10 M | 3.10 M | 264,000 | 71.6 MB | 17.4 MB | 71.6 MB | 3.4 MB |
+| `collection-24` | 3.00 M | 512,000 | 0.4 s | 1.00 M | 1.00 M | 43,000 | 22.6 MB | 4.2 MB | 22.6 MB | 0.21 MB |
+| `collection-55` | 3.00 M | 545,000 | 0.3 s | 1.00 M | 1.00 M | 24,900 | 30.8 MB | 6.0 MB | 30.8 MB | 0.26 MB |
 | campus (flat normals) | 2.00 M | 2.00 M | 0.2 s | 672,000 | 649,000 | 649,000 | 12.8 MB | 12.8 MB | 12.4 MB | 12.4 MB |
-| `01-akhenaton-nefertiti` (already welded) | 850,000 | 850,000 | 0.1 s | 1.66 M | 13,600 | 13,600 | 7.9 MB | 7.9 MB | 97 KB | 97 KB |
+| `collection-01` (already welded) | 850,000 | 850,000 | 0.1 s | 1.66 M | 13,600 | 13,600 | 7.9 MB | 7.9 MB | 97 KB | 97 KB |
 
 - **On triangle soups, `simplify` does nothing without `weld`.** Every edge of a soup is a border, which meshoptimizer keeps. With `weld` first, the same error takes them to 2.5 to 12 % of their faces.
 - **`compress` alone gains 4 to 5 times from it**, through fewer vertices and meshopt's index codec.

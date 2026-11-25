@@ -47,7 +47,7 @@ basisu v2.50, 4 threads, on two scan color maps (sources below). PSNR is against
 ## Still to measure
 
 - **WebP, AVIF and JPEG** at half and quarter size, and JPEG at full size, with fast encoder settings, on the same images, with the same metrics as the KTX2 rows. WebP and AVIF at full size, effort 0 included, are in [webp-avif.md](webp-avif.md): AVIF wins on size at equal quality, and at effort 0 costs about WebP's time.
-- **More images:** at least a normal map and an ORM map (sources below), and a model made of many small pages (`32-campus-romainville`, 634 primitives of 256² to 512² images), where per-image overhead may dominate.
+- **More images:** at least a normal map and an ORM map (sources below), and a model made of many small pages (`collection-32`, 634 primitives of 256² to 512² images), where per-image overhead may dominate.
 - **Viewer memory per model:** the sum over the model's images of the GPU size, for each candidate. The figure can be computed rather than measured: texels × bits per texel × 4/3 for mips.
 
 On the machine: ImageMagick 7.1.1 reads and writes WebP (libwebp 1.5.0) and AVIF (libheif 1.23.6), and `vips` is installed. There's no standalone `cwebp`, `avifenc` or `cjpeg`. Time the encoders through `vips` (`vips webpsave`, `heifsave --compression av1`, `jpegsave`), which has less overhead than ImageMagick's 16-bit pipeline, or ask before installing the command-line encoders. Whatever wins must then be built into meshtinker as a vendored library (AGENTS.md). For JPEG, stb_image_write is already vendored but is slow and makes large files, and libjpeg-turbo would be the alternative. For WebP that means libwebp. For AVIF, libavif with an AV1 encoder, which is large. Note the build cost of each candidate in the result.
@@ -56,11 +56,11 @@ On the machine: ImageMagick 7.1.1 reads and writes WebP (libwebp 1.5.0) and AVIF
 
 The scripts are in `tools/experiments/textures/`. They write only to the directories given as arguments: use the session's scratchpad, never the repository or the models' folders.
 
-1. **Sources:** `sources.sh <dir>` writes the PNG sources (compression level 1, so that every encoder decodes the same input). It reads the local models in place, read-only, and DamagedHelmet from `test/assets` (`tools/fetch-assets.sh`):
-   - `color2k`: `collection/output/40-chauvet-sdf403/baseColor_1.jpg`, 2048²;
-   - `color4k`: `collection/output/01-akhenaton-nefertiti/Akhenaton_Nefertiti.jpg`, 4000²;
-   - `color8k`: `collection/output/17-golem/golem_u0_v0_diffuse.jpg`, 8192²;
-   - `normal8k`: Notre Dame en Vaux `..._10M_normal.1003.jpg`, 8192²;
+1. **Sources:** `sources.sh <dir> <color2k> <color4k> <color8k> <normal8k>` writes the PNG sources (compression level 1, so that every encoder decodes the same input). It reads the four local images in place, read-only, by the paths given, and DamagedHelmet from `test/assets` (`tools/fetch-assets.sh`):
+   - `color2k`: `collection-40`'s base color, 2048²;
+   - `color4k`: `collection-01`'s base color, 4000²;
+   - `color8k`: `collection-17`'s base color, 8192²;
+   - `normal8k`: `scan-10m`'s normal map, 8192²;
    - `normal2k` and `orm2k`: DamagedHelmet's normal and metallicRoughness maps, 2048² (`glb_images.py` extracts them).
 2. **basisu:** build v2.50 from source: `git clone --depth 1 --branch v2_50 https://github.com/BinomialLLC/basis_universal`, then `cmake -DCMAKE_BUILD_TYPE=Release -DBASISU_EXAMPLES=OFF` and build. The binary is `bin/basisu` in the source tree. `ktx` 4.4.2 (`/usr/bin/ktx`) is eCorpus's baseline, and decodes KTX2 for the PSNR.
 3. **Runs:**
