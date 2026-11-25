@@ -57,7 +57,7 @@ An image whose AVIF isn't smaller than its source keeps its source, and its text
 - **Left as they are, each with a counted warning:**
   - a texture whose only source is WebP in a build without libwebp (`image-format-unsupported`), as is an image in a format other than PNG, JPEG and WebP; where WebP is decoded, a WebP-only texture is encoded, and kept when its AVIF isn't smaller;
   - with `--min-size N`, an image whose longest side is N or less, without a warning;
-  - an image whose file is missing (`image-missing`), that can't be decoded (`image-decode-failed`), or that libavif fails on (`image-encode-failed`);
+  - an image that can't be decoded (`image-decode-failed`), or that libavif fails on (`image-encode-failed`);
   - an image only slots unknown to `avif` use (`image-slot-unknown`).
 - **Files:** the new image keeps the source image's `name`, `extras` and extensions, and its file keeps the source's stem: `wall.jpg` becomes `wall.avif`. Each file is written as soon as it is encoded.
 

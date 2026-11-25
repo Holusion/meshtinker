@@ -72,7 +72,9 @@ Layout normalizedLayout(const Document& document, const Selection& selection, co
 // (docs/normalized-profile.md, "How commands get normalized input"): the
 // normalized layout of the file, as a Document (Document::normalized). Its
 // indices are those of the file `import` writes; its buffers and byte offsets
-// are the input's. Warns as normalizedLayout does.
+// are the input's. Warns as normalizedLayout does. Rejects the model
+// (`missing-image`) if an image file is missing or refused, as `import` and
+// `inspect` do, so commands never see ImageData::missing.
 Document readNormalized(const std::filesystem::path& path, const ReadOptions& options,
                         common::Diagnostics& diagnostics);
 

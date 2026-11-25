@@ -176,7 +176,7 @@ void mergeImages(const gltf::Document& document, Layout& layout) {
             continue;
         }
         const gltf::ImageData& image = document.image(source);
-        if (image.missing || image.bytes.size == 0) {
+        if (image.bytes.size == 0) {
             continue;
         }
         keys[i] = std::to_string(image.bytes.size);

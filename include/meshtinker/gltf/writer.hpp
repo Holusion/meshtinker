@@ -22,8 +22,7 @@ struct WrittenFile {
 // The name each image is written under, by image index. Images that share a
 // source file share a name.
 //
-// - An image read from a file keeps that file's name, without its folders. So
-//   does a missing image file, which the writer then doesn't write.
+// - An image read from a file keeps that file's name, without its folders.
 // - An image from a buffer view or data URI is `<stem>_texture_<index>.<ext>`,
 //   with the extension of its format.
 // - A name that collides with an earlier one, or with `<stem>.gltf` or
@@ -48,6 +47,8 @@ private:
 // Writes `layout` as separate files in `directory`: `<stem>.gltf`, one
 // `<stem>.bin` holding the bytes of every buffer view, and one file per image.
 // `document` provides the bytes. Returns the files written, the .gltf first.
+// An image whose file is missing (ImageData::missing) has none: the readers
+// reject such a model, and both writers throw std::logic_error for one.
 //
 // The layout's JSON passes through, except for:
 // - `buffers`: the .bin first (left out when there are no bytes), then each
@@ -66,9 +67,8 @@ std::vector<WrittenFile> writeSeparate(const Document& document, const Layout& l
 // Writes `layout` as one GLB file at `path`. The BIN chunk is buffer 0: the
 // buffer views as writeSeparate lays them out in its .bin, then the bytes of
 // each image, in a new buffer view at the end of `bufferViews`, with its
-// `mimeType`. Images that share a source file share a view. A missing image
-// keeps its `uri`. Throws a Failure (exit code 1, `glb-too-large`) for a
-// model over the format's 4 GiB.
+// `mimeType`. Images that share a source file share a view. Throws a Failure
+// (exit code 1, `glb-too-large`) for a model over the format's 4 GiB.
 std::vector<WrittenFile> writeGlb(const Document& document, const Layout& layout, const std::filesystem::path& path,
                                   common::Outputs& outputs);
 

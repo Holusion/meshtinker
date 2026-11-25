@@ -6,7 +6,7 @@ How `meshtinker dedup` stores identical objects once, and why. The code is `src/
 
 Each kind is compared once the kinds it refers to are merged, in this order, so that two materials whose textures were copies of each other compare equal:
 
-1. **Images** with the same bytes, whatever their name, URI or MIME type. A missing image file stays apart.
+1. **Images** with the same bytes, whatever their name, URI or MIME type.
 2. **Samplers**, then **textures**, then **materials**: equal JSON but for `name`. Textures compare their merged images and samplers, materials their merged textures.
 3. **Accessors** with equal JSON but for `name`, `bufferView` and `byteOffset`, in buffer views with the same `target`, holding the same elements bit for bit. Strides don't matter: an accessor in an interleaved view merges with an equal one in a view of its own.
 4. **Meshes**: equal JSON but for `name`, once their accessors and materials are merged. Nodes that drew copies of a mesh then draw one mesh.

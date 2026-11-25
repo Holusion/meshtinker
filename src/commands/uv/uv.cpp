@@ -231,7 +231,6 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         bool transform = false;
         bool repeats = false;
         bool undecodable = false;
-        bool missing = false;
         bool compressed = false;
         for (const std::size_t m : materials) {
             for (const TextureUse& use : uses[m]) {
@@ -253,9 +252,7 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         }
         for (const std::size_t i : images) {
             const gltf::ImageData& image = document.image(layout.image_sources[i]);
-            if (image.missing) {
-                missing = true;
-            } else if (image.header && image.header->format == gltf::ImageFormat::ktx2) {
+            if (image.header && image.header->format == gltf::ImageFormat::ktx2) {
                 compressed = true;
             } else if (!image.header || !decodable(image.header->format)) {
                 undecodable = true;
@@ -269,11 +266,6 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         };
         if (compressed) {
             skip("image-already-compressed", "materials with KTX2 images are left as they are: run uv before ktx");
-            finish();
-            continue;
-        }
-        if (missing) {
-            skip("image-missing", "materials whose image files are missing are left as they are");
             finish();
             continue;
         }

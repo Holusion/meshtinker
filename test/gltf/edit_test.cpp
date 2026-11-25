@@ -114,7 +114,7 @@ struct PlainCopy {
 // A command that edits nothing writes what `import` writes, byte for byte.
 TEST_CASE(unedited_layout_writes_the_import) {
     for (const test::Fixture& f : test::fixtures()) {
-        if (f.name == "refs-absolute" || f.name == "invalid") {
+        if (f.name == "refs-absolute" || f.name == "invalid" || f.expected.contains("error")) {
             continue;
         }
         const fs::path imported = test::workDirectory("edit/unedited/" + f.name + "/import");

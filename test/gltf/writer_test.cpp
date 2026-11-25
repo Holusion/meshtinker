@@ -58,7 +58,8 @@ Document writeAndRead(const test::Fixture& f, const fs::path& directory) {
 
 TEST_CASE(round_trips_every_fixture) {
     for (const test::Fixture& f : test::fixtures()) {
-        if (f.name.rfind("refs-", 0) == 0) {
+        // Rejected fixtures have a missing image, which the writers refuse.
+        if (f.name.rfind("refs-", 0) == 0 || f.expected.contains("error")) {
             continue;
         }
         const fs::path directory = test::workDirectory("writer/" + f.name);
@@ -98,7 +99,8 @@ TEST_CASE(round_trips_every_fixture) {
 
 TEST_CASE(writes_every_fixture_as_glb) {
     for (const test::Fixture& f : test::fixtures()) {
-        if (f.name.rfind("refs-", 0) == 0) {
+        // Rejected fixtures have a missing image, which the writers refuse.
+        if (f.name.rfind("refs-", 0) == 0 || f.expected.contains("error")) {
             continue;
         }
         const fs::path directory = test::workDirectory("writer-glb/" + f.name);
@@ -112,7 +114,7 @@ TEST_CASE(writes_every_fixture_as_glb) {
         }
         const Document output = Document::read(directory / "out.glb");
         CHECK(output.container() == gltf::Container::glb);
-        // One file: nothing beside the GLB but missing images' names.
+        // One file: nothing beside the GLB.
         std::size_t entries = 0;
         for ([[maybe_unused]] const auto& entry : fs::directory_iterator(directory)) {
             ++entries;
@@ -128,11 +130,8 @@ TEST_CASE(writes_every_fixture_as_glb) {
         }
         for (std::size_t i = 0; i < data.images_count; ++i) {
             CHECK(sameBytes(source.image(i).bytes, output.image(i).bytes));
-            CHECK_EQ(output.image(i).missing, source.image(i).missing);
-            if (!source.image(i).missing) {
-                CHECK(output.image(i).origin == gltf::ImageOrigin::buffer_view);
-                CHECK(output.json()["images"][i].contains("mimeType"));
-            }
+            CHECK(output.image(i).origin == gltf::ImageOrigin::buffer_view);
+            CHECK(output.json()["images"][i].contains("mimeType"));
         }
         std::size_t with_data = 0;
         for (std::size_t i = 0; i < output.data().buffers_count; ++i) {

@@ -55,7 +55,7 @@ Each of these is a counted warning, and the material is left as it is:
 - `KHR_texture_transform` (`uv-texture-transform`);
 - UVs outside [0, 1] on a `REPEAT` or `MIRRORED_REPEAT` sampler, which is tiling on purpose (`uv-texture-repeats`);
 - morph targets with `TEXCOORD_n` deltas (`uv-morphed-texcoords`);
-- images it can't decode: KTX2 (`image-already-compressed`, run `uv` before `ktx`), textures whose only source is a WebP or AVIF extension, and formats the build doesn't decode (`image-format-unsupported`), missing files (`image-missing`), and corrupt ones (`image-decode-failed`) ([images.md](images.md#formats));
+- images it can't decode: KTX2 (`image-already-compressed`, run `uv` before `ktx`), textures whose only source is a WebP or AVIF extension, and formats the build doesn't decode (`image-format-unsupported`), and corrupt ones (`image-decode-failed`) ([images.md](images.md#formats));
 - images that aren't whole multiples of each other in size (`uv-image-sizes`);
 - points, lines, or a primitive without the texture coordinate set its material uses (`uv-unreadable-geometry`);
 - a UV mesh xatlas refuses, or vertices left in no chart (`uv-pack-failed`, `uv-unplaced-vertices`).

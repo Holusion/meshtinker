@@ -1,5 +1,8 @@
 #include "meshtinker/gltf/layout.hpp"
 
+#include "meshtinker/common/failure.hpp"
+#include "meshtinker/common/references.hpp"
+
 #include <algorithm>
 #include <numeric>
 #include <set>
@@ -227,7 +230,17 @@ Document readNormalized(const std::filesystem::path& path, const ReadOptions& op
     Document source = Document::read(path, options);
     const Selection selection = selectScene(source);
     const Layout layout = normalizedLayout(source, selection, diagnostics);
-    return Document::normalized(std::move(source), layout);
+    Document document = Document::normalized(std::move(source), layout);
+    // The normalized model keeps only what its scene reaches, so a missing
+    // image is one the scene uses: rejected as analysis::inspect rejects it.
+    for (std::size_t i = 0; i < document.data().images_count; ++i) {
+        const ImageData& image = document.image(i);
+        if (image.missing) {
+            throw common::rejected("missing-image",
+                                   "image '" + image.reference + "': " + common::refused_reference_message);
+        }
+    }
+    return document;
 }
 
 } // namespace meshtinker::gltf
