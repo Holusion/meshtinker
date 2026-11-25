@@ -1,5 +1,7 @@
 #include "encode.hpp"
 
+#include "meshtinker/common/failure.hpp"
+
 #include <encoder/basisu_comp.h>
 
 #include <mutex>
@@ -40,6 +42,15 @@ struct Encoder::State {
 };
 
 Encoder::Encoder(unsigned threads) {
+#if BASISU_SUPPORT_SSE
+    // basisu is built with SSE 4.1 and calls one of its kernels without
+    // checking the CPU (vendor/README.md): on an older processor, encoding
+    // would die of an illegal instruction instead of failing with a message.
+    if (__builtin_cpu_supports("sse4.1") == 0) {
+        throw common::Failure(common::ExitCode::machine, "cpu-unsupported",
+                              "this processor lacks SSE 4.1: encoding KTX2 needs an x86-64-v2 processor");
+    }
+#endif
     static std::once_flag initialized;
     std::call_once(initialized, [] { basisu::basisu_encoder_init(); });
     state_ = std::make_unique<State>(threads < 1 ? 1 : threads);
