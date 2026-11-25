@@ -59,7 +59,8 @@ Commands are the meshtinker-<command> executables next to meshtinker, then on PA
 
 Every command follows the same conventions:
 
-- Data goes to stdout, everything else (warnings, errors, progress) to stderr. Warnings are counted: one line per kind of problem, with up to three examples.
+- Data goes to stdout, everything else (warnings, errors, progress) to stderr. Warnings are counted: one line per kind of problem, with up to three examples. `--log-level` (`trace`, `debug`, `info`, `warn`, `error`; default `info`) sets the least severe messages printed, and `--log-format json` prints each as one JSON object per line, with `level`, `message` and, for warnings and errors, their `code` ([docs/logs.md](docs/logs.md)).
+- Text shows sizes in decimal units (`12.3 MB`) and times as `1 min 23 s`; JSON keeps bytes and seconds.
 - Commands that report statistics print text, or one JSON object with `--json`. With `--json`, stdout holds a JSON object even when the command fails: it then has an `error` with a `code`, the `exitCode` and a `message`.
 - Outputs are never overwritten, and appear only once the command succeeds. A failed or interrupted command leaves nothing behind.
 - A model may only reference files inside its own folder, unless `--trusted` is given.
@@ -100,7 +101,7 @@ meshtinker export work/ scan-opt.glb   # writes the last stage as .glb or .gltf
 
 ### optimize
 
-Runs the other commands on a chain in its workspace, with the steps and options that suit the model, and writes the result as a `.glb` or `.gltf`: `import`, then `normals`, `weld`, `dedup`, `simplify`, `uv`, `ktx` or `avif`, and `compress`, each when the model needs it, then `export`. `--quality` sets `simplify`'s error and the textures' size and quality, after eCorpus's presets; the default slow preset writes KTX2 textures, which stay compressed on the GPU, and `--preset fast` makes a temporary model quickly, without `uv` and with AVIF at a low effort. Textures and geometry are fitted to 256 MB of GPU memory, best effort, by lowering the textures' size; images of 512 and less (unless there are too many for the budget), and Draco or meshopt geometry, are kept as they are; in fast, textures are sized for AVIF to take about 6 s, and the geometry steps run however long they take. Each step's warnings appear as it runs. A step that fails is left out with a warning (`step-failed`), and the next one goes on from the stage before it; only a failing `import` or `export` makes `optimize` fail, with its exit code. When the output would be larger than the input for little GPU memory saved, the input is written as imported (`input-kept`). The report lists the steps with their times, the bytes and the estimated GPU memory before and after; with `--json`, each step's own report, and its diagnostics tagged with the step. An interruption reaches the running step before the workspace goes. [docs/optimize.md](docs/optimize.md) has the rules each step follows, in `src/commands/optimize/plan.cpp`.
+Runs the other commands on a chain in its workspace, with the steps and options that suit the model, and writes the result as a `.glb` or `.gltf`: `import`, then `normals`, `weld`, `dedup`, `simplify`, `uv`, `ktx` or `avif`, and `compress`, each when the model needs it, then `export`. `--quality` sets `simplify`'s error and the textures' size and quality, after eCorpus's presets; the default slow preset writes KTX2 textures, which stay compressed on the GPU, and `--preset fast` makes a temporary model quickly, without `uv` and with AVIF at a low effort. Textures and geometry are fitted to 256 MB of GPU memory, best effort, by lowering the textures' size; images of 512 and less (unless there are too many for the budget), and Draco or meshopt geometry, are kept as they are; in fast, textures are sized for AVIF to take about 6 s, and the geometry steps run however long they take. Each step's warnings appear as it runs, and each step is logged as it starts and ends, with its time; `--log-level` and `--log-format` are passed on to the steps. A step that fails is left out with a warning (`step-failed`), and the next one goes on from the stage before it; only a failing `import` or `export` makes `optimize` fail, with its exit code. When the output would be larger than the input for little GPU memory saved, the input is written as imported (`input-kept`). The report lists the steps with their times, the bytes and the estimated GPU memory before and after; with `--json`, each step's own report, and its diagnostics tagged with the step. An interruption reaches the running step before the workspace goes. [docs/optimize.md](docs/optimize.md) has the rules each step follows, in `src/commands/optimize/plan.cpp`.
 
 ```console
 $ meshtinker optimize --help
@@ -134,6 +135,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
                                 directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### inspect
@@ -180,6 +185,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the input's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### import
@@ -222,6 +231,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### placeholder
@@ -260,6 +273,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the output's
                                 directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### compress
@@ -298,6 +315,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### normals
@@ -343,6 +364,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### weld
@@ -381,6 +406,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### dedup
@@ -416,6 +445,10 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### simplify
@@ -458,6 +491,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### ktx
@@ -497,6 +534,10 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### avif
@@ -554,6 +595,10 @@ OPTIONS:
           --json                Print the result as one JSON object on stdout, even on failure
           --trusted             Let the model reference files outside its folder: absolute paths,
                                 `..` leading out, symlinks
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### uv
@@ -592,6 +637,10 @@ OPTIONS:
           --tmp-dir TEXT:DIR    Where to create the temporary workspace (default: the chain, else
                                 the output's directory)
           --keep-tmp            Keep the temporary workspace and print its path, for debugging
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ### export
@@ -629,6 +678,10 @@ OPTIONS:
           --stage N             Write the stage with this number instead of the last: 0 is
                                 import's
           --json                Print the result as one JSON object on stdout, even on failure
+          --log-level <trace|debug|info|warn|error> 
+                                Print stderr messages of this level and above (default info)
+          --log-format <text|json> 
+                                Write stderr messages as text, or as JSON lines (default text)
 ```
 
 ## Architecture

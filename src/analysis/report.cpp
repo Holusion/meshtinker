@@ -1,4 +1,5 @@
 #include "meshtinker/analysis/report.hpp"
+#include "meshtinker/common/format.hpp"
 
 #include <cstdio>
 
@@ -10,20 +11,6 @@ using Json = nlohmann::ordered_json;
 template <typename T>
 Json optional(const std::optional<T>& value) {
     return value ? Json(*value) : Json(nullptr);
-}
-
-std::string bytes(std::uint64_t size) {
-    char text[32];
-    if (size < 1000) {
-        std::snprintf(text, sizeof text, "%llu B", static_cast<unsigned long long>(size));
-    } else if (size < 1000ull * 1000) {
-        std::snprintf(text, sizeof text, "%.1f kB", static_cast<double>(size) / 1e3);
-    } else if (size < 1000ull * 1000 * 1000) {
-        std::snprintf(text, sizeof text, "%.1f MB", static_cast<double>(size) / 1e6);
-    } else {
-        std::snprintf(text, sizeof text, "%.2f GB", static_cast<double>(size) / 1e9);
-    }
-    return text;
 }
 
 std::string percent(const std::optional<double>& fraction) {
@@ -147,12 +134,12 @@ nlohmann::ordered_json toJson(const Report& report, Json header, const common::D
 void printText(std::ostream& out, const Report& report) {
     const bool data = report.data;
     if (data) {
-        out << "Files: " << bytes(report.byteSize()) << " in " << plural(report.files.size(), "file", "files") << '\n';
+        out << "Files: " << common::formatBytes(report.byteSize()) << " in " << plural(report.files.size(), "file", "files") << '\n';
     } else {
         out << "Files: not read, besides the model file\n";
     }
     for (const Report::File& file : report.files) {
-        out << "  " << file.name << "  " << roleName(file.role) << ", " << bytes(file.size) << '\n';
+        out << "  " << file.name << "  " << roleName(file.role) << ", " << common::formatBytes(file.size) << '\n';
     }
     if (!report.required_files.empty()) {
         out << "Requires: ";
@@ -201,7 +188,7 @@ void printText(std::ostream& out, const Report& report) {
             if (image.width && image.height) {
                 out << " " << *image.width << "x" << *image.height;
             }
-            out << ", " << bytes(image.byte_size) << ", occupancy " << percent(image.occupancy);
+            out << ", " << common::formatBytes(image.byte_size) << ", occupancy " << percent(image.occupancy);
         }
         for (std::size_t i = 0; i < image.uses.size(); ++i) {
             out << (i == 0 ? ", used as " : ", ") << image.uses[i].slot;

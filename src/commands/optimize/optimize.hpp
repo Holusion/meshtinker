@@ -129,6 +129,8 @@ struct Report {
 struct Options {
     Settings settings;
     bool trusted = false;
+    // `--log-level` and `--log-format` for each step, as optimize got them.
+    std::vector<std::string> log_arguments;
     // Where the `meshtinker-<name>` executables are looked for first.
     std::filesystem::path own_directory;
 };

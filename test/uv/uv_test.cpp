@@ -1,12 +1,14 @@
 #include "commands/uv/uv.hpp"
 
 #include "meshtinker/common/diagnostics.hpp"
+#include "meshtinker/common/log.hpp"
 #include "meshtinker/common/outputs.hpp"
 #include "meshtinker/common/workspace.hpp"
 #include "meshtinker/gltf/geometry.hpp"
 #include "meshtinker/gltf/layout.hpp"
 #include "meshtinker/gltf/primitive_data.hpp"
 #include "meshtinker/image/image.hpp"
+#include "support/capture.hpp"
 #include "support/check.hpp"
 #include "support/fixtures.hpp"
 
@@ -193,6 +195,25 @@ TEST_CASE(repacked_textures_read_the_same) {
             test::fail(std::string(fixture) + ": sampled difference " + std::to_string(difference), __FILE__, __LINE__);
         }
     }
+}
+
+// Each image is logged at info as it is baked.
+TEST_CASE(each_image_is_logged) {
+    common::logger().configure("meshtinker-uv", common::LogLevel::info, common::LogFormat::text);
+    const test::StderrCapture capture;
+    const Run run = repack("atlas", "atlas-log");
+    std::size_t baked = 0;
+    for (const uv::Group& group : run.report.groups) {
+        for (const uv::GroupImage& image : group.images) {
+            if (!image.output.empty()) {
+                ++baked;
+                CHECK(capture.text().find(image.source + " " + std::to_string(image.width) + "x" +
+                                          std::to_string(image.height) + " -> " + image.output) != std::string::npos);
+            }
+        }
+    }
+    CHECK(baked > 0);
+    CHECK(capture.text().find("meshtinker-uv: Baked image 1 of ") != std::string::npos);
 }
 
 TEST_CASE(images_keep_their_ratio_and_groups_share_a_layout) {

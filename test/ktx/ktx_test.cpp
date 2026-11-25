@@ -1,8 +1,10 @@
 #include "commands/ktx/ktx.hpp"
 
 #include "meshtinker/common/diagnostics.hpp"
+#include "meshtinker/common/log.hpp"
 #include "meshtinker/common/outputs.hpp"
 #include "meshtinker/image/image.hpp"
+#include "support/capture.hpp"
 #include "support/check.hpp"
 #include "support/fixtures.hpp"
 
@@ -127,6 +129,28 @@ std::uint32_t fullChain(std::uint32_t width, std::uint32_t height) {
 }
 
 } // namespace
+
+// Each image is logged at info as it is done, with its place in the count.
+TEST_CASE(each_image_is_logged) {
+    common::logger().configure("meshtinker-ktx", common::LogLevel::info, common::LogFormat::text);
+    std::string text;
+    {
+        const test::StderrCapture capture;
+        encode("textures", "textures-log");
+        text = capture.text();
+    }
+    for (int i = 1; i <= 9; ++i) {
+        CHECK(text.find("meshtinker-ktx: Encoded image " + std::to_string(i) + " of 9: ") != std::string::npos);
+    }
+    CHECK(text.find("normal.png 16x16 -> normal.ktx2 16x16, 612 B -> ") != std::string::npos);
+    common::logger().configure("meshtinker-ktx", common::LogLevel::warn, common::LogFormat::text);
+    {
+        const test::StderrCapture capture;
+        encode("textures", "textures-quiet");
+        CHECK(capture.text().empty());
+    }
+    common::logger().configure("meshtinker-ktx", common::LogLevel::info, common::LogFormat::text);
+}
 
 TEST_CASE(slots_decide_codec_transfer_function_and_alpha) {
     Run run = encode("textures", "textures");

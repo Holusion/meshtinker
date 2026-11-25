@@ -1,5 +1,7 @@
 #include "compress.hpp"
 
+#include "meshtinker/common/format.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -32,7 +34,7 @@ void printText(std::ostream& out, const Report& report) {
         out << ", kept " << kept << " as they were";
     }
     out << '\n';
-    out << "Geometry: " << report.input_bytes << " -> " << report.output_bytes << " bytes";
+    out << "Geometry: " << common::formatBytes(report.input_bytes) << " -> " << common::formatBytes(report.output_bytes);
     if (report.input_bytes > 0) {
         std::ostringstream ratio;
         ratio << std::fixed << std::setprecision(1)
@@ -42,7 +44,7 @@ void printText(std::ostream& out, const Report& report) {
     out << '\n';
     out << "Positions: " << report.quantized_meshes << " meshes quantized, " << report.float_meshes << " kept float\n";
     for (const gltf::WrittenFile& file : report.files) {
-        out << "  " << file.name << "  " << file.size << " bytes\n";
+        out << "  " << file.name << "  " << common::formatBytes(file.size) << '\n';
     }
 }
 

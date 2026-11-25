@@ -3,7 +3,6 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
-#include <ostream>
 #include <string>
 #include <vector>
 
@@ -39,8 +38,9 @@ public:
 
     // The `diagnostics` array of JSON reports (docs/inspect-report.md).
     nlohmann::ordered_json toJson() const;
-    // One line each: `<program>: warning: <message> [<code>] (<count> times, e.g. <examples>)`.
-    void print(std::ostream& out, const std::string& program) const;
+    // One message each through common::logger(), at `warn` or `error`, with
+    // the diagnostic's code: `<message> (<count> times, e.g. <examples>)`.
+    void log() const;
 
 private:
     std::vector<Diagnostic> entries_;

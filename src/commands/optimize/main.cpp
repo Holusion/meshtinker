@@ -44,6 +44,7 @@ int run(int argc, char** argv) {
     command.addWorkspaceOptions();
     return command.run(argc, argv, [&] {
         options.trusted = command.trusted();
+        options.log_arguments = command.logArguments();
         options.own_directory = common::currentExecutable(argv[0]).parent_path();
         command.outputDirectory();
         common::Workspace workspace = command.workspace();

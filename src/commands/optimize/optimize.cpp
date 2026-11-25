@@ -3,6 +3,8 @@
 #include "meshtinker/common/cleanup.hpp"
 #include "meshtinker/common/exit_code.hpp"
 #include "meshtinker/common/failure.hpp"
+#include "meshtinker/common/format.hpp"
+#include "meshtinker/common/log.hpp"
 #include "meshtinker/common/process.hpp"
 #include "meshtinker/common/subcommands.hpp"
 
@@ -104,8 +106,9 @@ public:
 
     void warned(const std::string& code, const std::string& message) override { diagnostics_.warn(code, message); }
 
-    // `meshtinker-<command> --json [--trusted] options... targets...`, then
-    // what its report says about the model. A step that fails or dies leaves
+    // `meshtinker-<command> --json [--trusted] [log options] options...
+    // targets...`, then what its report says about the model. Each step logs
+    // as it starts and ends, so that a caller reading stderr sees which runs. A step that fails or dies leaves
     // the chain as it was: unless it is `required`, optimize warns and goes on
     // from the stage before it.
     void runStep(const std::string& command, const std::vector<std::string>& options,
@@ -123,9 +126,20 @@ public:
         if (options_.trusted && command == "import") {
             arguments.emplace_back("--trusted");
         }
+        arguments.insert(arguments.end(), options_.log_arguments.begin(), options_.log_arguments.end());
         arguments.insert(arguments.end(), options.begin(), options.end());
         arguments.insert(arguments.end(), targets.begin(), targets.end());
 
+        common::Log& log = common::logger();
+        log.info("Running " + command);
+        if (log.enabled(common::LogLevel::debug)) {
+            // The options, without the targets: messages name no folders.
+            std::string line = arguments.front();
+            for (std::size_t i = 1; i < arguments.size() - targets.size(); ++i) {
+                line += " " + arguments[i];
+            }
+            log.debug(line);
+        }
         const auto start = std::chrono::steady_clock::now();
         const common::ChildResult result = common::runChild(*program, arguments);
         StepRecord step;
@@ -134,6 +148,8 @@ public:
         step.exit_code = result.exit_code;
         step.signal = result.signal;
         step.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        const bool failed = result.signal != 0 || result.exit_code != 0;
+        log.info(command + (failed ? " failed after " : " took ") + common::formatDuration(step.seconds));
         step.report = Json::parse(result.output, nullptr, false);
         if (step.report.is_discarded()) {
             step.report = Json();
@@ -143,7 +159,7 @@ public:
         if (common::interruption() != 0) {
             throw Failure(ExitCode::internal, "interrupted", "Interrupted during " + command);
         }
-        if (result.signal != 0 || result.exit_code != 0) {
+        if (failed) {
             const Json error = step.report.is_object() ? step.report.value("error", Json::object()) : Json::object();
             const std::string what =
                 result.signal != 0 ? "was killed by signal " + std::to_string(result.signal)

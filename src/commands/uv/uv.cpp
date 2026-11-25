@@ -2,6 +2,8 @@
 
 #include "bake.hpp"
 
+#include "meshtinker/common/format.hpp"
+#include "meshtinker/common/log.hpp"
 #include "meshtinker/gltf/edit.hpp"
 #include "meshtinker/gltf/geometry.hpp"
 #include "meshtinker/gltf/graph.hpp"
@@ -642,16 +644,25 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
         std::uint64_t texels_written = 0;
         std::map<std::size_t, std::size_t> new_image;
         std::size_t k = 0;
+        // Each image is logged as it is baked, for callers following progress
+        // (docs/logs.md).
+        const auto position = [&] {
+            return "image " + std::to_string(k + 1) + " of " + std::to_string(images.size()) + " for " +
+                   group.materials.front();
+        };
         for (const std::size_t i : images) {
             const std::size_t source = layout.image_sources[i];
             if (uniform[k]) {
+                common::logger().info("Kept " + position() + " as it was: " + source_names[source] + ", uniform");
                 texels_written += static_cast<std::uint64_t>(group.images[k].width) * group.images[k].height;
                 ++k;
                 continue;
             }
+            const Clock::time_point image_start = Clock::now();
             std::string error;
             std::optional<image::Image> decoded = image::decode(document.image(source).bytes, error);
             if (!decoded) {
+                common::logger().info("Stopped at " + position() + ": " + source_names[source] + " can't be decoded");
                 break;
             }
             const std::uint32_t divisor = divisors[k];
@@ -679,6 +690,12 @@ Report uv(const fs::path& input, const fs::path& directory, const std::string& s
             group.images[k].output = name;
             group.images[k].output_width = baked.image.width;
             group.images[k].output_height = baked.image.height;
+            common::logger().info("Baked " + position() + ": " + source_names[source] + " " +
+                                  std::to_string(group.images[k].width) + "x" + std::to_string(group.images[k].height) +
+                                  " -> " + name + " " + std::to_string(baked.image.width) + "x" +
+                                  std::to_string(baked.image.height) + ", " +
+                                  common::formatBytes(document.image(source).bytes.size) + " -> " +
+                                  common::formatBytes(png.size()) + " in " + common::formatDuration(secondsSince(image_start)));
             ++k;
             document.releaseMappedPages();
         }

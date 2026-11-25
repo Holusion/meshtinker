@@ -1,5 +1,7 @@
 #include "uv.hpp"
 
+#include "meshtinker/common/format.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -75,8 +77,8 @@ void printText(std::ostream& out, const Report& report) {
         after += group.status == Status::repacked ? group.texels_after : group.texels_before;
         repacked += group.status == Status::repacked ? 1 : 0;
     }
-    out << "Repacked " << repacked << " of " << report.groups.size() << " material groups, " << std::fixed
-        << std::setprecision(1) << report.seconds << " s\n";
+    out << "Repacked " << repacked << " of " << report.groups.size() << " material groups, "
+        << common::formatDuration(report.seconds) << '\n';
     out << "Texels: " << before << " -> " << after << " ("
         << (before == 0 ? std::string("-") : percent(static_cast<double>(after) / static_cast<double>(before))) << ")\n";
     for (const Group& group : report.groups) {
