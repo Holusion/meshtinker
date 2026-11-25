@@ -72,10 +72,13 @@ Validation runs on models anyone can reproduce: generated fixtures and the pinne
 {
   "sources": { "local": { "root": "/path/to/models" } },
   "assets": [
-    { "id": "local/scan-large", "source": "local", "path": "scan/scan.gltf", "covers": ["gltf", "large", "photogrammetry"] }
-  ]
+    { "id": "local/scan-44m", "source": "local", "path": "scan/scan.gltf", "covers": ["gltf", "large", "photogrammetry"] }
+  ],
+  "aliases": { "scan-44m": ["Real_Folder_Name", "a word that identifies it"] }
 }
 ```
+
+Anything committed (docs, CSVs, scripts, commit messages, branch names) names a local model by its label in `aliases`, never by a name in its list: folder and file names, and the words that identify the model. Asset ids are the labels too, after `local/`. A model added to the machine gets its label before it appears anywhere. Collection models are `collection-NN`, by their number; image files are named by their model's label and their role (`collection-40`'s base color). `node tools/corpus.mjs leaks` lists the tracked files that still hold a listed name, whole words in any case, and exits with 1 if any does; run it before committing results. Scripts that read local files take their paths as arguments, or the root from `node tools/corpus.mjs root local`, rather than writing them down.
 
 Select models by tag instead of hard-coding paths:
 
