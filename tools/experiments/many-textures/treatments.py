@@ -165,7 +165,7 @@ def outputs(m, work):
                    ("Q1-2048", "q1-2048/model.gltf")]
     for prefix in ("t4i", "t4u"):
         candidates += sorted(((f"T4{prefix[2]}-{d[4:]}", f"{d}/model.gltf") for d in os.listdir(work)
-                              if d.startswith(prefix + "-")), key=lambda c: -int(c[0].split("-")[1]))
+                              if d.startswith(prefix + "-") and os.path.isdir(f"{work}/{d}")), key=lambda c: -int(c[0].split("-")[1]))
     for label, path in candidates:
         if os.path.exists(f"{work}/{path}"):
             found.append((label, f"{work}/{path}", f"/exp/{name}/{path}"))
