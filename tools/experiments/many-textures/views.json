@@ -33,5 +33,61 @@
     "inside-east": "eye=0.35,0.4,0.5&target=0.9,0.35,0.5&fov=60",
     "inside-east-z2": "eye=0.35,0.4,0.5&target=0.9,0.35,0.5&fov=30",
     "inside-east-z4": "eye=0.35,0.4,0.5&target=0.9,0.35,0.5&fov=15"
+  },
+  "statue-b-large": {
+    "full-30": "az=30&el=30",
+    "full-270": "az=270&el=30",
+    "full-330": "az=330&el=15",
+    "head-z2": "az=330&el=15&zoom=2&target=0.5,0.45,0.5",
+    "head-z4": "az=330&el=15&zoom=4&target=0.5,0.45,0.5"
+  },
+  "collection-02": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-270": "az=270&el=30",
+    "carving-z2": "az=150&el=30&zoom=2&target=0.5,0.5,0.5",
+    "carving-z4": "az=150&el=30&zoom=4&target=0.5,0.55,0.5"
+  },
+  "collection-23": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-270": "az=270&el=30",
+    "panel-z2": "az=150&el=20&zoom=2&target=0.5,0.55,0.5",
+    "panel-z4": "az=150&el=20&zoom=4&target=0.5,0.6,0.5"
+  },
+  "collection-31": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-270": "az=270&el=30",
+    "map-z2": "az=30&el=20&zoom=2&target=0.5,0.55,0.5",
+    "map-z4": "az=30&el=20&zoom=4&target=0.5,0.6,0.5"
+  },
+  "scan-44m": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-200": "az=200&el=30",
+    "engraving-z2": "az=150&el=10&zoom=2&target=0.5,0.6,0.5",
+    "engraving-z4": "az=150&el=10&zoom=4&target=0.5,0.65,0.5"
+  },
+  "collection-13": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-270": "az=270&el=30",
+    "glaze-z2": "az=270&el=10&zoom=2&target=0.5,0.5,0.5",
+    "glaze-z4": "az=270&el=10&zoom=4&target=0.5,0.55,0.5"
+  },
+  "collection-52": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-270": "az=270&el=30",
+    "wood-z2": "az=30&el=30&zoom=2&target=0.5,0.5,0.5",
+    "wood-z4": "az=30&el=30&zoom=4&target=0.45,0.5,0.5"
+  },
+  "collection-36": {
+    "full-30": "az=30&el=30",
+    "full-150": "az=150&el=30",
+    "full-270": "az=270&el=30",
+    "panel-z2": "az=270&el=30&zoom=2&target=0.5,0.5,0.5",
+    "panel-z4": "az=270&el=30&zoom=4&target=0.5,0.55,0.5"
   }
 }

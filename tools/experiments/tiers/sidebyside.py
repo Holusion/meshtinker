@@ -27,7 +27,7 @@ def labelled(src, text, out):
     subprocess.run(["vips", "embed", out + ".t.v", out + ".e.v", "12", "8", "1200", "44"], check=True)
     subprocess.run(["vips", "bandjoin", f"{out}.e.v {out}.e.v {out}.e.v", out + ".l.v"], check=True)
     subprocess.run(["vips", "extract_band", src, out + ".r.v", "0", "--n", "3"], check=True)
-    subprocess.run(["vips", "arrayjoin", f"{out}.l.v {out}.r.v", out, "--across", "1"], check=True)
+    subprocess.run(["vips", "join", f"{out}.l.v", f"{out}.r.v", out, "vertical"], check=True)
     for ext in (".t.v", ".e.v", ".l.v", ".r.v"):
         os.remove(out + ext)
 

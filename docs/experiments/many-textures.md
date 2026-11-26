@@ -92,7 +92,7 @@ So the pilot's reading stands once masked: object-a has about one octave of over
 2. **Where to stop.** For each model, image quality against texels kept, at several viewing distances. Is there a knee, and does it fall at the same headroom on object-a and on the campus? Does the budget's 1792 for object-a sit before or after it?
 3. **Viewing mode.** Does the cave lose visibly at the side that the knee on the objects would give it, from inside? If so, the rule needs a fact that tells caves and rooms from objects: a scene camera inside the bounds (eCorpus's scene setup), an option given by eCorpus, or texture detail as measured in the pilot.
 4. **Atlases.** Does merging images into a few repacked pages pay: for the campus, 634 images into one or two 4k pages (35 M texels in use, 2.1 pages at full size); for object-a, 103 pages at 0.47 occupancy into fewer and fuller ones? Gains to measure: GPU memory at the same texel density, file size, draw calls (one per primitive and material today) and load time in the viewer.
-5. **Detail as a fact.** Does the masked pilot measure (shrink factor under a loss threshold) predict the knee of question 2, image by image? If it does, it can set each image's side without a density rule.
+5. **Detail as a fact: two budget tiers.** Can a measure of the detail a model's textures hold tell the models that should be allowed over the 256 MB budget, because they need the bytes, from those for which the budget, or even 128 MiB, won't show? The high tier matters most; a wrong low tier blurs a model, so it needs calibration on known cases. Answered in [Two tiers](#two-tiers-the-detail-a-model-holds).
 
 ## Treatments
 
@@ -239,20 +239,95 @@ So re-encoding a KTX2 image that the plan shrinks, for a fivefold memory gain on
 
 ### Question 5: detail as a fact
 
-**Answer: not shown. The octave ratios order the models, but the losses fall steadily on every model, so no image gives a side at which to stop.**
-
-- **What the ratios predict:**
-  - object-a (E0/E1 0.64 to 0.80): renders that lose least per texel removed.
-  - The cave (1.6 to 1.7): renders that lose most from inside.
-  - The campus (0.5 to 0.8): renders that lose most once the images are shrunk, since they start at a headroom of 1.44.
-- **Why no side follows:** the scores show no knee to predict (question 2), and the views of the three models differ too much to compare their losses at one headroom.
-- **What is left:** the measure may still order images within a model, for a budget that would shrink the softest images first. That needs per-image renders, which this experiment didn't do.
+**Answer: in part. The measure finds the model that needs its bytes (the cave), and the models a 128 MiB budget doesn't hurt, but it can't tell object-a from the cave, and it overstates how far a low-contrast image can shrink.** The sweep above shows no knee to predict, so the question was reworded around two tiers and measured on more models: [Two tiers](#two-tiers-the-detail-a-model-holds).
 
 ### Rules and follow-ups
 
 - **Kept:** the re-encoding rule as applied (question 1), and the budget as the only rule for size (questions 2 and 3). `plan.cpp` is unchanged beyond the rule.
 - **New TODO items** (TODO.md): `uv`'s side after repacking (object-a's pages are baked at 1792, then encoded at 2560 beside the 18 images `uv` left); an atlas command, once a phone measures draw calls.
 - **Pending decisions** (TODO.md): no density cap; atlases deferred.
+
+## Two tiers: the detail a model holds
+
+Run on 2026-11-25 and 26, with the commands of this branch. `tools/experiments/tiers/` remakes everything: `scan.py` (`inspect` of every local model), `calibrate.sh` (the known cases), `measure.py` (the measures on a model's images), `predict.py` (the tiers), `render.py` (treatments, renders, scores), `sidebyside.py` and `summary.py`. The CSVs are beside this document (`many-textures-tiers-*.csv`). The renders and the side-by-side pairs, with an index and the by-eye calls, stay in `build/exp-tiers/` (`sidebyside/index.md`).
+
+**The idea.** Budget a model by the texels it actually holds, not by the texels it has. A model whose textures hold more than the budget may stay larger (high tier, the candidates for splitting or dynamic LOD later). A model that holds little gets 128 MiB (low tier) and loads faster. The rest keep 256 MiB.
+
+### The measure
+
+- **Oversampling factor of an image**, on the texels the scene samples (`masked.sh`, with `inspect --occupancy-maps`): 2 when its masked ÷2 PSNR (shrunk by 2 and enlarged back) is at least 30.4 dB, 4 when its ÷4 PSNR is also at least 35.7 dB, else 1. The second candidate, the octave ratio, gives 2 when E0/E1 is under 0.80, and 4 when E1/E2 is also under 0.35.
+- **Effective GPU memory of a model:** each image at its longest side over its factor, counted as the budget counts it (ETC1S at 0.5 byte a texel for color, UASTC at 1 for data, ×4/3 for mips), plus the geometry. Images beyond the 16 largest by texels in use get the measured ones' share.
+- **Tiers:** high over 384 MiB (1.5 times the budget: the budget's side would cut real detail), low at 128 MiB or less, standard between.
+- The thresholds were fixed from the calibration below, and the predictions committed (`many-textures-tiers-predictions.csv`), before anything was rendered.
+
+### Calibration
+
+Two sharp images, cave-a's image 3 (4096²) and DamagedHelmet's base color (2048², the fixture's), each made into known cases: upsampled 2× and 4× (lanczos3), 2× with Gaussian noise of σ 4 levels, the source as a JPEG at quality 20, and 2× as a JPEG at quality 30 (`many-textures-tiers-calibration.csv`).
+
+| Case | cave-a 3: ÷2 PSNR, ÷4 PSNR, E0/E1, E1/E2 | Helmet: the same | Expected factor |
+| --- | --- | --- | --- |
+| Sharp | 25.0, 23.7, 1.73, 1.37 | 28.6, 27.3, 1.32, 0.56 | 1 |
+| Upsampled 2× | 34.1, 29.6, 0.33, 0.91 | 36.3, 32.4, 0.27, 0.45 | 2 |
+| Upsampled 4× | 41.2, 40.0, 0.30, 0.28 | 39.9, 39.1, 0.28, 0.24 | 4 |
+| 2× with noise | 32.2, 28.8, 0.48, 0.93 | 33.6, 30.9, 0.49, 0.47 | 2 |
+| JPEG 20 | 27.4, 25.3, 0.99, 1.37 | 32.3, 29.8, 0.57, 0.55 | 1 (or 2: quality 20 removes detail) |
+| 2× as JPEG 30 | 33.4, 29.6, 0.38, 0.91 | 35.8, 32.4, 0.31, 0.45 | 2 |
+
+- **Both measures read every case right**, with thresholds in the middle of the gaps: ÷2 PSNR 28.6 dB at most for sharp sources against 32.2 dB at least for upsampled ones (30.4), and E0/E1 1.32 at least against 0.49 at most (0.80, the geometric middle).
+- **Blocking doesn't count as detail:** JPEG at 30 on an upsampled image still reads 2× (B8, band 0's energy at 8×8 block edges, is 1.4 to 1.6 there, against 1.0 without blocking). Noise moves both measures toward "sharp" (E0/E1 0.33 → 0.48) without crossing the threshold.
+- **The calibration leaves a wide gap**, and real soft images fall in it: object-a's images give 29.2 to 33.2 dB and E0/E1 0.56 to 0.84, on both sides of the thresholds.
+
+### The sample and the predictions
+
+All 72 local models were inspected (`many-textures-tiers-scan.csv`) and the 57 textured ones measured. The budgets' sides are computed as `plan.cpp` computes them, from 8192 (Highest's cap) so that the budget, not High's 4096, sets them. Over the 256 MiB budget as ETC1S at their sources' sides: object-a, the cave (`cave-a-raw`), `scan-44m`, `object-b` and `site-a`. `object-b`'s two images are 16384², which SwiftShader can't draw, and `site-a` is over by its geometry alone (2 GB), so neither was rendered. Under the budget, the sample covers many images (`statue-b-large`, `collection-02`), large images (`collection-23`, `collection-31`, three and four of 8192), many small soft ones (the campus, `collection-32`), and three single 8k images where the measures agree (`collection-13`) or disagree (`collection-52`, `collection-36`). `tools/experiments/tiers/sample.json` lists why each was chosen.
+
+Over the corpus, the PSNR measure puts 53 models in the low tier, 1 in the standard tier and 3 in the high tier. The ratio puts 53, 2 and 2. They agree on 56 of 57: `object-b` is high by PSNR (its 16k images read 1×) and standard by the ratio (2×). Most collection models have one 8k image, which both measures call 2× to 4× too large; they fit 128 MiB at full size anyway (43 MiB).
+
+### Renders
+
+The treatments share one geometry, `import`'s output (`scan-44m`'s simplified at High's error, since 44 M faces don't render), with `ktx --max-size` as T2: REF at the sources' side (full detail, ETC1S; object-a is its own, being ETC1S already), B256 and B128 at the sides the budgets give, and NEED at the measure's side (the median needed side by texels in use). SSIMULACRA2 against REF; "full" is the mean of three full views, z2 and z4 a textured point at zoom 2 and 4 (the cave's: from inside at 30° and 15°). By eye: the zoom-4 views at 1:1.
+
+| Model | Predicted tier, effective MiB (PSNR; ratio) | Treatment | Side | GPU MiB | full | z2 | z4 | By eye at zoom 4 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| cave-a-raw | high, 608; high, 608 | REF | 4096 | 608 | | | | |
+| | | B256 | 2560 | 244 | 73 | 41 | 29 | Slightly softer near floor |
+| | | B128 | 1792 | 125 | 73 | 39 | 16 | Clearly blurred |
+| object-a | high, 698; high, 389 | REF | 4096 | 1110 | | | | |
+| | | B256 | 1792 | 221 | 74 | 62 | 51 | Softer: the sand grain loses its sparkle; shapes intact |
+| | | B128 | 1280 | 118 | 69 | 54 | 39 | A little softer again |
+| scan-44m | standard, 249; standard, 350 | REF | 4096 | 377 | | | | |
+| | | B256 | 3072 | 246 | 66 | 53 | 52 | Alike |
+| | | B128 | 1536 | 120 | 66 | 55 | 42 | Slightly softer wood grain |
+| statue-b-large | low, 60; low, 58 | B128 | 2816 | 110 | 64 | 53 | 57 | Alike |
+| | | NEED | 2048 | 60 | 69 | 62 | 64 | Alike |
+| collection-02 | low, 32; low | B128 | 3072 | 118 | 84 | 78 | 78 | Alike |
+| | | NEED | 1024 | 32 | 88 | 83 | 64 | Visibly softer: stone grain gone |
+| collection-23 | low, 41; low | B128 | 6144 | 124 | 70 | 65 | 20 | Alike |
+| | | NEED | 4096 | 57 | 78 | 69 | −15 | Barely softer |
+| collection-31 | low, 22; low | B128 | 6144 | 120 | 69 | 44 | 21 | Slightly softer and lighter; text legible |
+| | | NEED | 2048 | 14 | 72 | 43 | −52 | Text illegible |
+| collection-13 | low, 7; low | NEED | 2048 | 7 | 81 | 59 | 23 | Alike |
+| collection-52 | low, 8; low | NEED | 2048 | 8 | 89 | 84 | 72 | Alike |
+| collection-36 | low, 15; low | NEED | 4096 | 15 | 86 | 83 | 63 | Alike |
+| collection-32 | low, 82; low, 49 | NEED | 512 | 82 | 96 | 95 | 94 | Identical (few images over 512) |
+
+REF scores are left out (it is the reference); the full figures are in `many-textures-tiers-results.csv`.
+
+- **The scores mislead on 8k sources at zoom 4.** `collection-23`'s NEED scores −15 and its B128 20, and both look like REF side by side. The textures are soft at that zoom, and a shift in ETC1S's colors over a smooth area weighs heavily. Off a side that divides the source by a power of two (6144, 2816), mip levels land elsewhere too (see [How to read the scores](#how-to-read-the-scores)). By eye decides here.
+- **Full views:** no pair showed a difference at full view (scores 64 to 96), as in question 2.
+
+### Where the measure was right, and where it wasn't
+
+- **High tier, right on the cave.** At the budget's side the cave loses a little at 15° from inside, and at 128 MiB it blurs clearly. It needs its bytes.
+- **High tier, object-a: not what the user expected.** Both measures call it high (698 and 389 MiB): its images read 29 to 33 dB, around the threshold, so most count as holding their texels. The renders don't contradict it outright: at the budget's side its sand grain softens at zoom 4, as the cave's floor does, though it scores better (51 against 29). The measure can't put object-a below the cave: by PSNR it ranks above it. Telling them apart needs another fact, such as the viewing mode (question 3) or the user's intent.
+- **Standard tier, right on `scan-44m`:** the budget's 3072 looks alike, and 128 MiB softens it slightly.
+- **Low tier, right on all four models that 128 MiB cuts** (`statue-b-large`, `collection-02`, `collection-23`, `collection-31`): 128 MiB looks alike, or slightly softer on the globe's text. The tier held because 128 MiB cuts these models by a fraction of an octave (2816 to 6144), not because the factors are right.
+- **The factor itself overstates low-contrast images.** Shrinking to the measure's side failed on two of seven models: the globe (`collection-31`, 4× by PSNR, its text becomes illegible) and `collection-02` (4×, its stone grain goes). Both are light, low-contrast surfaces whose PSNR stays high whatever their detail: PSNR measures the loss in levels, not against the image's own contrast. It held on five: `collection-13`, `collection-52` and `statue-b-large` at 4× or 2×, `collection-36` and `collection-23` at 2×. The ratio, which doesn't depend on contrast, called `collection-52` and `collection-36` sharp, which the renders don't support, and was untested at its own sides on the two failures.
+- **So the low tier is safe as a fixed 128 MiB budget, not as "shrink each image to its measured side".** A per-image side would need a contrast-normalized loss (the ÷2 loss over the image's own masked variance), calibrated on a low-contrast case such as the globe.
+
+### Suggested rule
+
+Pending review: effective GPU memory over 384 MiB, high tier: the budget doesn't cut the model, and it is flagged as a candidate for splitting or dynamic LOD. Effective memory of 128 MiB or less, low tier: a 128 MiB budget. Otherwise 256 MiB. The factor counts at most 2× per image until a contrast-normalized measure is calibrated: with that cap, none of the 57 measured models changes tier, and no image is taken two octaves down. `plan.cpp` is unchanged.
 
 ## Deliverables
 
@@ -263,6 +338,7 @@ So re-encoding a KTX2 image that the plan shrinks, for a fivefold memory gain on
 ## Setup
 
 - `tools/experiments/many-textures/`: `glb_images.py` (images out of a GLB by index), `area.py` (surface area, Blender), `downup.sh` and `octaves.sh` (the pilot), `masked.sh` (the pilot on the sampled texels, with `inspect --occupancy-maps`), `treatments.py` (runs, measures, renders and scores the treatments of one model; `views.json` holds the views), `summary.py` (the tables below, against B or another treatment), `atlas_rects.py` (T4's atlases) and `atlas.py` (Blender's island packer, which fails on the campus: [Question 4](#question-4-atlases)).
+- `tools/experiments/tiers/`: the two-tier budget ([Two tiers](#two-tiers-the-detail-a-model-holds)), in `build/exp-tiers/` with `tools/viewer/serve.py exp=build/exp-tiers` running for the renders.
 - `tools/viewer/serve.py raw=... normalized=... exp=build/exp-texels` must be running for the renders; `screenshot.mjs --view` draws every view of a model from one load.
 - Work in `build/exp-texels/` (gitignored, on the local disk): the scratch directory is on tmpfs, and a sweep writes several hundred MB a model.
 - The cave's `optimize` at High encodes 56 4k images: expect several minutes a run.
