@@ -1,0 +1,19 @@
+{
+  "$comment": "The models rendered (render.py), with why; every other textured model is measured and predicted only. Labels are corpus labels (docs/validation.md, 'The corpus').",
+  "cave-a-raw": "over the budget (607 MiB as ETC1S); known to need its texels (high tier expected)",
+  "object-a": "over the budget (1,110 MiB, ETC1S already); known to hold about one octave too many (standard expected)",
+  "scan-44m": "over the budget (299 MiB of textures, 16 UDIM images); geometry simplified at High's error to render",
+  "statue-b-large": "under the budget (228 MiB), 14 images at 0.34 occupancy: 128 MiB gives 2816",
+  "collection-02": "under the budget (192 MiB), 16 images: 128 MiB gives 3072, the measure says 1024",
+  "collection-23": "under the budget (217 MiB), three 8k images: 128 MiB gives 6144",
+  "collection-31": "under the budget (214 MiB), four 8k images almost fully used (0.99): 128 MiB gives 6144",
+  "collection-32": "many small soft images (634), already under 128 MiB: halving is known to show",
+  "collection-13": "one 8k image both measures call 4x oversampled",
+  "collection-52": "one 8k image the measures disagree on: PSNR 4x, octave ratio 1x",
+  "collection-36": "one 8k image the measures disagree on: PSNR 2x, octave ratio 1x",
+  "not rendered": {
+    "object-b": "over the budget only at its sources' 16384 side, which SwiftShader can't draw (8192 at most)",
+    "site-a": "over the budget by its geometry alone (2 GB); its one 8k image fits",
+    "skull-a, specimen (raw)": "OBJ, which meshtinker doesn't read"
+  }
+}
